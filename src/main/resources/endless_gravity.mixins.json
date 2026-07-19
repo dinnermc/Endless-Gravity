@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dinner.dev.endless_gravity.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "SoundEngineMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
