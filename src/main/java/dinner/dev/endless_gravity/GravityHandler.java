@@ -2,6 +2,7 @@ package dinner.dev.endless_gravity;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
@@ -27,7 +28,7 @@ public class GravityHandler {
         Level level = player.level();
 
         if (level.dimension() != Level.END) return;
-        if (player.onGround() || player.isInWater() || player.isShiftKeyDown() || player.isFallFlying()) return;
+        if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
         if (player.getAbilities().flying) return;
 
         double offset = Config.COMMON.playerGravityOffset.get();
@@ -67,16 +68,36 @@ public class GravityHandler {
             projectile.setDeltaMovement(
                     projectile.getDeltaMovement().add(0, offset, 0)
             );
+        } else if (entity instanceof FallingBlockEntity block) {
+            if (!Config.COMMON.enableBlockGravity.get()) return;
+            double offset = Config.COMMON.blockGravityOffset.get();
+            block.setDeltaMovement(
+                    block.getDeltaMovement().add(0, offset, 0)
+            );
         }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onFallDamage(LivingFallEvent event) {
-        if (!Config.COMMON.disableFallDamage.get()) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         if (player.level().dimension() != Level.END) return;
 
-        event.setDamageMultiplier(0.0F);
-        event.setDistance(0.0F);
+        int mode = Config.COMMON.fallDamageMode.get();
+
+        if (mode == 1) {
+            event.setDamageMultiplier(0.0F);
+            event.setDistance(0.0F);
+        } else if (mode == 2) {
+            double velY = Math.abs(player.getDeltaMovement().y);
+            double minVel = Config.COMMON.fallDamageMinVelocity.get();
+            if (velY < minVel) {
+                event.setCanceled(true);
+                return;
+            }
+            double scale = Config.COMMON.fallDamageVelocityScale.get();
+            float velocityDamage = (float) (velY * scale);
+            event.setDamageMultiplier(1.0F);
+            event.setDistance(velocityDamage + 3.0F);
+        }
     }
 }

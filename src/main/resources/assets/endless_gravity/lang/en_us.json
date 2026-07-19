@@ -1,5 +1,4 @@
 {
-  "itemGroup.endless_gravity": "Endless Gravity",
   "endless_gravity.config.title": "Endless Gravity Settings",
   "endless_gravity.config.section.gravity": "--- Gravity Offsets ---",
   "endless_gravity.config.section.effects": "--- Effects ---",
@@ -11,7 +10,7 @@
   "endless_gravity.config.enableThrownGravity": "Thrown Projectile Gravity",
   "endless_gravity.config.enableParticles": "Particle Gravity",
   "endless_gravity.config.enableLowPassFilter": "Audio Filter",
-  "endless_gravity.config.disableFallDamage": "Fall Damage Immunity",
+  "endless_gravity.config.enableBlockGravity": "Falling Block Gravity",
   "endless_gravity.config.playerGravityOffset": "Player Gravity Offset",
   "endless_gravity.config.itemGravityOffset": "Item Gravity Offset",
   "endless_gravity.config.arrowGravityOffset": "Arrow Gravity Offset",
@@ -19,6 +18,10 @@
   "endless_gravity.config.particleGravityMultiplier": "Particle Gravity Multiplier",
   "endless_gravity.config.lowPassGain": "Filter Volume",
   "endless_gravity.config.lowPassGainHF": "Filter High Frequencies",
+  "endless_gravity.config.blockGravityOffset": "Falling Block Gravity Offset",
+  "endless_gravity.config.fallDamageMode": "Fall Damage Mode",
+  "endless_gravity.config.fallDamageVelocityScale": "Velocity Damage Scale",
+  "endless_gravity.config.fallDamageMinVelocity": "Min Velocity Threshold",
   "endless_gravity.config.sableGravityY": "Sable Gravity (Y)",
   "endless_gravity.config.sablePressure": "Sable Pressure",
   "endless_gravity.config.sableDrag": "Sable Drag",
@@ -26,5 +29,8 @@
   "endless_gravity.config.restartWarning": "Restart world to apply Sable changes",
   "endless_gravity.config.resetDefaults": "Reset to Defaults",
   "endless_gravity.config.true": "ON",
-  "endless_gravity.config.false": "OFF"
+  "endless_gravity.config.false": "OFF",
+  "endless_gravity.config.fallDamageMode.normal": "Normal",
+  "endless_gravity.config.fallDamageMode.disabled": "Disabled",
+  "endless_gravity.config.fallDamageMode.velocity": "Velocity-Based"
 }

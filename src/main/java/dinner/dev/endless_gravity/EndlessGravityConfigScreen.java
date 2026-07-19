@@ -42,7 +42,11 @@ public class EndlessGravityConfigScreen extends Screen {
     private double lowPassGainHF;
 
     // Gameplay
-    private boolean disableFallDamage;
+    private int fallDamageMode;
+    private double fallDamageVelocityScale;
+    private double fallDamageMinVelocity;
+    private boolean enableBlockGravity;
+    private double blockGravityOffset;
 
     // Sable
     private double sableGravityY;
@@ -60,7 +64,11 @@ public class EndlessGravityConfigScreen extends Screen {
     private Button enableLowPassFilterToggle;
     private ConfigSlider filterGainSlider;
     private ConfigSlider filterHFSlider;
-    private Button disableFallDamageToggle;
+    private Button fallDamageModeToggle;
+    private ConfigSlider velocityScaleSlider;
+    private ConfigSlider minVelocitySlider;
+    private Button enableBlockGravityToggle;
+    private ConfigSlider blockGravitySlider;
     private ConfigSlider sablePrioritySlider;
     private ConfigSlider sableGravityYSlider;
     private ConfigSlider sablePressureSlider;
@@ -94,7 +102,11 @@ public class EndlessGravityConfigScreen extends Screen {
         enableLowPassFilter = Config.COMMON.enableLowPassFilter.get();
         lowPassGain = Config.COMMON.lowPassGain.get();
         lowPassGainHF = Config.COMMON.lowPassGainHF.get();
-        disableFallDamage = Config.COMMON.disableFallDamage.get();
+        fallDamageMode = Config.COMMON.fallDamageMode.get();
+        fallDamageVelocityScale = Config.COMMON.fallDamageVelocityScale.get();
+        fallDamageMinVelocity = Config.COMMON.fallDamageMinVelocity.get();
+        enableBlockGravity = Config.COMMON.enableBlockGravity.get();
+        blockGravityOffset = Config.COMMON.blockGravityOffset.get();
 
         if (sableLoaded) {
             sableGravityY = Config.COMMON.sableGravityY.get();
@@ -153,13 +165,36 @@ public class EndlessGravityConfigScreen extends Screen {
         addHeader(y, "endless_gravity.config.section.gameplay");
         y += 12;
 
-        disableFallDamageToggle = addScroll(Button.builder(
-                toggleLabel("endless_gravity.config.disableFallDamage", disableFallDamage),
+        fallDamageModeToggle = addScroll(Button.builder(
+                fallDamageModeLabel(),
                 b -> {
-                    disableFallDamage = !disableFallDamage;
-                    b.setMessage(toggleLabel("endless_gravity.config.disableFallDamage", disableFallDamage));
+                    fallDamageMode = (fallDamageMode + 1) % 3;
+                    b.setMessage(fallDamageModeLabel());
+                    velocityScaleSlider.active = (fallDamageMode == 2);
                 }
         ).bounds(x, y, w, 20).build());
+
+        velocityScaleSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.fallDamageVelocityScale",
+                fallDamageVelocityScale, 0.1, 10.0, v -> fallDamageVelocityScale = v, false));
+        velocityScaleSlider.active = (fallDamageMode == 2);
+
+        minVelocitySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.fallDamageMinVelocity",
+                fallDamageMinVelocity, 0.0, 5.0, v -> fallDamageMinVelocity = v, false));
+        minVelocitySlider.active = (fallDamageMode == 2);
+
+        y += gap;
+        enableBlockGravityToggle = addScroll(Button.builder(
+                toggleLabel("endless_gravity.config.enableBlockGravity", enableBlockGravity),
+                b -> {
+                    enableBlockGravity = !enableBlockGravity;
+                    b.setMessage(toggleLabel("endless_gravity.config.enableBlockGravity", enableBlockGravity));
+                    blockGravitySlider.active = enableBlockGravity;
+                }
+        ).bounds(x, y, w, 20).build());
+
+        blockGravitySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.blockGravityOffset",
+                blockGravityOffset, 0.0, 0.04, v -> blockGravityOffset = v, false));
+        blockGravitySlider.active = enableBlockGravity;
 
         if (sableLoaded) {
             y += gap + 10;
@@ -176,13 +211,14 @@ public class EndlessGravityConfigScreen extends Screen {
                     sableDrag, 0.0, 10.0, v -> sableDrag = v, true));
 
             sablePrioritySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.sableDatapackPriority",
-                    sableDatapackPriority, 1, 100, v -> sableDatapackPriority = (int) Math.round(v), true));
+                    sableDatapackPriority, 1, 9999, v -> sableDatapackPriority = (int) Math.round(v), true));
 
             restartWarningY = y + gap + 4;
         }
 
         contentBottom = y + gap + (sableLoaded ? 24 : 0);
-        maxScroll = Math.max(0, contentBottom - (this.height - BOTTOM_MARGIN));
+        int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
+        maxScroll = Math.max(0, contentBottom - contentClipBottom);
 
         int btnY = this.height - BOTTOM_MARGIN + 8;
         int btnW = (w - 10) / 3;
@@ -214,6 +250,17 @@ public class EndlessGravityConfigScreen extends Screen {
         headers.add(new HeaderEntry(y, key));
     }
 
+    private Component fallDamageModeLabel() {
+        String key = switch (fallDamageMode) {
+            case 0 -> "endless_gravity.config.fallDamageMode.normal";
+            case 2 -> "endless_gravity.config.fallDamageMode.velocity";
+            default -> "endless_gravity.config.fallDamageMode.disabled";
+        };
+        return Component.translatable("endless_gravity.config.fallDamageMode")
+                .append(Component.literal(": "))
+                .append(Component.translatable(key));
+    }
+
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (maxScroll <= 0) return false;
@@ -236,7 +283,11 @@ public class EndlessGravityConfigScreen extends Screen {
         enableLowPassFilter = true;
         lowPassGain = 0.4;
         lowPassGainHF = 0.3;
-        disableFallDamage = true;
+        fallDamageMode = 1;
+        fallDamageVelocityScale = 1.0;
+        fallDamageMinVelocity = 0.6;
+        enableBlockGravity = true;
+        blockGravityOffset = 0.035;
 
         playerSlider.setActualValue(0.055);
         itemSlider.setActualValue(0.025);
@@ -248,17 +299,24 @@ public class EndlessGravityConfigScreen extends Screen {
         filterHFSlider.setActualValue(0.3);
         filterGainSlider.active = true;
         filterHFSlider.active = true;
-        disableFallDamageToggle.setMessage(toggleLabel("endless_gravity.config.disableFallDamage", true));
+        fallDamageModeToggle.setMessage(fallDamageModeLabel());
+        velocityScaleSlider.setActualValue(1.0);
+        velocityScaleSlider.active = false;
+        minVelocitySlider.setActualValue(0.6);
+        minVelocitySlider.active = false;
+        enableBlockGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableBlockGravity", true));
+        blockGravitySlider.setActualValue(0.035);
+        blockGravitySlider.active = true;
 
         if (sableLoaded) {
             sableGravityY = -4.0;
             sablePressure = 0.0;
-            sableDrag = 0.0;
-            sableDatapackPriority = 1;
+            sableDrag = 0.05;
+            sableDatapackPriority = 1001;
             sableGravityYSlider.setActualValue(-4.0);
             sablePressureSlider.setActualValue(0.0);
-            sableDragSlider.setActualValue(0.0);
-            sablePrioritySlider.setActualValue(1.0);
+            sableDragSlider.setActualValue(0.05);
+            sablePrioritySlider.setActualValue(1001.0);
         }
     }
 
@@ -271,13 +329,18 @@ public class EndlessGravityConfigScreen extends Screen {
         Config.COMMON.enableLowPassFilter.set(enableLowPassFilter);
         Config.COMMON.lowPassGain.set(lowPassGain);
         Config.COMMON.lowPassGainHF.set(lowPassGainHF);
-        Config.COMMON.disableFallDamage.set(disableFallDamage);
+        Config.COMMON.fallDamageMode.set(fallDamageMode);
+        Config.COMMON.fallDamageVelocityScale.set(fallDamageVelocityScale);
+        Config.COMMON.fallDamageMinVelocity.set(fallDamageMinVelocity);
+        Config.COMMON.enableBlockGravity.set(enableBlockGravity);
+        Config.COMMON.blockGravityOffset.set(blockGravityOffset);
 
         if (sableLoaded) {
             Config.COMMON.sableGravityY.set(sableGravityY);
             Config.COMMON.sablePressure.set(sablePressure);
             Config.COMMON.sableDrag.set(sableDrag);
             Config.COMMON.sableDatapackPriority.set(sableDatapackPriority);
+            SableDatapackHandler.generateDatapack();
         }
     }
 
@@ -298,7 +361,7 @@ public class EndlessGravityConfigScreen extends Screen {
         guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
 
         int contentTop = TOP_MARGIN;
-        int contentClipBottom = this.height - BOTTOM_MARGIN;
+        int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
         guiGraphics.enableScissor(0, contentTop, this.width, contentClipBottom);
 
         for (HeaderEntry h : headers) {
@@ -353,7 +416,7 @@ public class EndlessGravityConfigScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int contentClipBottom = this.height - BOTTOM_MARGIN;
+        int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
         if (mouseY >= contentClipBottom) {
             for (var child : this.children()) {
                 if (child instanceof Button && child.isMouseOver(mouseX, mouseY)) {

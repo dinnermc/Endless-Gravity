@@ -36,7 +36,11 @@ public class Config {
         public final ModConfigSpec.DoubleValue lowPassGainHF;
 
         // Gameplay
-        public final ModConfigSpec.BooleanValue disableFallDamage;
+        public final ModConfigSpec.IntValue fallDamageMode;
+        public final ModConfigSpec.DoubleValue fallDamageVelocityScale;
+        public final ModConfigSpec.DoubleValue fallDamageMinVelocity;
+        public final ModConfigSpec.BooleanValue enableBlockGravity;
+        public final ModConfigSpec.DoubleValue blockGravityOffset;
 
         // Sable
         public final ModConfigSpec.DoubleValue sableGravityY;
@@ -100,9 +104,22 @@ public class Config {
 
             builder.push("gameplay");
 
-            disableFallDamage = builder
-                    .comment("Disable fall damage in The End (default: true).")
-                    .define("disableFallDamage", true);
+            fallDamageMode = builder
+                    .comment("Fall damage mode in The End: 0 = normal, 1 = disabled, 2 = velocity-based (default: 1).")
+                    .defineInRange("fallDamageMode", 1, 0, 2);
+            fallDamageVelocityScale = builder
+                    .comment("Damage per unit of velocity for velocity-based fall damage (default: 1.0). Higher = more damage.")
+                    .defineInRange("fallDamageVelocityScale", 1.0, 0.1, 10.0);
+            fallDamageMinVelocity = builder
+                    .comment("Minimum impact velocity before velocity-based damage applies (default: 0.6). Below this, no damage.")
+                    .defineInRange("fallDamageMinVelocity", 0.6, 0.0, 5.0);
+
+            enableBlockGravity = builder
+                    .comment("Enable falling block gravity reduction in The End (default: true). Affects sand, gravel, anvils, dragon eggs.")
+                    .define("enableBlockGravity", true);
+            blockGravityOffset = builder
+                    .comment("Upward force per tick for falling blocks in The End (default: 0.035). Higher = slower fall.")
+                    .defineInRange("blockGravityOffset", 0.035, 0.0, 0.04);
 
             builder.pop();
 
@@ -115,11 +132,11 @@ public class Config {
                     .comment("Sable pressure value for The End (default: 0.0). 0 = no pressure.")
                     .defineInRange("sablePressure", 0.0, 0.0, 10.0);
             sableDrag = builder
-                    .comment("Sable drag value for The End (default: 0.0). 0 = no drag.")
-                    .defineInRange("sableDrag", 0.0, 0.0, 10.0);
+                    .comment("Sable drag value for The End (default: 0.05). Air resistance. 0 = no drag.")
+                    .defineInRange("sableDrag", 0.05, 0.0, 10.0);
             sableDatapackPriority = builder
-                    .comment("Sable datapack priority (default: 1). Higher = processed later.")
-                    .defineInRange("sableDatapackPriority", 1, 1, 100);
+                    .comment("Sable datapack priority (default: 1001). Must be > 1000 to override Sable built-in defaults.")
+                    .defineInRange("sableDatapackPriority", 1001, 1, 9999);
 
             builder.pop();
         }
