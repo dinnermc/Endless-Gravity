@@ -1,5 +1,7 @@
 package dinner.dev.endless_gravity;
 
+import dinner.dev.endless_gravity.event.FallDamageCalculationEvent;
+import dinner.dev.endless_gravity.event.GravityApplicationEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
@@ -11,6 +13,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -30,8 +33,15 @@ public class GravityHandler {
         if (level.dimension() != Level.END) return;
         if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
         if (player.getAbilities().flying) return;
+        if (EndlessGravityAPI.isGravityImmune(player)) return;
 
         double offset = Config.COMMON.playerGravityOffset.get();
+
+        GravityApplicationEvent gravityEvent = new GravityApplicationEvent(player, offset);
+        NeoForge.EVENT_BUS.post(gravityEvent);
+        if (gravityEvent.isCanceled()) return;
+
+        offset = gravityEvent.getOffset();
         player.setDeltaMovement(
                 player.getDeltaMovement().add(0, offset, 0)
         );
@@ -46,18 +56,17 @@ public class GravityHandler {
         Level level = entity.level();
         if (level.dimension() != Level.END) return;
         if (entity.onGround() || entity.isInWater()) return;
+        if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
 
+        double offset;
+
         if (entity instanceof ItemEntity item) {
             if (!Config.COMMON.enableItemGravity.get()) return;
-            double offset = Config.COMMON.itemGravityOffset.get();
-            item.setDeltaMovement(
-                    item.getDeltaMovement().add(0, offset, 0)
-            );
+            offset = Config.COMMON.itemGravityOffset.get();
         } else if (entity instanceof Projectile projectile) {
-            double offset;
             if (projectile instanceof AbstractArrow) {
                 if (!Config.COMMON.enableArrowGravity.get()) return;
                 offset = Config.COMMON.arrowGravityOffset.get();
@@ -65,16 +74,21 @@ public class GravityHandler {
                 if (!Config.COMMON.enableThrownGravity.get()) return;
                 offset = Config.COMMON.thrownGravityOffset.get();
             }
-            projectile.setDeltaMovement(
-                    projectile.getDeltaMovement().add(0, offset, 0)
-            );
-        } else if (entity instanceof FallingBlockEntity block) {
+        } else if (entity instanceof FallingBlockEntity) {
             if (!Config.COMMON.enableBlockGravity.get()) return;
-            double offset = Config.COMMON.blockGravityOffset.get();
-            block.setDeltaMovement(
-                    block.getDeltaMovement().add(0, offset, 0)
-            );
+            offset = Config.COMMON.blockGravityOffset.get();
+        } else {
+            return;
         }
+
+        GravityApplicationEvent gravityEvent = new GravityApplicationEvent(entity, offset);
+        NeoForge.EVENT_BUS.post(gravityEvent);
+        if (gravityEvent.isCanceled()) return;
+
+        offset = gravityEvent.getOffset();
+        entity.setDeltaMovement(
+                entity.getDeltaMovement().add(0, offset, 0)
+        );
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -96,8 +110,16 @@ public class GravityHandler {
             }
             double scale = Config.COMMON.fallDamageVelocityScale.get();
             float velocityDamage = (float) (velY * scale);
-            event.setDamageMultiplier(1.0F);
-            event.setDistance(velocityDamage + 3.0F);
+
+            FallDamageCalculationEvent damageEvent = new FallDamageCalculationEvent(player, 1.0F, velocityDamage + 3.0F);
+            NeoForge.EVENT_BUS.post(damageEvent);
+            if (damageEvent.isCanceled()) {
+                event.setCanceled(true);
+                return;
+            }
+
+            event.setDamageMultiplier(damageEvent.getDamageMultiplier());
+            event.setDistance(damageEvent.getDistance());
         }
     }
 }

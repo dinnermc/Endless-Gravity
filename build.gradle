@@ -95,9 +95,20 @@ publishing {
     }
     repositories {
         maven {
-            url "file://${project.projectDir}/repo"
+            name = "Modrinth"
+            url = "https://api.modrinth.com/maven"
+            credentials {
+                username = System.getenv("MODRINTH_TOKEN") ?: ""
+                password = System.getenv("MODRINTH_TOKEN") ?: ""
+            }
         }
     }
+}
+
+tasks.register('publishToModrinth') {
+    group = 'publishing'
+    description = 'Publish to Modrinth Maven'
+    dependsOn 'publishMavenJavaPublicationToModrinthRepository'
 }
 
 idea {
