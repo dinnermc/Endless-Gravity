@@ -383,14 +383,14 @@ public class EndlessGravityConfigScreen extends Screen {
         }
 
         for (var w : this.renderables) {
-            if (!(w instanceof Button)) {
+            if (scrollWidgets.contains(w)) {
                 w.render(guiGraphics, mouseX, mouseY, partialTick);
             }
         }
         guiGraphics.disableScissor();
 
         for (var w : this.renderables) {
-            if (w instanceof Button) {
+            if (!scrollWidgets.contains(w)) {
                 w.render(guiGraphics, mouseX, mouseY, partialTick);
             }
         }
