@@ -18,6 +18,10 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+sourceSets {
+    client
+}
+
 neoForge {
     version = project.neo_version
 
@@ -57,13 +61,27 @@ neoForge {
     mods {
         "${mod_id}" {
             sourceSet(sourceSets.main)
+            sourceSet(sourceSets.client)
         }
     }
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
+sourceSets.client.compileClasspath += sourceSets.main.output
+sourceSets.client.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.client.runtimeClasspath += sourceSets.main.output
+sourceSets.client.runtimeClasspath += sourceSets.main.runtimeClasspath
+
 dependencies {
+}
+
+jar {
+    from sourceSets.client.output
+}
+
+tasks.named('jar') {
+    dependsOn 'compileClientJava'
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
