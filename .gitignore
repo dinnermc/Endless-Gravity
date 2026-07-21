@@ -19,3 +19,8 @@ hs_err_pid*
 
 # Common working directory
 run
+server_output.txt
+server_error.txt
+run/
+build/
+eula.txt
