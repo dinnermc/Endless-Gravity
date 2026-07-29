@@ -109,11 +109,11 @@ public class Config {
                     .comment("Enable low-pass audio filter in The End (default: true). Creates a muffled underwater-like sound.")
                     .define("enableLowPassFilter", true);
             lowPassGain = builder
-                    .comment("Low-pass filter volume (default: 0.4). Lower = more muffled.")
-                    .defineInRange("lowPassGain", 0.4, 0.0, 1.0);
+                    .comment("Low-pass filter volume (default: 0.1). Lower = more muffled.")
+                    .defineInRange("lowPassGain", 0.1, 0.0, 1.0);
             lowPassGainHF = builder
-                    .comment("Low-pass filter high-frequency volume (default: 0.3). Lower = less high-frequency sound.")
-                    .defineInRange("lowPassGainHF", 0.3, 0.0, 1.0);
+                    .comment("Low-pass filter high-frequency volume (default: 0.05). Lower = less high-frequency sound.")
+                    .defineInRange("lowPassGainHF", 0.05, 0.0, 1.0);
 
             builder.pop();
 
@@ -150,8 +150,8 @@ public class Config {
                     .comment("Sable drag value for The End (default: 0.05). Air resistance. 0 = no drag.")
                     .defineInRange("sableDrag", 0.05, 0.0, 10.0);
             sableDatapackPriority = builder
-                    .comment("Sable datapack priority (default: 1001). Must be > 1000 to override Sable built-in defaults.")
-                    .defineInRange("sableDatapackPriority", 1001, 1, 9999);
+                    .comment("Sable datapack priority (default: 9999). Must be > 1000 to override Sable built-in defaults.")
+                    .defineInRange("sableDatapackPriority", 9999, 1, 9999);
 
             builder.pop();
 
@@ -173,11 +173,11 @@ public class Config {
                     .comment("Upward force per layer, applied continuously (not discrete) to ALL entities (default: 0.015). Total force is clamped to 0.07.")
                     .defineInRange("overworldGravityPerLayer", 0.015, 0.0, 0.07);
             overworldMuffleGain = builder
-                    .comment("Low-pass filter gain at max layer in Overworld (default: 0.2). Lower = more muffled. Interpolated from 1.0 at ground.")
-                    .defineInRange("overworldMuffleGain", 0.2, 0.0, 1.0);
+                    .comment("Low-pass filter gain at max layer in Overworld (default: 0.05). Lower = more muffled. Interpolated from 1.0 at ground.")
+                    .defineInRange("overworldMuffleGain", 0.05, 0.0, 1.0);
             overworldMuffleGainHF = builder
-                    .comment("Low-pass filter high-frequency gain at max layer in Overworld (default: 0.1). Lower = less high-frequency sound.")
-                    .defineInRange("overworldMuffleGainHF", 0.1, 0.0, 1.0);
+                    .comment("Low-pass filter high-frequency gain at max layer in Overworld (default: 0.02). Lower = less high-frequency sound.")
+                    .defineInRange("overworldMuffleGainHF", 0.02, 0.0, 1.0);
 
             builder.pop();
 

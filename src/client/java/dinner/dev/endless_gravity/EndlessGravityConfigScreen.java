@@ -394,8 +394,8 @@ public class EndlessGravityConfigScreen extends Screen {
         thrownGravity = 0.018;
         particleMultiplier = 0.3;
         enableLowPassFilter = true;
-        lowPassGain = 0.4;
-        lowPassGainHF = 0.3;
+        lowPassGain = 0.1;
+        lowPassGainHF = 0.05;
         fallDamageMode = 2;
         fallDamageVelocityScale = 1.0;
         fallDamageMinVelocity = 0.6;
@@ -408,8 +408,8 @@ public class EndlessGravityConfigScreen extends Screen {
         thrownSlider.setActualValue(0.018);
         particleSlider.setActualValue(0.3);
         enableLowPassFilterToggle.setMessage(toggleLabel("endless_gravity.config.enableLowPassFilter", true));
-        filterGainSlider.setActualValue(0.4);
-        filterHFSlider.setActualValue(0.3);
+        filterGainSlider.setActualValue(0.1);
+        filterHFSlider.setActualValue(0.05);
         filterGainSlider.active = true;
         filterHFSlider.active = true;
         fallDamageModeToggle.setMessage(fallDamageModeLabel());
@@ -425,11 +425,11 @@ public class EndlessGravityConfigScreen extends Screen {
             sableGravityY = -4.0;
             sablePressure = 0.0;
             sableDrag = 0.05;
-            sableDatapackPriority = 1001;
+            sableDatapackPriority = 9999;
             sableGravityYSlider.setActualValue(-4.0);
             sablePressureSlider.setActualValue(0.0);
             sableDragSlider.setActualValue(0.05);
-            sablePrioritySlider.setActualValue(1001.0);
+            sablePrioritySlider.setActualValue(9999.0);
         }
 
         enableOverworldGravity = true;
@@ -437,8 +437,8 @@ public class EndlessGravityConfigScreen extends Screen {
         overworldGravityLayerHeight = 500;
         overworldGravityMaxLayers = 4;
         overworldGravityPerLayer = 0.015;
-        overworldMuffleGain = 0.2;
-        overworldMuffleGainHF = 0.1;
+        overworldMuffleGain = 0.05;
+        overworldMuffleGainHF = 0.02;
         enableOverworldGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", true));
         overworldStartYSlider.setActualValue(1000.0);
         overworldStartYSlider.active = true;
@@ -448,8 +448,8 @@ public class EndlessGravityConfigScreen extends Screen {
         overworldMaxLayersSlider.active = true;
         overworldPerLayerSlider.setActualValue(0.015);
         overworldPerLayerSlider.active = true;
-        overworldMuffleGainSlider.setActualValue(0.2);
-        overworldMuffleGainHFSlider.setActualValue(0.1);
+        overworldMuffleGainSlider.setActualValue(0.05);
+        overworldMuffleGainHFSlider.setActualValue(0.02);
 
         enableTemperature = true;
         temperatureFreezeInterval = 20;
