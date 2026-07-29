@@ -55,6 +55,13 @@ public class EndlessGravityConfigScreen extends Screen {
     private int sableDatapackPriority;
     private int restartWarningY = -1;
 
+    // Overworld
+    private boolean enableOverworldGravity;
+    private int overworldGravityStartY;
+    private int overworldGravityLayerHeight;
+    private int overworldGravityMaxLayers;
+    private double overworldGravityPerLayer;
+
     // Widget references for reset
     private ConfigSlider playerSlider;
     private ConfigSlider itemSlider;
@@ -73,6 +80,13 @@ public class EndlessGravityConfigScreen extends Screen {
     private ConfigSlider sableGravityYSlider;
     private ConfigSlider sablePressureSlider;
     private ConfigSlider sableDragSlider;
+
+    // Widget references for overworld reset
+    private Button enableOverworldGravityToggle;
+    private ConfigSlider overworldStartYSlider;
+    private ConfigSlider overworldLayerHeightSlider;
+    private ConfigSlider overworldMaxLayersSlider;
+    private ConfigSlider overworldPerLayerSlider;
 
     public EndlessGravityConfigScreen(Screen parent) {
         super(Component.translatable("endless_gravity.config.title"));
@@ -114,6 +128,12 @@ public class EndlessGravityConfigScreen extends Screen {
             sableDrag = Config.COMMON.sableDrag.get();
             sableDatapackPriority = Config.COMMON.sableDatapackPriority.get();
         }
+
+        enableOverworldGravity = Config.COMMON.enableOverworldGravity.get();
+        overworldGravityStartY = Config.COMMON.overworldGravityStartY.get();
+        overworldGravityLayerHeight = Config.COMMON.overworldGravityLayerHeight.get();
+        overworldGravityMaxLayers = Config.COMMON.overworldGravityMaxLayers.get();
+        overworldGravityPerLayer = Config.COMMON.overworldGravityPerLayer.get();
 
         int x = this.width / 2 - 155;
         int w = 310;
@@ -215,6 +235,38 @@ public class EndlessGravityConfigScreen extends Screen {
 
             restartWarningY = y + gap + 4;
         }
+
+        y += gap + 10;
+        addHeader(y, "endless_gravity.config.section.overworld");
+        y += 12;
+
+        enableOverworldGravityToggle = addScroll(Button.builder(
+                toggleLabel("endless_gravity.config.enableOverworldGravity", enableOverworldGravity),
+                b -> {
+                    enableOverworldGravity = !enableOverworldGravity;
+                    b.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", enableOverworldGravity));
+                    overworldStartYSlider.active = enableOverworldGravity;
+                    overworldLayerHeightSlider.active = enableOverworldGravity;
+                    overworldMaxLayersSlider.active = enableOverworldGravity;
+                    overworldPerLayerSlider.active = enableOverworldGravity;
+                }
+        ).bounds(x, y, w, 20).build());
+
+        overworldStartYSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityStartY",
+                overworldGravityStartY, 0, 10000, v -> overworldGravityStartY = (int) Math.round(v), true));
+        overworldStartYSlider.active = enableOverworldGravity;
+
+        overworldLayerHeightSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityLayerHeight",
+                overworldGravityLayerHeight, 100, 2000, v -> overworldGravityLayerHeight = (int) Math.round(v), true));
+        overworldLayerHeightSlider.active = enableOverworldGravity;
+
+        overworldMaxLayersSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityMaxLayers",
+                overworldGravityMaxLayers, 1, 20, v -> overworldGravityMaxLayers = (int) Math.round(v), false));
+        overworldMaxLayersSlider.active = enableOverworldGravity;
+
+        overworldPerLayerSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityPerLayer",
+                overworldGravityPerLayer, 0.0, 0.08, v -> overworldGravityPerLayer = v, false));
+        overworldPerLayerSlider.active = enableOverworldGravity;
 
         contentBottom = y + gap + (sableLoaded ? 24 : 0);
         int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
@@ -318,6 +370,21 @@ public class EndlessGravityConfigScreen extends Screen {
             sableDragSlider.setActualValue(0.05);
             sablePrioritySlider.setActualValue(1001.0);
         }
+
+        enableOverworldGravity = false;
+        overworldGravityStartY = 1000;
+        overworldGravityLayerHeight = 500;
+        overworldGravityMaxLayers = 4;
+        overworldGravityPerLayer = 0.02;
+        enableOverworldGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", false));
+        overworldStartYSlider.setActualValue(1000.0);
+        overworldStartYSlider.active = false;
+        overworldLayerHeightSlider.setActualValue(500.0);
+        overworldLayerHeightSlider.active = false;
+        overworldMaxLayersSlider.setActualValue(4.0);
+        overworldMaxLayersSlider.active = false;
+        overworldPerLayerSlider.setActualValue(0.02);
+        overworldPerLayerSlider.active = false;
     }
 
     private void save() {
@@ -342,6 +409,12 @@ public class EndlessGravityConfigScreen extends Screen {
             Config.COMMON.sableDatapackPriority.set(sableDatapackPriority);
             SableDatapackHandler.generateDatapack();
         }
+
+        Config.COMMON.enableOverworldGravity.set(enableOverworldGravity);
+        Config.COMMON.overworldGravityStartY.set(overworldGravityStartY);
+        Config.COMMON.overworldGravityLayerHeight.set(overworldGravityLayerHeight);
+        Config.COMMON.overworldGravityMaxLayers.set(overworldGravityMaxLayers);
+        Config.COMMON.overworldGravityPerLayer.set(overworldGravityPerLayer);
     }
 
     private static Component toggleLabel(String key, boolean value) {
