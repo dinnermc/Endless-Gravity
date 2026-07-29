@@ -31,7 +31,6 @@ public class SableDatapackHandler {
         }
 
         generateEndDatapack();
-        generateOverworldDatapack();
     }
 
     public static void generateDatapack() {
@@ -41,7 +40,6 @@ public class SableDatapackHandler {
             return;
         }
         generateEndDatapack();
-        generateOverworldDatapack();
     }
 
     private static void generateEndDatapack() {
@@ -91,7 +89,7 @@ public class SableDatapackHandler {
             int priority = Config.COMMON.overworldSableDatapackPriority.get();
             double gravY = Config.COMMON.overworldSableGravityY.get();
             double pressure = Config.COMMON.overworldSablePressure.get();
-            double drag = Config.COMMON.overworldSableDrag.get();
+            double drag = 0.0; // Drag is handled entirely by Endless Gravity mixins
 
             String json = String.format(Locale.ROOT, """
                     {

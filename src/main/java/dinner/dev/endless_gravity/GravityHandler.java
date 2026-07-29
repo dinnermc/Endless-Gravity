@@ -43,6 +43,9 @@ public class GravityHandler {
 
         if (applyAtmosphereEffects(level, player)) return;
 
+        // When Sable manages this dimension, its physics engine handles gravity
+        if (EndlessGravityAPI.isSableManaged(level)) return;
+
         if (!isEndOrSable(level)) return;
         if (!Config.COMMON.enablePlayerGravity.get()) return;
 
@@ -67,6 +70,9 @@ public class GravityHandler {
         // Apply atmosphere effects (drag+gravity) BEFORE velocity threshold check,
         // so entities with purely horizontal motion still get drag compensation.
         if (applyAtmosphereEffects(level, entity)) return;
+
+        // When Sable manages this dimension, its physics engine handles gravity
+        if (EndlessGravityAPI.isSableManaged(level)) return;
 
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
@@ -101,6 +107,7 @@ public class GravityHandler {
      */
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
         if (!EndlessGravityAPI.isOverworldOrSable(level)) return false;
+        if (EndlessGravityAPI.isSableManaged(level)) return false;
         if (!Config.COMMON.enableAtmosphere.get()) return false;
 
         double realY = EndlessGravityAPI.getRealY(entity);
@@ -116,46 +123,6 @@ public class GravityHandler {
     private static boolean isEndOrSable(Level level) {
         if (level.dimension() == Level.END) return true;
         return level.dimension().location().getNamespace().equals("sable");
-    }
-
-    /**
-     * PlayerTickEvent.Post: undoes Minecraft's built-in air drag for players in space.
-     * Fires after all movement processing (gravity, input, drag) is complete.
-     */
-    @SubscribeEvent
-    public static void onPlayerTickPost(PlayerTickEvent.Post event) {
-        Player player = event.getEntity();
-        Level level = player.level();
-        if (!EndlessGravityAPI.isOverworldOrSable(level)) return;
-        if (!Config.COMMON.enableAtmosphere.get()) return;
-
-        double realY = EndlessGravityAPI.getRealY(player);
-        double drag = EndlessGravityAPI.getAtmosphereDrag(realY);
-        if (drag <= 1.0) return;
-
-        var motion = player.getDeltaMovement();
-        player.setDeltaMovement(motion.x * drag, motion.y * drag, motion.z * drag);
-    }
-
-    /**
-     * EntityTickEvent.Post: undoes Minecraft's built-in air drag for non-player living entities (mobs).
-     * Player drag is handled in PlayerTickEvent.Post instead.
-     */
-    @SubscribeEvent
-    public static void onEntityTickPost(EntityTickEvent.Post event) {
-        Entity entity = event.getEntity();
-        if (entity instanceof Player) return;
-
-        Level level = entity.level();
-        if (!EndlessGravityAPI.isOverworldOrSable(level)) return;
-        if (!Config.COMMON.enableAtmosphere.get()) return;
-
-        double realY = EndlessGravityAPI.getRealY(entity);
-        double drag = EndlessGravityAPI.getAtmosphereDrag(realY);
-        if (drag <= 1.0) return;
-
-        var motion = entity.getDeltaMovement();
-        entity.setDeltaMovement(motion.x * drag, motion.y * drag, motion.z * drag);
     }
 
     private static boolean entityTypeEnabled(Entity entity) {
