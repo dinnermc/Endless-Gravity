@@ -53,6 +53,12 @@ public class EndlessGravityConfigScreen extends Screen {
     private double sablePressure;
     private double sableDrag;
     private int sableDatapackPriority;
+
+    // Sable Overworld
+    private double overworldSableGravityY;
+    private double overworldSablePressure;
+    private double overworldSableDrag;
+    private int overworldSableDatapackPriority;
     private int restartWarningY = -1;
 
     // Atmosphere
@@ -86,6 +92,10 @@ public class EndlessGravityConfigScreen extends Screen {
     private ConfigSlider sableGravityYSlider;
     private ConfigSlider sablePressureSlider;
     private ConfigSlider sableDragSlider;
+    private ConfigSlider overworldSableGravityYSlider;
+    private ConfigSlider overworldSablePressureSlider;
+    private ConfigSlider overworldSableDragSlider;
+    private ConfigSlider overworldSablePrioritySlider;
 
     // Widget references for atmosphere reset
     private Button enableAtmosphereToggle;
@@ -139,6 +149,10 @@ public class EndlessGravityConfigScreen extends Screen {
             sablePressure = Config.COMMON.sablePressure.get();
             sableDrag = Config.COMMON.sableDrag.get();
             sableDatapackPriority = Config.COMMON.sableDatapackPriority.get();
+            overworldSableGravityY = Config.COMMON.overworldSableGravityY.get();
+            overworldSablePressure = Config.COMMON.overworldSablePressure.get();
+            overworldSableDrag = Config.COMMON.overworldSableDrag.get();
+            overworldSableDatapackPriority = Config.COMMON.overworldSableDatapackPriority.get();
         }
 
         enableAtmosphere = Config.COMMON.enableAtmosphere.get();
@@ -249,6 +263,22 @@ public class EndlessGravityConfigScreen extends Screen {
 
             sablePrioritySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.sableDatapackPriority",
                     sableDatapackPriority, 1, 9999, v -> sableDatapackPriority = (int) Math.round(v), true));
+
+            y += gap + 10;
+            addHeader(y, "endless_gravity.config.section.sable_overworld");
+            y += 12;
+
+            overworldSableGravityYSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.overworldSableGravityY",
+                    overworldSableGravityY, -20.0, 0.0, v -> overworldSableGravityY = v, true));
+
+            overworldSablePressureSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldSablePressure",
+                    overworldSablePressure, 0.0, 10.0, v -> overworldSablePressure = v, true));
+
+            overworldSableDragSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldSableDrag",
+                    overworldSableDrag, 0.0, 10.0, v -> overworldSableDrag = v, true));
+
+            overworldSablePrioritySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldSableDatapackPriority",
+                    overworldSableDatapackPriority, 1, 9999, v -> overworldSableDatapackPriority = (int) Math.round(v), true));
 
             restartWarningY = y + gap + 20;
         }
@@ -417,6 +447,15 @@ public class EndlessGravityConfigScreen extends Screen {
             sablePressureSlider.setActualValue(0.0);
             sableDragSlider.setActualValue(0.05);
             sablePrioritySlider.setActualValue(9999.0);
+
+            overworldSableGravityY = -1.0;
+            overworldSablePressure = 1.0;
+            overworldSableDrag = 1.0;
+            overworldSableDatapackPriority = 2000;
+            overworldSableGravityYSlider.setActualValue(-1.0);
+            overworldSablePressureSlider.setActualValue(1.0);
+            overworldSableDragSlider.setActualValue(1.0);
+            overworldSablePrioritySlider.setActualValue(2000.0);
         }
 
         enableAtmosphere = true;
@@ -466,6 +505,10 @@ public class EndlessGravityConfigScreen extends Screen {
             Config.COMMON.sablePressure.set(sablePressure);
             Config.COMMON.sableDrag.set(sableDrag);
             Config.COMMON.sableDatapackPriority.set(sableDatapackPriority);
+            Config.COMMON.overworldSableGravityY.set(overworldSableGravityY);
+            Config.COMMON.overworldSablePressure.set(overworldSablePressure);
+            Config.COMMON.overworldSableDrag.set(overworldSableDrag);
+            Config.COMMON.overworldSableDatapackPriority.set(overworldSableDatapackPriority);
             SableDatapackHandler.generateDatapack();
         }
 

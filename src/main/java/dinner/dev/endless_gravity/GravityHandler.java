@@ -40,7 +40,7 @@ public class GravityHandler {
 
         if (applyAtmosphereEffects(level, player)) return;
 
-        if (level.dimension() != Level.END) return;
+        if (!isEndOrSable(level)) return;
         if (!Config.COMMON.enablePlayerGravity.get()) return;
 
         double offset = Config.COMMON.playerGravityOffset.get();
@@ -66,7 +66,7 @@ public class GravityHandler {
 
         if (applyAtmosphereEffects(level, entity)) return;
 
-        if (level.dimension() != Level.END) return;
+        if (!isEndOrSable(level)) return;
 
         double offset;
         if (entity instanceof ItemEntity) {
@@ -116,6 +116,11 @@ public class GravityHandler {
         return true;
     }
 
+    private static boolean isEndOrSable(Level level) {
+        if (level.dimension() == Level.END) return true;
+        return level.dimension().location().getNamespace().equals("sable");
+    }
+
     private static boolean entityTypeEnabled(Entity entity) {
         if (entity instanceof ItemEntity) return Config.COMMON.enableItemGravity.get();
         if (entity instanceof AbstractArrow) return Config.COMMON.enableArrowGravity.get();
@@ -154,7 +159,7 @@ public class GravityHandler {
             }
         }
 
-        if (level.dimension() != Level.END) return;
+        if (!isEndOrSable(level)) return;
         handleFallDamage(event, player, null);
     }
 
