@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity.event;
 
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.Event;
 import net.neoforged.bus.api.ICancellableEvent;
 
@@ -34,6 +35,20 @@ public class GravityApplicationEvent extends Event implements ICancellableEvent 
      */
     public double getOffset() {
         return offset;
+    }
+
+    /**
+     * Convenience: the entity's current velocity (delta movement) before gravity is applied.
+     */
+    public Vec3 getVelocity() {
+        return entity.getDeltaMovement();
+    }
+
+    /**
+     * Convenience: the entity's current position.
+     */
+    public Vec3 getPosition() {
+        return entity.position();
     }
 
     /**
