@@ -23,6 +23,17 @@ public final class EndlessGravityAPI {
     public static final TagKey<EntityType<?>> GRAVITY_IMMUNE =
             TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(EndlessGravity.MODID, "gravity_immune"));
 
+    // Real atmospheric layer boundaries
+    public static final double BASE = 64.0;
+    public static final double TROPOPAUSE = 400.0;
+    public static final double STRATOPAUSE = 900.0;
+    public static final double MESOPAUSE = 1200.0;
+    public static final double KARMAN_LINE = 1800.0;
+    public static final double SPACE = 2500.0;
+    public static final double SPACE_DEEP = 3500.0;
+
+    private static final double[] LAYER_TOPS = {BASE, TROPOPAUSE, STRATOPAUSE, MESOPAUSE, KARMAN_LINE, SPACE, SPACE_DEEP};
+
     private EndlessGravityAPI() {}
 
     /**
@@ -117,26 +128,61 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Returns the Overworld layer progress at the given Y level, from 0.0 (below start Y or disabled) to 1.0 (max layers reached).
-     * Also applies to Sable sub-levels in the Overworld.
+     * Returns the atmosphere progress for a given Y level, from 0.0 at BASE (Y=64) to 1.0 at SPACE_DEEP (Y=3500).
+     * Uses piecewise linear interpolation across real atmospheric layers:
+     * BASE(64) -> TROPOPAUSE(400) -> STRATOPAUSE(900) -> MESOPAUSE(1200) -> KARMAN_LINE(1800) -> SPACE(2500) -> SPACE_DEEP(3500).
      */
-    public static double getOverworldLayerProgress(Level level, double y) {
-        if (!isOverworldOrSable(level)) return 0.0;
-        if (!Config.COMMON.enableOverworldGravity.get()) return 0.0;
-
-        int startY = Config.COMMON.overworldGravityStartY.get();
-        if (y < startY) return 0.0;
-
-        int layerHeight = Config.COMMON.overworldGravityLayerHeight.get();
-        int maxLayers = Config.COMMON.overworldGravityMaxLayers.get();
-        double layers = Math.min(maxLayers, (y - startY) / layerHeight);
-        return layers / maxLayers;
+    public static double getAtmosphereProgress(double y) {
+        if (y <= BASE) return 0.0;
+        if (y >= SPACE_DEEP) return 1.0;
+        for (int i = 0; i < LAYER_TOPS.length - 1; i++) {
+            if (y <= LAYER_TOPS[i + 1]) {
+                double layerStart = LAYER_TOPS[i];
+                double layerEnd = LAYER_TOPS[i + 1];
+                double layerFraction = (y - layerStart) / (layerEnd - layerStart);
+                double layerIndex = (double) i / (LAYER_TOPS.length - 1);
+                double nextLayerIndex = (double) (i + 1) / (LAYER_TOPS.length - 1);
+                return layerIndex + layerFraction * (nextLayerIndex - layerIndex);
+            }
+        }
+        return 1.0;
     }
 
-    public static boolean isOverworldOrSable(Level level) {
-        ResourceKey<Level> dim = level.dimension();
-        if (dim == Level.OVERWORLD) return true;
-        return dim.location().getNamespace().equals("sable");
+    /**
+     * Returns the atmosphere gravity offset at the given Y level.
+     * 0.0 at BASE, max at SPACE_DEEP, using piecewise linear interpolation.
+     */
+    public static double getAtmosphereOffset(double y) {
+        if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
+        double progress = getAtmosphereProgress(y);
+        return progress * Config.COMMON.atmosphereGravityMax.get();
+    }
+
+    /**
+     * Returns the atmosphere muffle gain at the given Y level.
+     * 1.0 at BASE, Config value at SPACE_DEEP.
+     */
+    public static double getAtmosphereMuffleGain(double y) {
+        double progress = getAtmosphereProgress(y);
+        return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGain.get());
+    }
+
+    /**
+     * Returns the atmosphere muffle gain HF at the given Y level.
+     * 1.0 at BASE, Config value at SPACE_DEEP.
+     */
+    public static double getAtmosphereMuffleGainHF(double y) {
+        double progress = getAtmosphereProgress(y);
+        return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGainHF.get());
+    }
+
+    /**
+     * Returns the horizontal drag compensation factor at the given Y level.
+     * 1.0 at BASE (no compensation), increasing to 1.0 + atmosphereDrag at SPACE_DEEP.
+     */
+    public static double getAtmosphereDrag(double y) {
+        double progress = getAtmosphereProgress(y);
+        return 1.0 + progress * Config.COMMON.atmosphereDrag.get();
     }
 
     /**
@@ -151,5 +197,22 @@ public final class EndlessGravityAPI {
         } catch (Exception e) {
             return entity.getY();
         }
+    }
+
+    /**
+     * Returns {@code true} if the given level is the Overworld or a Sable sub-level.
+     */
+    public static boolean isOverworldOrSable(Level level) {
+        ResourceKey<Level> dim = level.dimension();
+        if (dim == Level.OVERWORLD) return true;
+        return dim.location().getNamespace().equals("sable");
+    }
+
+    /**
+     * @deprecated Use {@link #getAtmosphereProgress(double)} instead.
+     */
+    @Deprecated
+    public static double getOverworldLayerProgress(Level level, double y) {
+        return getAtmosphereProgress(y);
     }
 }
