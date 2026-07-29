@@ -38,12 +38,7 @@ public class GravityHandler {
         if (immunityEvent.isCanceled()) return;
         if (immunityEvent.isImmune()) return;
 
-        Double layerOffset = getOverworldLayerOffset(level, EndlessGravityAPI.getRealY(player));
-        if (layerOffset != null) {
-            if (!Config.COMMON.enablePlayerGravity.get()) return;
-            applyGravity(player, layerOffset);
-            return;
-        }
+        if (applyAtmosphereEffects(level, player)) return;
 
         if (level.dimension() != Level.END) return;
         if (!Config.COMMON.enablePlayerGravity.get()) return;
@@ -69,12 +64,7 @@ public class GravityHandler {
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
 
-        Double layerOffset = getOverworldLayerOffset(level, EndlessGravityAPI.getRealY(entity));
-        if (layerOffset != null) {
-            if (!entityTypeEnabled(entity)) return;
-            applyGravity(entity, layerOffset);
-            return;
-        }
+        if (applyAtmosphereEffects(level, entity)) return;
 
         if (level.dimension() != Level.END) return;
 
@@ -100,16 +90,30 @@ public class GravityHandler {
         applyGravity(entity, offset);
     }
 
-    private static Double getOverworldLayerOffset(Level level, double y) {
-        if (!EndlessGravityAPI.isOverworldOrSable(level)) return null;
-        if (!Config.COMMON.enableOverworldGravity.get()) return null;
+    /**
+     * Applies atmosphere-based gravity and drag for the Overworld and Sable sub-levels.
+     * Returns true if effects were applied.
+     */
+    private static boolean applyAtmosphereEffects(Level level, Entity entity) {
+        if (!EndlessGravityAPI.isOverworldOrSable(level)) return false;
+        if (!Config.COMMON.enableAtmosphere.get()) return false;
 
-        int startY = Config.COMMON.overworldGravityStartY.get();
-        if (y < startY) return null;
+        double realY = EndlessGravityAPI.getRealY(entity);
+        if (realY <= EndlessGravityAPI.BASE) return false;
 
-        double progress = EndlessGravityAPI.getOverworldLayerProgress(level, y);
-        double maxOffset = Config.COMMON.overworldGravityMaxLayers.get() * Config.COMMON.overworldGravityPerLayer.get();
-        return Math.min(progress * maxOffset, 0.07);
+        double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
+        if (offset <= 0) return false;
+
+        applyGravity(entity, offset);
+
+        // Apply horizontal drag compensation (less air resistance at high altitude)
+        double drag = EndlessGravityAPI.getAtmosphereDrag(realY);
+        if (drag != 1.0) {
+            var motion = entity.getDeltaMovement();
+            entity.setDeltaMovement(motion.x * drag, motion.y, motion.z * drag);
+        }
+
+        return true;
     }
 
     private static boolean entityTypeEnabled(Entity entity) {
@@ -139,10 +143,15 @@ public class GravityHandler {
 
         Level level = player.level();
 
-        Double layerOffset = getOverworldLayerOffset(level, EndlessGravityAPI.getRealY(player));
-        if (layerOffset != null && layerOffset > 0) {
-            handleFallDamage(event, player, layerOffset);
-            return;
+        if (EndlessGravityAPI.isOverworldOrSable(level) && Config.COMMON.enableAtmosphere.get()) {
+            double realY = EndlessGravityAPI.getRealY(player);
+            if (realY > EndlessGravityAPI.BASE) {
+                double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
+                if (offset > 0) {
+                    handleFallDamage(event, player, offset);
+                    return;
+                }
+            }
         }
 
         if (level.dimension() != Level.END) return;

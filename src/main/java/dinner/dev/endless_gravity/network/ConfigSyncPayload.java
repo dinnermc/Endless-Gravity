@@ -14,8 +14,7 @@ public record ConfigSyncPayload(
         boolean enableThrownGravity, double thrownGravityOffset,
         int fallDamageMode, double fallDamageVelocityScale, double fallDamageMinVelocity,
         boolean enableBlockGravity, double blockGravityOffset,
-        boolean enableOverworldGravity, int overworldGravityStartY,
-        int overworldGravityLayerHeight, int overworldGravityMaxLayers, double overworldGravityPerLayer,
+        boolean enableAtmosphere, double atmosphereGravityMax,
         boolean enableTemperature, int temperatureFreezeInterval,
         boolean enableOxygen, int oxygenRate
 ) implements CustomPacketPayload {
@@ -39,11 +38,8 @@ public record ConfigSyncPayload(
             buf.writeDouble(p.fallDamageMinVelocity());
             buf.writeBoolean(p.enableBlockGravity());
             buf.writeDouble(p.blockGravityOffset());
-            buf.writeBoolean(p.enableOverworldGravity());
-            buf.writeInt(p.overworldGravityStartY());
-            buf.writeInt(p.overworldGravityLayerHeight());
-            buf.writeInt(p.overworldGravityMaxLayers());
-            buf.writeDouble(p.overworldGravityPerLayer());
+            buf.writeBoolean(p.enableAtmosphere());
+            buf.writeDouble(p.atmosphereGravityMax());
             buf.writeBoolean(p.enableTemperature());
             buf.writeInt(p.temperatureFreezeInterval());
             buf.writeBoolean(p.enableOxygen());
@@ -59,7 +55,7 @@ public record ConfigSyncPayload(
                     buf.readBoolean(), buf.readDouble(),
                     buf.readInt(), buf.readDouble(), buf.readDouble(),
                     buf.readBoolean(), buf.readDouble(),
-                    buf.readBoolean(), buf.readInt(), buf.readInt(), buf.readInt(), buf.readDouble(),
+                    buf.readBoolean(), buf.readDouble(),
                     buf.readBoolean(), buf.readInt(),
                     buf.readBoolean(), buf.readInt()
             );
@@ -79,8 +75,7 @@ public record ConfigSyncPayload(
                 Config.COMMON.enableThrownGravity.get(), Config.COMMON.thrownGravityOffset.get(),
                 Config.COMMON.fallDamageMode.get(), Config.COMMON.fallDamageVelocityScale.get(), Config.COMMON.fallDamageMinVelocity.get(),
                 Config.COMMON.enableBlockGravity.get(), Config.COMMON.blockGravityOffset.get(),
-                Config.COMMON.enableOverworldGravity.get(), Config.COMMON.overworldGravityStartY.get(),
-                Config.COMMON.overworldGravityLayerHeight.get(), Config.COMMON.overworldGravityMaxLayers.get(), Config.COMMON.overworldGravityPerLayer.get(),
+                Config.COMMON.enableAtmosphere.get(), Config.COMMON.atmosphereGravityMax.get(),
                 Config.COMMON.enableTemperature.get(), Config.COMMON.temperatureFreezeInterval.get(),
                 Config.COMMON.enableOxygen.get(), Config.COMMON.oxygenRate.get()
         );
@@ -100,11 +95,8 @@ public record ConfigSyncPayload(
         Config.COMMON.fallDamageMinVelocity.set(fallDamageMinVelocity);
         Config.COMMON.enableBlockGravity.set(enableBlockGravity);
         Config.COMMON.blockGravityOffset.set(blockGravityOffset);
-        Config.COMMON.enableOverworldGravity.set(enableOverworldGravity);
-        Config.COMMON.overworldGravityStartY.set(overworldGravityStartY);
-        Config.COMMON.overworldGravityLayerHeight.set(overworldGravityLayerHeight);
-        Config.COMMON.overworldGravityMaxLayers.set(overworldGravityMaxLayers);
-        Config.COMMON.overworldGravityPerLayer.set(overworldGravityPerLayer);
+        Config.COMMON.enableAtmosphere.set(enableAtmosphere);
+        Config.COMMON.atmosphereGravityMax.set(atmosphereGravityMax);
         Config.COMMON.enableTemperature.set(enableTemperature);
         Config.COMMON.temperatureFreezeInterval.set(temperatureFreezeInterval);
         Config.COMMON.enableOxygen.set(enableOxygen);
