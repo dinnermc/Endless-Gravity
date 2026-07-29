@@ -19,12 +19,6 @@ public abstract class ChannelMixin {
     @Inject(method = "play", at = @At("HEAD"))
     private void endlessgravity$applyFilterOnPlay(CallbackInfo ci) {
         if (source == 0) return;
-        alSourcei(source, AL_DIRECT_FILTER, MuffleState.getFilter());
-    }
-
-    @Inject(method = "resume", at = @At("HEAD"))
-    private void endlessgravity$applyFilterOnResume(CallbackInfo ci) {
-        if (source == 0) return;
-        alSourcei(source, AL_DIRECT_FILTER, MuffleState.getFilter());
+        alSourcei(source, AL_DIRECT_FILTER, MuffleState.isActive() ? MuffleState.getFilter() : AL_FILTER_NULL);
     }
 }
