@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity;
 
 import dev.ryanhcode.sable.companion.SableCompanion;
+import dev.ryanhcode.sable.companion.SubLevelAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -195,8 +196,18 @@ public final class EndlessGravityAPI {
             Vec3 realPos = SableCompanion.INSTANCE.projectOutOfSubLevel(entity.level(), entity.position());
             return realPos.y;
         } catch (Exception e) {
-            return entity.getY();
+            return getSubLevelOriginY(entity);
         }
+    }
+
+    private static double getSubLevelOriginY(Entity entity) {
+        try {
+            SubLevelAccess sub = SableCompanion.INSTANCE.getContaining(entity);
+            if (sub != null) {
+                return sub.logicalPose().position().y() + entity.getY();
+            }
+        } catch (Exception ignored) {}
+        return entity.getY();
     }
 
     /**
