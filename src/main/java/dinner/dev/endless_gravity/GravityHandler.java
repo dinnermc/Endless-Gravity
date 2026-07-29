@@ -61,10 +61,12 @@ public class GravityHandler {
         if (immunityEvent.isCanceled()) return;
         if (immunityEvent.isImmune()) return;
 
+        // Apply atmosphere effects (drag+gravity) BEFORE velocity threshold check,
+        // so entities with purely horizontal motion still get drag compensation.
+        if (applyAtmosphereEffects(level, entity)) return;
+
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
-
-        if (applyAtmosphereEffects(level, entity)) return;
 
         if (!isEndOrSable(level)) return;
 
