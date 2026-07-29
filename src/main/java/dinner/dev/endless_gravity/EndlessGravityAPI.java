@@ -236,6 +236,36 @@ public final class EndlessGravityAPI {
         return entity.getY();
     }
 
+    private static Boolean sableLoaded;
+
+    /**
+     * Returns {@code true} if the Sable mod is installed.
+     */
+    public static boolean isSableLoaded() {
+        if (sableLoaded == null) {
+            try {
+                sableLoaded = net.neoforged.fml.ModList.get().isLoaded("sable");
+            } catch (Exception e) {
+                sableLoaded = false;
+            }
+        }
+        return sableLoaded;
+    }
+
+    /**
+     * Returns {@code true} if Sable manages physics for this dimension.
+     * When this returns true, Endless Gravity's gravity and drag handlers
+     * should defer to Sable's physics engine.
+     */
+    public static boolean isSableManaged(Level level) {
+        if (!isSableLoaded()) return false;
+        ResourceKey<Level> dim = level.dimension();
+        // Sable-owned dimensions (sable:overworld, sable:the_end, sable:nether)
+        if (dim.location().getNamespace().equals("sable")) return true;
+        // The End: we generate a Sable datapack for it, so Sable controls it
+        return dim == Level.END;
+    }
+
     /**
      * Returns {@code true} if the given level is the Overworld or a Sable sub-level.
      */
