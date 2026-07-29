@@ -25,26 +25,25 @@ public class GravityHandler {
 
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Pre event) {
-        if (!Config.COMMON.enablePlayerGravity.get()) return;
-
         Player player = event.getEntity();
         Level level = player.level();
 
-        if (level.dimension() != Level.END) return;
         if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
         if (player.getAbilities().flying) return;
         if (EndlessGravityAPI.isGravityImmune(player)) return;
 
+        Double layerOffset = getOverworldLayerOffset(level, player.getY());
+        if (layerOffset != null) {
+            if (!Config.COMMON.enablePlayerGravity.get()) return;
+            applyGravity(player, layerOffset);
+            return;
+        }
+
+        if (level.dimension() != Level.END) return;
+        if (!Config.COMMON.enablePlayerGravity.get()) return;
+
         double offset = Config.COMMON.playerGravityOffset.get();
-
-        GravityApplicationEvent gravityEvent = new GravityApplicationEvent(player, offset);
-        NeoForge.EVENT_BUS.post(gravityEvent);
-        if (gravityEvent.isCanceled()) return;
-
-        offset = gravityEvent.getOffset();
-        player.setDeltaMovement(
-                player.getDeltaMovement().add(0, offset, 0)
-        );
+        applyGravity(player, offset);
     }
 
     @SubscribeEvent
@@ -54,16 +53,23 @@ public class GravityHandler {
         if (entity instanceof Player) return;
 
         Level level = entity.level();
-        if (level.dimension() != Level.END) return;
         if (entity.onGround() || entity.isInWater()) return;
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
 
-        double offset;
+        Double layerOffset = getOverworldLayerOffset(level, entity.getY());
+        if (layerOffset != null) {
+            if (!entityTypeEnabled(entity)) return;
+            applyGravity(entity, layerOffset);
+            return;
+        }
 
-        if (entity instanceof ItemEntity item) {
+        if (level.dimension() != Level.END) return;
+
+        double offset;
+        if (entity instanceof ItemEntity) {
             if (!Config.COMMON.enableItemGravity.get()) return;
             offset = Config.COMMON.itemGravityOffset.get();
         } else if (entity instanceof Projectile projectile) {
@@ -81,6 +87,33 @@ public class GravityHandler {
             return;
         }
 
+        applyGravity(entity, offset);
+    }
+
+    private static Double getOverworldLayerOffset(Level level, double y) {
+        if (level.dimension() != Level.OVERWORLD) return null;
+        if (!Config.COMMON.enableOverworldGravity.get()) return null;
+
+        int startY = Config.COMMON.overworldGravityStartY.get();
+        if (y < startY) return null;
+
+        int layerHeight = Config.COMMON.overworldGravityLayerHeight.get();
+        int maxLayers = Config.COMMON.overworldGravityMaxLayers.get();
+        double perLayer = Config.COMMON.overworldGravityPerLayer.get();
+
+        int layer = Math.min(maxLayers, (int) ((y - startY) / layerHeight) + 1);
+        return Math.min(layer * perLayer, 0.08);
+    }
+
+    private static boolean entityTypeEnabled(Entity entity) {
+        if (entity instanceof ItemEntity) return Config.COMMON.enableItemGravity.get();
+        if (entity instanceof AbstractArrow) return Config.COMMON.enableArrowGravity.get();
+        if (entity instanceof Projectile) return Config.COMMON.enableThrownGravity.get();
+        if (entity instanceof FallingBlockEntity) return Config.COMMON.enableBlockGravity.get();
+        return false;
+    }
+
+    private static void applyGravity(Entity entity, double offset) {
         GravityApplicationEvent gravityEvent = new GravityApplicationEvent(entity, offset);
         NeoForge.EVENT_BUS.post(gravityEvent);
         if (gravityEvent.isCanceled()) return;
@@ -94,8 +127,20 @@ public class GravityHandler {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onFallDamage(LivingFallEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
-        if (player.level().dimension() != Level.END) return;
 
+        Level level = player.level();
+
+        Double layerOffset = getOverworldLayerOffset(level, player.getY());
+        if (layerOffset != null && layerOffset > 0) {
+            handleFallDamage(event, player, layerOffset);
+            return;
+        }
+
+        if (level.dimension() != Level.END) return;
+        handleFallDamage(event, player, null);
+    }
+
+    private static void handleFallDamage(LivingFallEvent event, ServerPlayer player, Double layerOffset) {
         int mode = Config.COMMON.fallDamageMode.get();
 
         if (mode == 1) {

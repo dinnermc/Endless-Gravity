@@ -48,6 +48,13 @@ public class Config {
         public final ModConfigSpec.DoubleValue sableDrag;
         public final ModConfigSpec.IntValue sableDatapackPriority;
 
+        // Overworld layers
+        public final ModConfigSpec.BooleanValue enableOverworldGravity;
+        public final ModConfigSpec.IntValue overworldGravityStartY;
+        public final ModConfigSpec.IntValue overworldGravityLayerHeight;
+        public final ModConfigSpec.IntValue overworldGravityMaxLayers;
+        public final ModConfigSpec.DoubleValue overworldGravityPerLayer;
+
         public Common(ModConfigSpec.Builder builder) {
             builder.push("gravity");
 
@@ -137,6 +144,26 @@ public class Config {
             sableDatapackPriority = builder
                     .comment("Sable datapack priority (default: 1001). Must be > 1000 to override Sable built-in defaults.")
                     .defineInRange("sableDatapackPriority", 1001, 1, 9999);
+
+            builder.pop();
+
+            builder.push("overworld");
+
+            enableOverworldGravity = builder
+                    .comment("Enable layered gravity in the Overworld above Y=1000 (default: false).")
+                    .define("enableOverworldGravity", false);
+            overworldGravityStartY = builder
+                    .comment("Y level where gravity layers begin (default: 1000).")
+                    .defineInRange("overworldGravityStartY", 1000, 0, 10000);
+            overworldGravityLayerHeight = builder
+                    .comment("Height of each gravity layer in blocks (default: 500).")
+                    .defineInRange("overworldGravityLayerHeight", 500, 100, 2000);
+            overworldGravityMaxLayers = builder
+                    .comment("Maximum number of gravity layers (default: 4). Beyond this, gravity stays at the last layer.")
+                    .defineInRange("overworldGravityMaxLayers", 4, 1, 20);
+            overworldGravityPerLayer = builder
+                    .comment("Upward force added per layer, applied to ALL entities (default: 0.02). Total force is clamped to 0.08.")
+                    .defineInRange("overworldGravityPerLayer", 0.02, 0.0, 0.08);
 
             builder.pop();
         }
