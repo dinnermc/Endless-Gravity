@@ -312,7 +312,7 @@ public class EndlessGravityConfigScreen extends Screen {
         atmosphereMuffleGainHFSlider.active = enableAtmosphere;
 
         atmosphereDragSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereDrag",
-                atmosphereDrag, 0.0, 0.1, v -> atmosphereDrag = v, false));
+                atmosphereDrag, 0.0, 2.0, v -> atmosphereDrag = v, false));
         atmosphereDragSlider.active = enableAtmosphere;
 
         y += gap + 10;
@@ -462,7 +462,7 @@ public class EndlessGravityConfigScreen extends Screen {
         atmosphereGravityMax = 0.07;
         atmosphereMuffleGain = 0.01;
         atmosphereMuffleGainHF = 0.005;
-        atmosphereDrag = 0.03;
+        atmosphereDrag = 1.0;
         enableAtmosphereToggle.setMessage(toggleLabel("endless_gravity.config.enableAtmosphere", true));
         atmosphereGravitySlider.setActualValue(0.07);
         atmosphereGravitySlider.active = true;
@@ -470,7 +470,7 @@ public class EndlessGravityConfigScreen extends Screen {
         atmosphereMuffleGainSlider.active = true;
         atmosphereMuffleGainHFSlider.setActualValue(0.005);
         atmosphereMuffleGainHFSlider.active = true;
-        atmosphereDragSlider.setActualValue(0.03);
+        atmosphereDragSlider.setActualValue(1.0);
         atmosphereDragSlider.active = true;
 
         enableTemperature = true;

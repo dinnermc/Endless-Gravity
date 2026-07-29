@@ -177,13 +177,17 @@ public final class EndlessGravityAPI {
         return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGainHF.get());
     }
 
+    private static final double FULL_INERTIA_FACTOR = 1.0 / 0.91;
+
     /**
      * Returns the horizontal drag compensation factor at the given Y level.
-     * 1.0 at BASE (no compensation), increasing to 1.0 + atmosphereDrag at SPACE_DEEP.
+     * 1.0 at BASE (no compensation — vanilla drag applies fully),
+     * increasing linearly to fully cancel Minecraft's built-in air drag (0.91 per tick)
+     * at SPACE_DEEP when atmosphereDrag=1.0, achieving true inertia in deep space.
      */
     public static double getAtmosphereDrag(double y) {
         double progress = getAtmosphereProgress(y);
-        return 1.0 + progress * Config.COMMON.atmosphereDrag.get();
+        return 1.0 + progress * (FULL_INERTIA_FACTOR - 1.0) * Config.COMMON.atmosphereDrag.get();
     }
 
     /**
