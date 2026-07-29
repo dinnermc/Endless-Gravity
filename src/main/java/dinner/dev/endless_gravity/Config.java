@@ -54,6 +54,8 @@ public class Config {
         public final ModConfigSpec.IntValue overworldGravityLayerHeight;
         public final ModConfigSpec.IntValue overworldGravityMaxLayers;
         public final ModConfigSpec.DoubleValue overworldGravityPerLayer;
+        public final ModConfigSpec.DoubleValue overworldMuffleGain;
+        public final ModConfigSpec.DoubleValue overworldMuffleGainHF;
 
         public Common(ModConfigSpec.Builder builder) {
             builder.push("gravity");
@@ -164,6 +166,12 @@ public class Config {
             overworldGravityPerLayer = builder
                     .comment("Upward force per layer, applied continuously (not discrete) to ALL entities (default: 0.02). Total force is clamped to 0.08.")
                     .defineInRange("overworldGravityPerLayer", 0.02, 0.0, 0.08);
+            overworldMuffleGain = builder
+                    .comment("Low-pass filter gain at max layer in Overworld (default: 0.2). Lower = more muffled. Interpolated from 1.0 at ground.")
+                    .defineInRange("overworldMuffleGain", 0.2, 0.0, 1.0);
+            overworldMuffleGainHF = builder
+                    .comment("Low-pass filter high-frequency gain at max layer in Overworld (default: 0.1). Lower = less high-frequency sound.")
+                    .defineInRange("overworldMuffleGainHF", 0.1, 0.0, 1.0);
 
             builder.pop();
         }

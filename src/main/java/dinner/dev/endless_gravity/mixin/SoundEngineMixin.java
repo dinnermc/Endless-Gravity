@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity.mixin;
 
 import dinner.dev.endless_gravity.Config;
+import dinner.dev.endless_gravity.EndlessGravityAPI;
 import com.mojang.blaze3d.audio.Channel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.sounds.SoundEngine;
@@ -82,20 +83,34 @@ public abstract class SoundEngineMixin {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        boolean inEnd = mc.level.dimension() == Level.END;
+        double playerY = mc.player.getY();
 
-        boolean filterEnabled;
-        float gain;
-        float gainHF;
-        try {
-            filterEnabled = Config.COMMON.enableLowPassFilter.get();
-            gain = Config.COMMON.lowPassGain.get().floatValue();
-            gainHF = Config.COMMON.lowPassGainHF.get().floatValue();
-        } catch (Exception e) {
-            return;
+        boolean inEnd = mc.level.dimension() == Level.END;
+        double overworldProgress = EndlessGravityAPI.getOverworldLayerProgress(mc.level, playerY);
+        boolean overworldFiltering = overworldProgress > 0;
+
+        float targetGain = 1.0f;
+        float targetGainHF = 1.0f;
+
+        if (inEnd) {
+            try {
+                if (Config.COMMON.enableLowPassFilter.get()) {
+                    targetGain = Math.min(targetGain, Config.COMMON.lowPassGain.get().floatValue());
+                    targetGainHF = Math.min(targetGainHF, Config.COMMON.lowPassGainHF.get().floatValue());
+                }
+            } catch (Exception ignored) {}
         }
 
-        boolean shouldFilter = inEnd && filterEnabled;
+        if (overworldFiltering) {
+            try {
+                float owGain = (float) (1.0 - overworldProgress * (1.0 - Config.COMMON.overworldMuffleGain.get()));
+                float owGainHF = (float) (1.0 - overworldProgress * (1.0 - Config.COMMON.overworldMuffleGainHF.get()));
+                targetGain = Math.min(targetGain, owGain);
+                targetGainHF = Math.min(targetGainHF, owGainHF);
+            } catch (Exception ignored) {}
+        }
+
+        boolean shouldFilter = targetGain < 1.0f || targetGainHF < 1.0f;
 
         endlessgravity$resolveRefs();
 
@@ -107,11 +122,11 @@ public abstract class SoundEngineMixin {
         }
 
         if (shouldFilter && endlessgravity$lowPassFilter != -1) {
-            if (gain != endlessgravity$lastGain || gainHF != endlessgravity$lastGainHF) {
-                alFilterf(endlessgravity$lowPassFilter, AL_LOWPASS_GAIN, gain);
-                alFilterf(endlessgravity$lowPassFilter, AL_LOWPASS_GAINHF, gainHF);
-                endlessgravity$lastGain = gain;
-                endlessgravity$lastGainHF = gainHF;
+            if (targetGain != endlessgravity$lastGain || targetGainHF != endlessgravity$lastGainHF) {
+                alFilterf(endlessgravity$lowPassFilter, AL_LOWPASS_GAIN, targetGain);
+                alFilterf(endlessgravity$lowPassFilter, AL_LOWPASS_GAINHF, targetGainHF);
+                endlessgravity$lastGain = targetGain;
+                endlessgravity$lastGainHF = targetGainHF;
             }
         }
 

@@ -97,12 +97,9 @@ public class GravityHandler {
         int startY = Config.COMMON.overworldGravityStartY.get();
         if (y < startY) return null;
 
-        int layerHeight = Config.COMMON.overworldGravityLayerHeight.get();
-        int maxLayers = Config.COMMON.overworldGravityMaxLayers.get();
-        double perLayer = Config.COMMON.overworldGravityPerLayer.get();
-
-        double layers = Math.min(maxLayers, (y - startY) / layerHeight);
-        return Math.min(layers * perLayer, 0.08);
+        double progress = EndlessGravityAPI.getOverworldLayerProgress(level, y);
+        double maxOffset = Config.COMMON.overworldGravityMaxLayers.get() * Config.COMMON.overworldGravityPerLayer.get();
+        return Math.min(progress * maxOffset, 0.08);
     }
 
     private static boolean entityTypeEnabled(Entity entity) {
