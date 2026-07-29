@@ -64,6 +64,12 @@ public class EndlessGravityConfigScreen extends Screen {
     private double overworldMuffleGain;
     private double overworldMuffleGainHF;
 
+    // Environment
+    private boolean enableTemperature;
+    private int temperatureFreezeInterval;
+    private boolean enableOxygen;
+    private int oxygenRate;
+
     // Widget references for reset
     private ConfigSlider playerSlider;
     private ConfigSlider itemSlider;
@@ -91,6 +97,12 @@ public class EndlessGravityConfigScreen extends Screen {
     private ConfigSlider overworldPerLayerSlider;
     private ConfigSlider overworldMuffleGainSlider;
     private ConfigSlider overworldMuffleGainHFSlider;
+
+    // Widget references for environment reset
+    private Button enableTemperatureToggle;
+    private ConfigSlider freezeIntervalSlider;
+    private Button enableOxygenToggle;
+    private ConfigSlider oxygenRateSlider;
 
     public EndlessGravityConfigScreen(Screen parent) {
         super(Component.translatable("endless_gravity.config.title"));
@@ -141,6 +153,11 @@ public class EndlessGravityConfigScreen extends Screen {
         overworldMuffleGain = Config.COMMON.overworldMuffleGain.get();
         overworldMuffleGainHF = Config.COMMON.overworldMuffleGainHF.get();
 
+        enableTemperature = Config.COMMON.enableTemperature.get();
+        temperatureFreezeInterval = Config.COMMON.temperatureFreezeInterval.get();
+        enableOxygen = Config.COMMON.enableOxygen.get();
+        oxygenRate = Config.COMMON.oxygenRate.get();
+
         int x = this.width / 2 - 155;
         int w = 310;
         int gap = 22;
@@ -150,16 +167,16 @@ public class EndlessGravityConfigScreen extends Screen {
         y += 12;
 
         playerSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.playerGravityOffset",
-                playerGravity, 0.0, 0.08, v -> playerGravity = v, false));
+                playerGravity, 0.0, 0.07, v -> playerGravity = v, false));
 
         itemSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.itemGravityOffset",
-                itemGravity, 0.0, 0.04, v -> itemGravity = v, false));
+                itemGravity, 0.0, 0.035, v -> itemGravity = v, false));
 
         arrowSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.arrowGravityOffset",
-                arrowGravity, 0.0, 0.05, v -> arrowGravity = v, false));
+                arrowGravity, 0.0, 0.04, v -> arrowGravity = v, false));
 
         thrownSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.thrownGravityOffset",
-                thrownGravity, 0.0, 0.03, v -> thrownGravity = v, false));
+                thrownGravity, 0.0, 0.025, v -> thrownGravity = v, false));
 
         y += gap + 10;
         addHeader(y, "endless_gravity.config.section.effects");
@@ -271,7 +288,7 @@ public class EndlessGravityConfigScreen extends Screen {
         overworldMaxLayersSlider.active = enableOverworldGravity;
 
         overworldPerLayerSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityPerLayer",
-                overworldGravityPerLayer, 0.0, 0.08, v -> overworldGravityPerLayer = v, false));
+                overworldGravityPerLayer, 0.0, 0.07, v -> overworldGravityPerLayer = v, false));
         overworldPerLayerSlider.active = enableOverworldGravity;
 
         y += gap + 4;
@@ -280,6 +297,37 @@ public class EndlessGravityConfigScreen extends Screen {
 
         overworldMuffleGainHFSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldMuffleGainHF",
                 overworldMuffleGainHF, 0.0, 1.0, v -> overworldMuffleGainHF = v, false));
+
+        y += gap + 10;
+        addHeader(y, "endless_gravity.config.section.environment");
+        y += 12;
+
+        enableTemperatureToggle = addScroll(Button.builder(
+                toggleLabel("endless_gravity.config.enableTemperature", enableTemperature),
+                b -> {
+                    enableTemperature = !enableTemperature;
+                    b.setMessage(toggleLabel("endless_gravity.config.enableTemperature", enableTemperature));
+                    freezeIntervalSlider.active = enableTemperature;
+                }
+        ).bounds(x, y, w, 20).build());
+
+        freezeIntervalSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.temperatureFreezeInterval",
+                temperatureFreezeInterval, 1, 200, v -> temperatureFreezeInterval = (int) Math.round(v), true));
+        freezeIntervalSlider.active = enableTemperature;
+
+        y += gap;
+        enableOxygenToggle = addScroll(Button.builder(
+                toggleLabel("endless_gravity.config.enableOxygen", enableOxygen),
+                b -> {
+                    enableOxygen = !enableOxygen;
+                    b.setMessage(toggleLabel("endless_gravity.config.enableOxygen", enableOxygen));
+                    oxygenRateSlider.active = enableOxygen;
+                }
+        ).bounds(x, y, w, 20).build());
+
+        oxygenRateSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.oxygenRate",
+                oxygenRate, 1, 100, v -> oxygenRate = (int) Math.round(v), true));
+        oxygenRateSlider.active = enableOxygen;
 
         contentBottom = y + gap + (sableLoaded ? 24 : 0);
         int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
@@ -384,24 +432,35 @@ public class EndlessGravityConfigScreen extends Screen {
             sablePrioritySlider.setActualValue(1001.0);
         }
 
-        enableOverworldGravity = false;
+        enableOverworldGravity = true;
         overworldGravityStartY = 1000;
         overworldGravityLayerHeight = 500;
         overworldGravityMaxLayers = 4;
-        overworldGravityPerLayer = 0.02;
+        overworldGravityPerLayer = 0.015;
         overworldMuffleGain = 0.2;
         overworldMuffleGainHF = 0.1;
-        enableOverworldGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", false));
+        enableOverworldGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", true));
         overworldStartYSlider.setActualValue(1000.0);
-        overworldStartYSlider.active = false;
+        overworldStartYSlider.active = true;
         overworldLayerHeightSlider.setActualValue(500.0);
-        overworldLayerHeightSlider.active = false;
+        overworldLayerHeightSlider.active = true;
         overworldMaxLayersSlider.setActualValue(4.0);
-        overworldMaxLayersSlider.active = false;
-        overworldPerLayerSlider.setActualValue(0.02);
-        overworldPerLayerSlider.active = false;
+        overworldMaxLayersSlider.active = true;
+        overworldPerLayerSlider.setActualValue(0.015);
+        overworldPerLayerSlider.active = true;
         overworldMuffleGainSlider.setActualValue(0.2);
         overworldMuffleGainHFSlider.setActualValue(0.1);
+
+        enableTemperature = true;
+        temperatureFreezeInterval = 20;
+        enableOxygen = true;
+        oxygenRate = 2;
+        enableTemperatureToggle.setMessage(toggleLabel("endless_gravity.config.enableTemperature", true));
+        freezeIntervalSlider.setActualValue(20.0);
+        freezeIntervalSlider.active = true;
+        enableOxygenToggle.setMessage(toggleLabel("endless_gravity.config.enableOxygen", true));
+        oxygenRateSlider.setActualValue(2.0);
+        oxygenRateSlider.active = true;
     }
 
     private void save() {
@@ -434,6 +493,10 @@ public class EndlessGravityConfigScreen extends Screen {
         Config.COMMON.overworldGravityPerLayer.set(overworldGravityPerLayer);
         Config.COMMON.overworldMuffleGain.set(overworldMuffleGain);
         Config.COMMON.overworldMuffleGainHF.set(overworldMuffleGainHF);
+        Config.COMMON.enableTemperature.set(enableTemperature);
+        Config.COMMON.temperatureFreezeInterval.set(temperatureFreezeInterval);
+        Config.COMMON.enableOxygen.set(enableOxygen);
+        Config.COMMON.oxygenRate.set(oxygenRate);
     }
 
     private static Component toggleLabel(String key, boolean value) {
