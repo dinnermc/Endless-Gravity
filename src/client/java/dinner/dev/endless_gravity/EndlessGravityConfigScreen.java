@@ -335,7 +335,7 @@ public class EndlessGravityConfigScreen extends Screen {
         enableLowPassFilter = true;
         lowPassGain = 0.4;
         lowPassGainHF = 0.3;
-        fallDamageMode = 1;
+        fallDamageMode = 2;
         fallDamageVelocityScale = 1.0;
         fallDamageMinVelocity = 0.6;
         enableBlockGravity = true;
@@ -353,9 +353,9 @@ public class EndlessGravityConfigScreen extends Screen {
         filterHFSlider.active = true;
         fallDamageModeToggle.setMessage(fallDamageModeLabel());
         velocityScaleSlider.setActualValue(1.0);
-        velocityScaleSlider.active = false;
+        velocityScaleSlider.active = true;
         minVelocitySlider.setActualValue(0.6);
-        minVelocitySlider.active = false;
+        minVelocitySlider.active = true;
         enableBlockGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableBlockGravity", true));
         blockGravitySlider.setActualValue(0.035);
         blockGravitySlider.active = true;

@@ -112,8 +112,8 @@ public class Config {
             builder.push("gameplay");
 
             fallDamageMode = builder
-                    .comment("Fall damage mode in The End: 0 = normal, 1 = disabled, 2 = velocity-based (default: 1).")
-                    .defineInRange("fallDamageMode", 1, 0, 2);
+                    .comment("Fall damage mode in The End: 0 = normal, 1 = disabled, 2 = velocity-based (default: 2).")
+                    .defineInRange("fallDamageMode", 2, 0, 2);
             fallDamageVelocityScale = builder
                     .comment("Damage per unit of velocity for velocity-based fall damage (default: 1.0). Higher = more damage.")
                     .defineInRange("fallDamageVelocityScale", 1.0, 0.1, 10.0);
@@ -150,7 +150,7 @@ public class Config {
             builder.push("overworld");
 
             enableOverworldGravity = builder
-                    .comment("Enable layered gravity in the Overworld above Y=1000 (default: false).")
+                    .comment("Enable layered gravity in the Overworld above Y=1000 (default: false). Also affects Sable sub-levels in the Overworld.")
                     .define("enableOverworldGravity", false);
             overworldGravityStartY = builder
                     .comment("Y level where gravity layers begin (default: 1000).")
@@ -162,7 +162,7 @@ public class Config {
                     .comment("Maximum number of gravity layers (default: 4). Beyond this, gravity stays at the last layer.")
                     .defineInRange("overworldGravityMaxLayers", 4, 1, 20);
             overworldGravityPerLayer = builder
-                    .comment("Upward force added per layer, applied to ALL entities (default: 0.02). Total force is clamped to 0.08.")
+                    .comment("Upward force per layer, applied continuously (not discrete) to ALL entities (default: 0.02). Total force is clamped to 0.08.")
                     .defineInRange("overworldGravityPerLayer", 0.02, 0.0, 0.08);
 
             builder.pop();
