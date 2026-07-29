@@ -112,4 +112,21 @@ public final class EndlessGravityAPI {
     public static int getFallDamageMode() {
         return Config.COMMON.fallDamageMode.get();
     }
+
+    /**
+     * Returns the Overworld layer progress at the given Y level, from 0.0 (below start Y or disabled) to 1.0 (max layers reached).
+     * Only meaningful in the Overworld dimension when overworld gravity is enabled.
+     */
+    public static double getOverworldLayerProgress(Level level, double y) {
+        if (level.dimension() != Level.OVERWORLD) return 0.0;
+        if (!Config.COMMON.enableOverworldGravity.get()) return 0.0;
+
+        int startY = Config.COMMON.overworldGravityStartY.get();
+        if (y < startY) return 0.0;
+
+        int layerHeight = Config.COMMON.overworldGravityLayerHeight.get();
+        int maxLayers = Config.COMMON.overworldGravityMaxLayers.get();
+        double layers = Math.min(maxLayers, (y - startY) / layerHeight);
+        return layers / maxLayers;
+    }
 }

@@ -61,6 +61,8 @@ public class EndlessGravityConfigScreen extends Screen {
     private int overworldGravityLayerHeight;
     private int overworldGravityMaxLayers;
     private double overworldGravityPerLayer;
+    private double overworldMuffleGain;
+    private double overworldMuffleGainHF;
 
     // Widget references for reset
     private ConfigSlider playerSlider;
@@ -87,6 +89,8 @@ public class EndlessGravityConfigScreen extends Screen {
     private ConfigSlider overworldLayerHeightSlider;
     private ConfigSlider overworldMaxLayersSlider;
     private ConfigSlider overworldPerLayerSlider;
+    private ConfigSlider overworldMuffleGainSlider;
+    private ConfigSlider overworldMuffleGainHFSlider;
 
     public EndlessGravityConfigScreen(Screen parent) {
         super(Component.translatable("endless_gravity.config.title"));
@@ -134,6 +138,8 @@ public class EndlessGravityConfigScreen extends Screen {
         overworldGravityLayerHeight = Config.COMMON.overworldGravityLayerHeight.get();
         overworldGravityMaxLayers = Config.COMMON.overworldGravityMaxLayers.get();
         overworldGravityPerLayer = Config.COMMON.overworldGravityPerLayer.get();
+        overworldMuffleGain = Config.COMMON.overworldMuffleGain.get();
+        overworldMuffleGainHF = Config.COMMON.overworldMuffleGainHF.get();
 
         int x = this.width / 2 - 155;
         int w = 310;
@@ -268,6 +274,13 @@ public class EndlessGravityConfigScreen extends Screen {
                 overworldGravityPerLayer, 0.0, 0.08, v -> overworldGravityPerLayer = v, false));
         overworldPerLayerSlider.active = enableOverworldGravity;
 
+        y += gap + 4;
+        overworldMuffleGainSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.overworldMuffleGain",
+                overworldMuffleGain, 0.0, 1.0, v -> overworldMuffleGain = v, false));
+
+        overworldMuffleGainHFSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldMuffleGainHF",
+                overworldMuffleGainHF, 0.0, 1.0, v -> overworldMuffleGainHF = v, false));
+
         contentBottom = y + gap + (sableLoaded ? 24 : 0);
         int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
         maxScroll = Math.max(0, contentBottom - contentClipBottom);
@@ -376,6 +389,8 @@ public class EndlessGravityConfigScreen extends Screen {
         overworldGravityLayerHeight = 500;
         overworldGravityMaxLayers = 4;
         overworldGravityPerLayer = 0.02;
+        overworldMuffleGain = 0.2;
+        overworldMuffleGainHF = 0.1;
         enableOverworldGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", false));
         overworldStartYSlider.setActualValue(1000.0);
         overworldStartYSlider.active = false;
@@ -385,6 +400,8 @@ public class EndlessGravityConfigScreen extends Screen {
         overworldMaxLayersSlider.active = false;
         overworldPerLayerSlider.setActualValue(0.02);
         overworldPerLayerSlider.active = false;
+        overworldMuffleGainSlider.setActualValue(0.2);
+        overworldMuffleGainHFSlider.setActualValue(0.1);
     }
 
     private void save() {
@@ -415,6 +432,8 @@ public class EndlessGravityConfigScreen extends Screen {
         Config.COMMON.overworldGravityLayerHeight.set(overworldGravityLayerHeight);
         Config.COMMON.overworldGravityMaxLayers.set(overworldGravityMaxLayers);
         Config.COMMON.overworldGravityPerLayer.set(overworldGravityPerLayer);
+        Config.COMMON.overworldMuffleGain.set(overworldMuffleGain);
+        Config.COMMON.overworldMuffleGainHF.set(overworldMuffleGainHF);
     }
 
     private static Component toggleLabel(String key, boolean value) {
