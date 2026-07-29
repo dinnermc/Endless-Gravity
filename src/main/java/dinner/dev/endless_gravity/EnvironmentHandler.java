@@ -16,9 +16,11 @@ public class EnvironmentHandler {
         Player player = event.getEntity();
         if (player.isCreative() || player.isSpectator()) return;
         Level level = player.level();
-        if (level.dimension() != Level.OVERWORLD) return;
+        if (!EndlessGravityAPI.isOverworldOrSable(level)) return;
+        if (!Config.COMMON.enableAtmosphere.get()) return;
 
-        double progress = EndlessGravityAPI.getOverworldLayerProgress(level, EndlessGravityAPI.getRealY(player));
+        double realY = EndlessGravityAPI.getRealY(player);
+        double progress = EndlessGravityAPI.getAtmosphereProgress(realY);
         if (progress <= 0) return;
 
         if (Config.COMMON.enableTemperature.get()) {

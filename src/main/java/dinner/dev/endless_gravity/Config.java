@@ -48,16 +48,14 @@ public class Config {
         public final ModConfigSpec.DoubleValue sableDrag;
         public final ModConfigSpec.IntValue sableDatapackPriority;
 
-        // Overworld layers
-        public final ModConfigSpec.BooleanValue enableOverworldGravity;
-        public final ModConfigSpec.IntValue overworldGravityStartY;
-        public final ModConfigSpec.IntValue overworldGravityLayerHeight;
-        public final ModConfigSpec.IntValue overworldGravityMaxLayers;
-        public final ModConfigSpec.DoubleValue overworldGravityPerLayer;
-        public final ModConfigSpec.DoubleValue overworldMuffleGain;
-        public final ModConfigSpec.DoubleValue overworldMuffleGainHF;
+        // Atmosphere
+        public final ModConfigSpec.BooleanValue enableAtmosphere;
+        public final ModConfigSpec.DoubleValue atmosphereGravityMax;
+        public final ModConfigSpec.DoubleValue atmosphereMuffleGain;
+        public final ModConfigSpec.DoubleValue atmosphereMuffleGainHF;
+        public final ModConfigSpec.DoubleValue atmosphereDrag;
 
-        // Overworld environment
+        // Atmosphere environment
         public final ModConfigSpec.BooleanValue enableTemperature;
         public final ModConfigSpec.IntValue temperatureFreezeInterval;
         public final ModConfigSpec.BooleanValue enableOxygen;
@@ -155,29 +153,23 @@ public class Config {
 
             builder.pop();
 
-            builder.push("overworld");
+            builder.push("atmosphere");
 
-            enableOverworldGravity = builder
-                    .comment("Enable layered gravity in the Overworld above Y=1000 (default: true). Also affects Sable sub-levels in the Overworld.")
-                    .define("enableOverworldGravity", true);
-            overworldGravityStartY = builder
-                    .comment("Y level where gravity layers begin (default: 1000).")
-                    .defineInRange("overworldGravityStartY", 1000, 0, 10000);
-            overworldGravityLayerHeight = builder
-                    .comment("Height of each gravity layer in blocks (default: 500).")
-                    .defineInRange("overworldGravityLayerHeight", 500, 100, 2000);
-            overworldGravityMaxLayers = builder
-                    .comment("Maximum number of gravity layers (default: 4). Beyond this, gravity stays at the last layer.")
-                    .defineInRange("overworldGravityMaxLayers", 4, 1, 20);
-            overworldGravityPerLayer = builder
-                    .comment("Upward force per layer, applied continuously (not discrete) to ALL entities (default: 0.015). Total force is clamped to 0.07.")
-                    .defineInRange("overworldGravityPerLayer", 0.015, 0.0, 0.07);
-            overworldMuffleGain = builder
-                    .comment("Low-pass filter gain at max layer in Overworld (default: 0.05). Lower = more muffled. Interpolated from 1.0 at ground.")
-                    .defineInRange("overworldMuffleGain", 0.05, 0.0, 1.0);
-            overworldMuffleGainHF = builder
-                    .comment("Low-pass filter high-frequency gain at max layer in Overworld (default: 0.02). Lower = less high-frequency sound.")
-                    .defineInRange("overworldMuffleGainHF", 0.02, 0.0, 1.0);
+            enableAtmosphere = builder
+                    .comment("Enable atmospheric gravity in the Overworld (default: true). Gravity, muffled audio, drag, temperature and oxygen scale with real atmospheric layers from Y=64 (BASE) to Y=3500 (deep space). Also affects Sable sub-levels.")
+                    .define("enableAtmosphere", true);
+            atmosphereGravityMax = builder
+                    .comment("Maximum upward force per tick at deep space (default: 0.07). Interpolated from 0.0 at BASE Y=64. Higher = less gravity.")
+                    .defineInRange("atmosphereGravityMax", 0.07, 0.0, 0.07);
+            atmosphereMuffleGain = builder
+                    .comment("Low-pass filter gain at deep space Y=3500 (default: 0.01). Lower = more muffled. Interpolated from 1.0 at BASE.")
+                    .defineInRange("atmosphereMuffleGain", 0.01, 0.0, 1.0);
+            atmosphereMuffleGainHF = builder
+                    .comment("Low-pass filter high-frequency gain at deep space (default: 0.005). Lower = less high-frequency sound.")
+                    .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
+            atmosphereDrag = builder
+                    .comment("Horizontal drag compensation at deep space (default: 0.03). Counteracts natural air drag: 0 = no compensation (normal drag), 0.03 = 3%% velocity retention bonus per tick at space. Interpolated from 0 at BASE.")
+                    .defineInRange("atmosphereDrag", 0.03, 0.0, 0.1);
 
             builder.pop();
 
@@ -187,14 +179,14 @@ public class Config {
                     .comment("Enable freezing damage at high altitude in the Overworld (default: true). Survival players freeze like in powder snow.")
                     .define("enableTemperature", true);
             temperatureFreezeInterval = builder
-                    .comment("Ticks between freezing damage ticks at max altitude (default: 20). Higher = slower freezing. Scales with layer progress.")
+                    .comment("Ticks between freezing damage ticks at max altitude (default: 20). Higher = slower freezing. Scales with atmosphere progress.")
                     .defineInRange("temperatureFreezeInterval", 20, 1, 200);
 
             enableOxygen = builder
                     .comment("Enable oxygen depletion at high altitude in the Overworld (default: true). Survival players suffocate above the layers.")
                     .define("enableOxygen", true);
             oxygenRate = builder
-                    .comment("Ticks per air point lost at max altitude (default: 2). Higher = slower depletion. Scales with layer progress.")
+                    .comment("Ticks per air point lost at max altitude (default: 2). Higher = slower depletion. Scales with atmosphere progress.")
                     .defineInRange("oxygenRate", 2, 1, 100);
 
             builder.pop();

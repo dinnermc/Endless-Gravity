@@ -55,14 +55,12 @@ public class EndlessGravityConfigScreen extends Screen {
     private int sableDatapackPriority;
     private int restartWarningY = -1;
 
-    // Overworld
-    private boolean enableOverworldGravity;
-    private int overworldGravityStartY;
-    private int overworldGravityLayerHeight;
-    private int overworldGravityMaxLayers;
-    private double overworldGravityPerLayer;
-    private double overworldMuffleGain;
-    private double overworldMuffleGainHF;
+    // Atmosphere
+    private boolean enableAtmosphere;
+    private double atmosphereGravityMax;
+    private double atmosphereMuffleGain;
+    private double atmosphereMuffleGainHF;
+    private double atmosphereDrag;
 
     // Environment
     private boolean enableTemperature;
@@ -89,14 +87,12 @@ public class EndlessGravityConfigScreen extends Screen {
     private ConfigSlider sablePressureSlider;
     private ConfigSlider sableDragSlider;
 
-    // Widget references for overworld reset
-    private Button enableOverworldGravityToggle;
-    private ConfigSlider overworldStartYSlider;
-    private ConfigSlider overworldLayerHeightSlider;
-    private ConfigSlider overworldMaxLayersSlider;
-    private ConfigSlider overworldPerLayerSlider;
-    private ConfigSlider overworldMuffleGainSlider;
-    private ConfigSlider overworldMuffleGainHFSlider;
+    // Widget references for atmosphere reset
+    private Button enableAtmosphereToggle;
+    private ConfigSlider atmosphereGravitySlider;
+    private ConfigSlider atmosphereDragSlider;
+    private ConfigSlider atmosphereMuffleGainSlider;
+    private ConfigSlider atmosphereMuffleGainHFSlider;
 
     // Widget references for environment reset
     private Button enableTemperatureToggle;
@@ -145,13 +141,11 @@ public class EndlessGravityConfigScreen extends Screen {
             sableDatapackPriority = Config.COMMON.sableDatapackPriority.get();
         }
 
-        enableOverworldGravity = Config.COMMON.enableOverworldGravity.get();
-        overworldGravityStartY = Config.COMMON.overworldGravityStartY.get();
-        overworldGravityLayerHeight = Config.COMMON.overworldGravityLayerHeight.get();
-        overworldGravityMaxLayers = Config.COMMON.overworldGravityMaxLayers.get();
-        overworldGravityPerLayer = Config.COMMON.overworldGravityPerLayer.get();
-        overworldMuffleGain = Config.COMMON.overworldMuffleGain.get();
-        overworldMuffleGainHF = Config.COMMON.overworldMuffleGainHF.get();
+        enableAtmosphere = Config.COMMON.enableAtmosphere.get();
+        atmosphereGravityMax = Config.COMMON.atmosphereGravityMax.get();
+        atmosphereMuffleGain = Config.COMMON.atmosphereMuffleGain.get();
+        atmosphereMuffleGainHF = Config.COMMON.atmosphereMuffleGainHF.get();
+        atmosphereDrag = Config.COMMON.atmosphereDrag.get();
 
         enableTemperature = Config.COMMON.enableTemperature.get();
         temperatureFreezeInterval = Config.COMMON.temperatureFreezeInterval.get();
@@ -259,44 +253,37 @@ public class EndlessGravityConfigScreen extends Screen {
             restartWarningY = y + gap + 20;
         }
 
-        y += gap + 34;
-        addHeader(y, "endless_gravity.config.section.overworld");
+        y += gap + 10;
+        addHeader(y, "endless_gravity.config.section.atmosphere");
         y += 12;
 
-        enableOverworldGravityToggle = addScroll(Button.builder(
-                toggleLabel("endless_gravity.config.enableOverworldGravity", enableOverworldGravity),
+        enableAtmosphereToggle = addScroll(Button.builder(
+                toggleLabel("endless_gravity.config.enableAtmosphere", enableAtmosphere),
                 b -> {
-                    enableOverworldGravity = !enableOverworldGravity;
-                    b.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", enableOverworldGravity));
-                    overworldStartYSlider.active = enableOverworldGravity;
-                    overworldLayerHeightSlider.active = enableOverworldGravity;
-                    overworldMaxLayersSlider.active = enableOverworldGravity;
-                    overworldPerLayerSlider.active = enableOverworldGravity;
+                    enableAtmosphere = !enableAtmosphere;
+                    b.setMessage(toggleLabel("endless_gravity.config.enableAtmosphere", enableAtmosphere));
+                    atmosphereGravitySlider.active = enableAtmosphere;
+                    atmosphereMuffleGainSlider.active = enableAtmosphere;
+                    atmosphereMuffleGainHFSlider.active = enableAtmosphere;
+                    atmosphereDragSlider.active = enableAtmosphere;
                 }
         ).bounds(x, y, w, 20).build());
 
-        overworldStartYSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityStartY",
-                overworldGravityStartY, 0, 10000, v -> overworldGravityStartY = (int) Math.round(v), true));
-        overworldStartYSlider.active = enableOverworldGravity;
+        atmosphereGravitySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereGravityMax",
+                atmosphereGravityMax, 0.0, 0.07, v -> atmosphereGravityMax = v, false));
+        atmosphereGravitySlider.active = enableAtmosphere;
 
-        overworldLayerHeightSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityLayerHeight",
-                overworldGravityLayerHeight, 100, 2000, v -> overworldGravityLayerHeight = (int) Math.round(v), true));
-        overworldLayerHeightSlider.active = enableOverworldGravity;
+        atmosphereMuffleGainSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereMuffleGain",
+                atmosphereMuffleGain, 0.0, 1.0, v -> atmosphereMuffleGain = v, false));
+        atmosphereMuffleGainSlider.active = enableAtmosphere;
 
-        overworldMaxLayersSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityMaxLayers",
-                overworldGravityMaxLayers, 1, 20, v -> overworldGravityMaxLayers = (int) Math.round(v), false));
-        overworldMaxLayersSlider.active = enableOverworldGravity;
+        atmosphereMuffleGainHFSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereMuffleGainHF",
+                atmosphereMuffleGainHF, 0.0, 1.0, v -> atmosphereMuffleGainHF = v, false));
+        atmosphereMuffleGainHFSlider.active = enableAtmosphere;
 
-        overworldPerLayerSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldGravityPerLayer",
-                overworldGravityPerLayer, 0.0, 0.07, v -> overworldGravityPerLayer = v, false));
-        overworldPerLayerSlider.active = enableOverworldGravity;
-
-        y += gap + 4;
-        overworldMuffleGainSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.overworldMuffleGain",
-                overworldMuffleGain, 0.0, 1.0, v -> overworldMuffleGain = v, false));
-
-        overworldMuffleGainHFSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldMuffleGainHF",
-                overworldMuffleGainHF, 0.0, 1.0, v -> overworldMuffleGainHF = v, false));
+        atmosphereDragSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereDrag",
+                atmosphereDrag, 0.0, 0.1, v -> atmosphereDrag = v, false));
+        atmosphereDragSlider.active = enableAtmosphere;
 
         y += gap + 10;
         addHeader(y, "endless_gravity.config.section.environment");
@@ -432,24 +419,20 @@ public class EndlessGravityConfigScreen extends Screen {
             sablePrioritySlider.setActualValue(9999.0);
         }
 
-        enableOverworldGravity = true;
-        overworldGravityStartY = 1000;
-        overworldGravityLayerHeight = 500;
-        overworldGravityMaxLayers = 4;
-        overworldGravityPerLayer = 0.015;
-        overworldMuffleGain = 0.05;
-        overworldMuffleGainHF = 0.02;
-        enableOverworldGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableOverworldGravity", true));
-        overworldStartYSlider.setActualValue(1000.0);
-        overworldStartYSlider.active = true;
-        overworldLayerHeightSlider.setActualValue(500.0);
-        overworldLayerHeightSlider.active = true;
-        overworldMaxLayersSlider.setActualValue(4.0);
-        overworldMaxLayersSlider.active = true;
-        overworldPerLayerSlider.setActualValue(0.015);
-        overworldPerLayerSlider.active = true;
-        overworldMuffleGainSlider.setActualValue(0.05);
-        overworldMuffleGainHFSlider.setActualValue(0.02);
+        enableAtmosphere = true;
+        atmosphereGravityMax = 0.07;
+        atmosphereMuffleGain = 0.01;
+        atmosphereMuffleGainHF = 0.005;
+        atmosphereDrag = 0.03;
+        enableAtmosphereToggle.setMessage(toggleLabel("endless_gravity.config.enableAtmosphere", true));
+        atmosphereGravitySlider.setActualValue(0.07);
+        atmosphereGravitySlider.active = true;
+        atmosphereMuffleGainSlider.setActualValue(0.01);
+        atmosphereMuffleGainSlider.active = true;
+        atmosphereMuffleGainHFSlider.setActualValue(0.005);
+        atmosphereMuffleGainHFSlider.active = true;
+        atmosphereDragSlider.setActualValue(0.03);
+        atmosphereDragSlider.active = true;
 
         enableTemperature = true;
         temperatureFreezeInterval = 20;
@@ -486,13 +469,11 @@ public class EndlessGravityConfigScreen extends Screen {
             SableDatapackHandler.generateDatapack();
         }
 
-        Config.COMMON.enableOverworldGravity.set(enableOverworldGravity);
-        Config.COMMON.overworldGravityStartY.set(overworldGravityStartY);
-        Config.COMMON.overworldGravityLayerHeight.set(overworldGravityLayerHeight);
-        Config.COMMON.overworldGravityMaxLayers.set(overworldGravityMaxLayers);
-        Config.COMMON.overworldGravityPerLayer.set(overworldGravityPerLayer);
-        Config.COMMON.overworldMuffleGain.set(overworldMuffleGain);
-        Config.COMMON.overworldMuffleGainHF.set(overworldMuffleGainHF);
+        Config.COMMON.enableAtmosphere.set(enableAtmosphere);
+        Config.COMMON.atmosphereGravityMax.set(atmosphereGravityMax);
+        Config.COMMON.atmosphereMuffleGain.set(atmosphereMuffleGain);
+        Config.COMMON.atmosphereMuffleGainHF.set(atmosphereMuffleGainHF);
+        Config.COMMON.atmosphereDrag.set(atmosphereDrag);
         Config.COMMON.enableTemperature.set(enableTemperature);
         Config.COMMON.temperatureFreezeInterval.set(temperatureFreezeInterval);
         Config.COMMON.enableOxygen.set(enableOxygen);
