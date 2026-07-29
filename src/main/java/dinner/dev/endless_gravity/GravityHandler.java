@@ -101,7 +101,7 @@ public class GravityHandler {
     }
 
     private static Double getOverworldLayerOffset(Level level, double y) {
-        if (level.dimension() != Level.OVERWORLD) return null;
+        if (!EndlessGravityAPI.isOverworldOrSable(level)) return null;
         if (!Config.COMMON.enableOverworldGravity.get()) return null;
 
         int startY = Config.COMMON.overworldGravityStartY.get();
