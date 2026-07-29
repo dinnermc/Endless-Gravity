@@ -191,8 +191,8 @@ public class Config {
                     .comment("Low-pass filter high-frequency gain at deep space (default: 0.005). Lower = less high-frequency sound.")
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
             atmosphereDrag = builder
-                    .comment("Horizontal drag compensation at deep space (default: 0.03). Counteracts natural air drag: 0 = no compensation (normal drag), 0.03 = 3%% velocity retention bonus per tick at space. Interpolated from 0 at BASE.")
-                    .defineInRange("atmosphereDrag", 0.03, 0.0, 0.1);
+                    .comment("Drag compensation fraction at deep space (default: 1.0). Cancels Minecraft's natural air drag: 0 = no compensation (normal drag), 1.0 = full inertia (no drag at Y=3500), >1.0 = slight velocity boost. Interpolated from 0 at BASE.")
+                    .defineInRange("atmosphereDrag", 1.0, 0.0, 2.0);
 
             builder.pop();
 
