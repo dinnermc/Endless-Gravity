@@ -106,11 +106,11 @@ public class GravityHandler {
 
         applyGravity(entity, offset);
 
-        // Apply horizontal drag compensation (less air resistance at high altitude)
+        // Apply drag compensation — cancels air resistance in all axes
         double drag = EndlessGravityAPI.getAtmosphereDrag(realY);
         if (drag != 1.0) {
             var motion = entity.getDeltaMovement();
-            entity.setDeltaMovement(motion.x * drag, motion.y, motion.z * drag);
+            entity.setDeltaMovement(motion.x * drag, motion.y * drag, motion.z * drag);
         }
 
         return true;
