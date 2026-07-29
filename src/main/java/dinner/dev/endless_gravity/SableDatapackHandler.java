@@ -30,10 +30,21 @@ public class SableDatapackHandler {
             return;
         }
 
-        generateDatapack();
+        generateEndDatapack();
+        generateOverworldDatapack();
     }
 
     public static void generateDatapack() {
+        try {
+            if (!ModList.get().isLoaded("sable")) return;
+        } catch (Exception e) {
+            return;
+        }
+        generateEndDatapack();
+        generateOverworldDatapack();
+    }
+
+    private static void generateEndDatapack() {
         try {
             Path dataDir = DATAPACK_ROOT.resolve("data").resolve("endless_gravity").resolve("dimension_physics");
             Path jsonPath = dataDir.resolve("the_end.json");
@@ -60,20 +71,70 @@ public class SableDatapackHandler {
                 Files.writeString(jsonPath, json);
             }
 
-            if (!Files.exists(packMetaPath)) {
-                Files.writeString(packMetaPath, """
-                        {
-                          "pack": {
-                            "pack_format": 42,
-                            "description": "Endless Gravity Sable Datapack"
-                          }
-                        }""");
-            }
+            writePackMeta(packMetaPath);
 
-            LOGGER.info("Generated Sable datapack: gravityY={}, pressure={}, drag={}, priority={}",
+            LOGGER.info("Generated Sable End datapack: gravityY={}, pressure={}, drag={}, priority={}",
                     gravY, pressure, drag, priority);
         } catch (Exception e) {
-            LOGGER.error("Failed to generate Sable datapack", e);
+            LOGGER.error("Failed to generate Sable End datapack", e);
+        }
+    }
+
+    private static void generateOverworldDatapack() {
+        try {
+            Path dataDir = DATAPACK_ROOT.resolve("data").resolve("endless_gravity").resolve("dimension_physics");
+            Path jsonPath = dataDir.resolve("overworld.json");
+            Path packMetaPath = DATAPACK_ROOT.resolve("pack.mcmeta");
+
+            Files.createDirectories(dataDir);
+
+            int priority = Config.COMMON.overworldSableDatapackPriority.get();
+            double gravY = Config.COMMON.overworldSableGravityY.get();
+            double pressure = Config.COMMON.overworldSablePressure.get();
+            double drag = Config.COMMON.overworldSableDrag.get();
+
+            String json = String.format(Locale.ROOT, """
+                    {
+                      "dimension": "minecraft:overworld",
+                      "priority": %d,
+                      "base_gravity": [0.0, %.1f, 0.0],
+                      "base_pressure": %.1f,
+                      "universal_drag": %.1f,
+                      "magnetic_north": [0.0, 0.0, 0.0],
+                      "pressure_function": [
+                        { "altitude": -64.0,   "value": 1.25,   "slope": -0.001953 },
+                        { "altitude": 64.0,    "value": 1.0,    "slope": -0.001488 },
+                        { "altitude": 400.0,   "value": 0.5,    "slope": -0.000600 },
+                        { "altitude": 900.0,   "value": 0.2,    "slope": -0.000400 },
+                        { "altitude": 1200.0,  "value": 0.08,   "slope": -0.000117 },
+                        { "altitude": 1800.0,  "value": 0.01,   "slope": -0.000013 },
+                        { "altitude": 2500.0,  "value": 0.001,  "slope": -0.000001 },
+                        { "altitude": 3500.0,  "value": 0.0,    "slope": 0.0 }
+                      ]
+                    }""", priority, gravY, pressure, drag);
+
+            if (!Files.exists(jsonPath) || !Files.readString(jsonPath).equals(json)) {
+                Files.writeString(jsonPath, json);
+            }
+
+            writePackMeta(packMetaPath);
+
+            LOGGER.info("Generated Sable Overworld datapack: gravityY={}, pressure={}, drag={}, priority={}",
+                    gravY, pressure, drag, priority);
+        } catch (Exception e) {
+            LOGGER.error("Failed to generate Sable Overworld datapack", e);
+        }
+    }
+
+    private static void writePackMeta(Path packMetaPath) throws Exception {
+        if (!Files.exists(packMetaPath)) {
+            Files.writeString(packMetaPath, """
+                    {
+                      "pack": {
+                        "pack_format": 42,
+                        "description": "Endless Gravity Sable Datapack"
+                      }
+                    }""");
         }
     }
 }

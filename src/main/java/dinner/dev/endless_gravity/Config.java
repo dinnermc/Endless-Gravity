@@ -48,6 +48,12 @@ public class Config {
         public final ModConfigSpec.DoubleValue sableDrag;
         public final ModConfigSpec.IntValue sableDatapackPriority;
 
+        // Sable Overworld
+        public final ModConfigSpec.DoubleValue overworldSableGravityY;
+        public final ModConfigSpec.DoubleValue overworldSablePressure;
+        public final ModConfigSpec.DoubleValue overworldSableDrag;
+        public final ModConfigSpec.IntValue overworldSableDatapackPriority;
+
         // Atmosphere
         public final ModConfigSpec.BooleanValue enableAtmosphere;
         public final ModConfigSpec.DoubleValue atmosphereGravityMax;
@@ -148,8 +154,25 @@ public class Config {
                     .comment("Sable drag value for The End (default: 0.05). Air resistance. 0 = no drag.")
                     .defineInRange("sableDrag", 0.05, 0.0, 10.0);
             sableDatapackPriority = builder
-                    .comment("Sable datapack priority (default: 9999). Must be > 1000 to override Sable built-in defaults.")
+                    .comment("Sable datapack priority for The End (default: 9999). Must be > 1000 to override Sable built-in defaults.")
                     .defineInRange("sableDatapackPriority", 9999, 1, 9999);
+
+            builder.pop();
+
+            builder.push("sable_overworld");
+
+            overworldSableGravityY = builder
+                    .comment("Sable gravity Y value for the Overworld (default: -1.0). -1.0 = vanilla gravity. Endless Gravity handles per-altitude gravity offsets separately.")
+                    .defineInRange("overworldSableGravityY", -1.0, -20.0, 0.0);
+            overworldSablePressure = builder
+                    .comment("Sable base pressure value for the Overworld (default: 1.0). Pressure decreases with altitude via pressure_function.")
+                    .defineInRange("overworldSablePressure", 1.0, 0.0, 10.0);
+            overworldSableDrag = builder
+                    .comment("Sable universal drag for the Overworld (default: 1.0). 1.0 = vanilla drag. Lower values = less air resistance.")
+                    .defineInRange("overworldSableDrag", 1.0, 0.0, 10.0);
+            overworldSableDatapackPriority = builder
+                    .comment("Sable datapack priority for the Overworld (default: 2000). Must be > 1000 to override Sable built-in defaults.")
+                    .defineInRange("overworldSableDatapackPriority", 2000, 1, 9999);
 
             builder.pop();
 
