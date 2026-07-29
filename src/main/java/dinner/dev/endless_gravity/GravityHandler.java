@@ -38,7 +38,7 @@ public class GravityHandler {
         if (immunityEvent.isCanceled()) return;
         if (immunityEvent.isImmune()) return;
 
-        Double layerOffset = getOverworldLayerOffset(level, player.getY());
+        Double layerOffset = getOverworldLayerOffset(level, EndlessGravityAPI.getRealY(player));
         if (layerOffset != null) {
             if (!Config.COMMON.enablePlayerGravity.get()) return;
             applyGravity(player, layerOffset);
@@ -69,7 +69,7 @@ public class GravityHandler {
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
 
-        Double layerOffset = getOverworldLayerOffset(level, entity.getY());
+        Double layerOffset = getOverworldLayerOffset(level, EndlessGravityAPI.getRealY(entity));
         if (layerOffset != null) {
             if (!entityTypeEnabled(entity)) return;
             applyGravity(entity, layerOffset);
@@ -139,7 +139,7 @@ public class GravityHandler {
 
         Level level = player.level();
 
-        Double layerOffset = getOverworldLayerOffset(level, player.getY());
+        Double layerOffset = getOverworldLayerOffset(level, EndlessGravityAPI.getRealY(player));
         if (layerOffset != null && layerOffset > 0) {
             handleFallDamage(event, player, layerOffset);
             return;

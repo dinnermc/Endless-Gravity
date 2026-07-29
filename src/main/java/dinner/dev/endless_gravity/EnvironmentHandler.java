@@ -18,7 +18,7 @@ public class EnvironmentHandler {
         Level level = player.level();
         if (level.dimension() != Level.OVERWORLD) return;
 
-        double progress = EndlessGravityAPI.getOverworldLayerProgress(level, player.getY());
+        double progress = EndlessGravityAPI.getOverworldLayerProgress(level, EndlessGravityAPI.getRealY(player));
         if (progress <= 0) return;
 
         if (Config.COMMON.enableTemperature.get()) {

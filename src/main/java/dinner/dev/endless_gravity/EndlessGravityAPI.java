@@ -1,5 +1,6 @@
 package dinner.dev.endless_gravity;
 
+import dev.ryanhcode.sable.companion.SableCompanion;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -7,6 +8,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Public API for Endless Gravity. Other mods can use this to read config values,
@@ -135,5 +137,19 @@ public final class EndlessGravityAPI {
         ResourceKey<Level> dim = level.dimension();
         if (dim == Level.OVERWORLD) return true;
         return dim.location().getNamespace().equals("sable");
+    }
+
+    /**
+     * Projects an entity's position out of a Sable sub-level into global (Overworld) space.
+     * Returns the entity's actual Overworld Y coordinate, accounting for sub-level offsets.
+     * If not in a sub-level, returns {@code entity.getY()} unchanged.
+     */
+    public static double getRealY(Entity entity) {
+        try {
+            Vec3 realPos = SableCompanion.INSTANCE.projectOutOfSubLevel(entity.level(), entity.position());
+            return realPos.y;
+        } catch (Exception e) {
+            return entity.getY();
+        }
     }
 }
