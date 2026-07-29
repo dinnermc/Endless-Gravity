@@ -3,6 +3,7 @@ plugins {
     id 'maven-publish'
     id 'idea'
     id 'net.neoforged.moddev' version '2.0.142'
+    id 'com.modrinth.minotaur' version '2.+'
 }
 
 version = mod_version
@@ -111,22 +112,24 @@ publishing {
             from components.java
         }
     }
-    repositories {
-        maven {
-            name = "Modrinth"
-            url = "https://api.modrinth.com/maven"
-            credentials {
-                username = System.getenv("MODRINTH_TOKEN") ?: ""
-                password = System.getenv("MODRINTH_TOKEN") ?: ""
-            }
-        }
-    }
+}
+
+modrinth {
+    token = System.getenv("MODRINTH_TOKEN")
+    projectId = "endless-gravity"
+    versionNumber = mod_version
+    versionType = "release"
+    uploadFile = jar
+    gameVersions = ["1.21.1"]
+    loaders = ["neoforge"]
+    changelog = "See https://github.com/dinnermc/Endless-Gravity/releases/tag/v${mod_version}"
+    syncBodyFrom = rootProject.file("README.md").text
 }
 
 tasks.register('publishToModrinth') {
     group = 'publishing'
-    description = 'Publish to Modrinth Maven'
-    dependsOn 'publishMavenJavaPublicationToModrinthRepository'
+    description = 'Publish to Modrinth via Minotaur'
+    dependsOn 'modrinth'
 }
 
 idea {
