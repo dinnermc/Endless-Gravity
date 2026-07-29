@@ -205,8 +205,21 @@ public final class EndlessGravityAPI {
      * If not in a sub-level, returns {@code entity.getY()} unchanged.
      */
     public static double getRealY(Entity entity) {
+        Level level = entity.level();
+        ResourceKey<Level> dim = level.dimension();
+
+        // Fast path: if not a sub-level, entity Y is already global
+        if (dim == Level.OVERWORLD || dim == Level.END || dim == Level.NETHER) {
+            return entity.getY();
+        }
+
+        // Only attempt projection for Sable sub-level dimensions
+        if (!dim.location().getNamespace().equals("sable")) {
+            return entity.getY();
+        }
+
         try {
-            Vec3 realPos = SableCompanion.INSTANCE.projectOutOfSubLevel(entity.level(), entity.position());
+            Vec3 realPos = SableCompanion.INSTANCE.projectOutOfSubLevel(level, entity.position());
             return realPos.y;
         } catch (Exception e) {
             return getSubLevelOriginY(entity);
