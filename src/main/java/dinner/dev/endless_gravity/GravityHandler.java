@@ -101,8 +101,8 @@ public class GravityHandler {
         int maxLayers = Config.COMMON.overworldGravityMaxLayers.get();
         double perLayer = Config.COMMON.overworldGravityPerLayer.get();
 
-        int layer = Math.min(maxLayers, (int) ((y - startY) / layerHeight) + 1);
-        return Math.min(layer * perLayer, 0.08);
+        double layers = Math.min(maxLayers, (y - startY) / layerHeight);
+        return Math.min(layers * perLayer, 0.08);
     }
 
     private static boolean entityTypeEnabled(Entity entity) {
