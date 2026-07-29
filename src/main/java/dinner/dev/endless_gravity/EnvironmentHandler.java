@@ -20,15 +20,20 @@ public class EnvironmentHandler {
         if (!Config.COMMON.enableAtmosphere.get()) return;
 
         double realY = EndlessGravityAPI.getRealY(player);
-        double progress = EndlessGravityAPI.getAtmosphereProgress(realY);
-        if (progress <= 0) return;
+        if (realY <= EndlessGravityAPI.BASE) return;
 
         if (Config.COMMON.enableTemperature.get()) {
-            tickFreezing(player, progress, !level.isClientSide);
+            double tempProgress = EndlessGravityAPI.getTemperatureProgress(realY);
+            if (tempProgress > 0) {
+                tickFreezing(player, tempProgress, !level.isClientSide);
+            }
         }
 
         if (Config.COMMON.enableOxygen.get()) {
-            tickOxygen(player, progress, !level.isClientSide);
+            double oxyProgress = EndlessGravityAPI.getOxygenProgress(realY);
+            if (oxyProgress > 0) {
+                tickOxygen(player, oxyProgress, !level.isClientSide);
+            }
         }
     }
 

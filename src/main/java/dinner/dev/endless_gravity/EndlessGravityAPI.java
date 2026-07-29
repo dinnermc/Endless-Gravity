@@ -180,14 +180,23 @@ public final class EndlessGravityAPI {
     private static final double FULL_INERTIA_FACTOR = 1.0 / 0.91;
 
     /**
-     * Returns the horizontal drag compensation factor at the given Y level.
-     * 1.0 at BASE (no compensation — vanilla drag applies fully),
-     * increasing linearly to fully cancel Minecraft's built-in air drag (0.91 per tick)
-     * at SPACE_DEEP when atmosphereDrag=1.0, achieving true inertia in deep space.
+     * Drag progress: 0.0 at BASE, 1.0 at KARMAN_LINE (full inertia in space).
+     * Above KARMAN_LINE stays at 1.0 — zero drag in vacuum.
+     */
+    public static double getDragProgress(double y) {
+        if (y <= BASE) return 0.0;
+        if (y >= KARMAN_LINE) return 1.0;
+        return (y - BASE) / (KARMAN_LINE - BASE);
+    }
+
+    /**
+     * Returns the drag compensation factor for the given Y level.
+     * 1.0 at BASE (vanilla drag), scaling to FULL_INERTIA_FACTOR at KARMAN_LINE.
+     * In space (above KARMAN_LINE), drag is fully canceled — true vacuum physics.
      */
     public static double getAtmosphereDrag(double y) {
-        double progress = getAtmosphereProgress(y);
-        return 1.0 + progress * (FULL_INERTIA_FACTOR - 1.0) * Config.COMMON.atmosphereDrag.get();
+        double dragProgress = getDragProgress(y);
+        return 1.0 + dragProgress * (FULL_INERTIA_FACTOR - 1.0) * Config.COMMON.atmosphereDrag.get();
     }
 
     /**
@@ -221,6 +230,28 @@ public final class EndlessGravityAPI {
         ResourceKey<Level> dim = level.dimension();
         if (dim == Level.OVERWORLD) return true;
         return dim.location().getNamespace().equals("sable");
+    }
+
+    /**
+     * Temperature progress for freezing effects.
+     * 0.0 at BASE (comfortable), ramps to 1.0 at STRATOPAUSE (max freeze).
+     * Above STRATOPAUSE stays at 1.0.
+     */
+    public static double getTemperatureProgress(double y) {
+        if (y <= BASE) return 0.0;
+        if (y >= STRATOPAUSE) return 1.0;
+        return (y - BASE) / (STRATOPAUSE - BASE);
+    }
+
+    /**
+     * Oxygen depletion progress.
+     * 0.0 at BASE (normal air), ramps to 1.0 at KARMAN_LINE (vacuum).
+     * Above KARMAN_LINE stays at 1.0.
+     */
+    public static double getOxygenProgress(double y) {
+        if (y <= BASE) return 0.0;
+        if (y >= KARMAN_LINE) return 1.0;
+        return (y - BASE) / (KARMAN_LINE - BASE);
     }
 
     /**
