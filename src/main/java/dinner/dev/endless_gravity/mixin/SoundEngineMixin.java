@@ -2,6 +2,7 @@ package dinner.dev.endless_gravity.mixin;
 
 import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
+import dinner.dev.endless_gravity.MuffleState;
 import com.mojang.blaze3d.audio.Channel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.sounds.SoundEngine;
@@ -25,15 +26,11 @@ public abstract class SoundEngineMixin {
 
     @Shadow @Final private com.mojang.blaze3d.audio.Library library;
 
-    @Unique private static int endlessgravity$lowPassFilter = -1;
-    @Unique private static boolean endlessgravity$lastFiltering = false;
     @Unique private static boolean endlessgravity$refsResolved = false;
     @Unique private static Field endlessgravity$libraryStaticChannels;
     @Unique private static Field endlessgravity$libraryStreamingChannels;
     @Unique private static Field endlessgravity$channelPoolActiveChannels;
     @Unique private static Field endlessgravity$channelSource;
-    @Unique private static float endlessgravity$lastGain = -1f;
-    @Unique private static float endlessgravity$lastGainHF = -1f;
     @Unique private static final Set<Channel> endlessgravity$EMPTY_SET = Set.of();
 
     @Unique
@@ -83,7 +80,7 @@ public abstract class SoundEngineMixin {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        double playerY = mc.player.getY();
+        double playerY = EndlessGravityAPI.getRealY(mc.player);
 
         boolean inEnd = mc.level.dimension() == Level.END;
         double overworldProgress = EndlessGravityAPI.getOverworldLayerProgress(mc.level, playerY);
@@ -112,25 +109,16 @@ public abstract class SoundEngineMixin {
 
         boolean shouldFilter = targetGain < 1.0f || targetGainHF < 1.0f;
 
+        if (shouldFilter) {
+            MuffleState.getFilter();
+            MuffleState.update(targetGain, targetGainHF);
+        } else {
+            MuffleState.update(1.0f, 1.0f);
+        }
+
+        int filterValue = shouldFilter ? MuffleState.getFilter() : AL_FILTER_NULL;
+
         endlessgravity$resolveRefs();
-
-        if (shouldFilter && endlessgravity$lowPassFilter == -1) {
-            endlessgravity$lowPassFilter = alGenFilters();
-            alFilteri(endlessgravity$lowPassFilter, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-            endlessgravity$lastGain = -1f;
-            endlessgravity$lastGainHF = -1f;
-        }
-
-        if (shouldFilter && endlessgravity$lowPassFilter != -1) {
-            if (targetGain != endlessgravity$lastGain || targetGainHF != endlessgravity$lastGainHF) {
-                alFilterf(endlessgravity$lowPassFilter, AL_LOWPASS_GAIN, targetGain);
-                alFilterf(endlessgravity$lowPassFilter, AL_LOWPASS_GAINHF, targetGainHF);
-                endlessgravity$lastGain = targetGain;
-                endlessgravity$lastGainHF = targetGainHF;
-            }
-        }
-
-        int filterValue = shouldFilter ? endlessgravity$lowPassFilter : AL_FILTER_NULL;
 
         try {
             Object staticPool = endlessgravity$libraryStaticChannels.get(this.library);
@@ -147,14 +135,5 @@ public abstract class SoundEngineMixin {
             }
         } catch (Exception ignored) {
         }
-
-        if (!shouldFilter && endlessgravity$lastFiltering && endlessgravity$lowPassFilter != -1) {
-            alDeleteFilters(endlessgravity$lowPassFilter);
-            endlessgravity$lowPassFilter = -1;
-            endlessgravity$lastGain = -1f;
-            endlessgravity$lastGainHF = -1f;
-        }
-
-        endlessgravity$lastFiltering = shouldFilter;
     }
 }

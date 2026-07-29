@@ -11,6 +11,17 @@ group = mod_group_id
 
 repositories {
     mavenLocal()
+    exclusiveContent {
+        forRepository {
+            maven {
+                url = "https://maven.ryanhcode.dev/releases"
+                name = "RyanHCode Maven"
+            }
+        }
+        filter {
+            includeGroup("dev.ryanhcode.sable-companion")
+        }
+    }
 }
 
 base {
@@ -75,6 +86,12 @@ sourceSets.client.runtimeClasspath += sourceSets.main.output
 sourceSets.client.runtimeClasspath += sourceSets.main.runtimeClasspath
 
 dependencies {
+    jarJar(api("dev.ryanhcode.sable-companion:sable-companion-common-${minecraft_version}:${sable_companion_version}")) {
+        version {
+            strictly "[${sable_companion_version},)"
+            prefer sable_companion_version
+        }
+    }
 }
 
 jar {

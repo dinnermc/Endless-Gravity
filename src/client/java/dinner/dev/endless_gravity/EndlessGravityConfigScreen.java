@@ -256,10 +256,10 @@ public class EndlessGravityConfigScreen extends Screen {
             sablePrioritySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.sableDatapackPriority",
                     sableDatapackPriority, 1, 9999, v -> sableDatapackPriority = (int) Math.round(v), true));
 
-            restartWarningY = y + gap + 4;
+            restartWarningY = y + gap + 20;
         }
 
-        y += gap + 10;
+        y += gap + 34;
         addHeader(y, "endless_gravity.config.section.overworld");
         y += 12;
 
