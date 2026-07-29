@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity;
 
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
@@ -115,10 +116,10 @@ public final class EndlessGravityAPI {
 
     /**
      * Returns the Overworld layer progress at the given Y level, from 0.0 (below start Y or disabled) to 1.0 (max layers reached).
-     * Only meaningful in the Overworld dimension when overworld gravity is enabled.
+     * Also applies to Sable sub-levels in the Overworld.
      */
     public static double getOverworldLayerProgress(Level level, double y) {
-        if (level.dimension() != Level.OVERWORLD) return 0.0;
+        if (!isOverworldOrSable(level)) return 0.0;
         if (!Config.COMMON.enableOverworldGravity.get()) return 0.0;
 
         int startY = Config.COMMON.overworldGravityStartY.get();
@@ -128,5 +129,11 @@ public final class EndlessGravityAPI {
         int maxLayers = Config.COMMON.overworldGravityMaxLayers.get();
         double layers = Math.min(maxLayers, (y - startY) / layerHeight);
         return layers / maxLayers;
+    }
+
+    public static boolean isOverworldOrSable(Level level) {
+        ResourceKey<Level> dim = level.dimension();
+        if (dim == Level.OVERWORLD) return true;
+        return dim.location().getNamespace().equals("sable");
     }
 }
