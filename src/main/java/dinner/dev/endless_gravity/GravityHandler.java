@@ -2,6 +2,8 @@ package dinner.dev.endless_gravity;
 
 import dinner.dev.endless_gravity.event.FallDamageCalculationEvent;
 import dinner.dev.endless_gravity.event.GravityApplicationEvent;
+import dinner.dev.endless_gravity.event.GravityAppliedEvent;
+import dinner.dev.endless_gravity.event.GravityImmunityEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
@@ -30,7 +32,11 @@ public class GravityHandler {
 
         if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
         if (player.getAbilities().flying) return;
-        if (EndlessGravityAPI.isGravityImmune(player)) return;
+
+        GravityImmunityEvent immunityEvent = new GravityImmunityEvent(player, EndlessGravityAPI.isGravityImmune(player));
+        NeoForge.EVENT_BUS.post(immunityEvent);
+        if (immunityEvent.isCanceled()) return;
+        if (immunityEvent.isImmune()) return;
 
         Double layerOffset = getOverworldLayerOffset(level, player.getY());
         if (layerOffset != null) {
@@ -54,7 +60,11 @@ public class GravityHandler {
 
         Level level = entity.level();
         if (entity.onGround() || entity.isInWater()) return;
-        if (EndlessGravityAPI.isGravityImmune(entity)) return;
+
+        GravityImmunityEvent immunityEvent = new GravityImmunityEvent(entity, EndlessGravityAPI.isGravityImmune(entity));
+        NeoForge.EVENT_BUS.post(immunityEvent);
+        if (immunityEvent.isCanceled()) return;
+        if (immunityEvent.isImmune()) return;
 
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
@@ -119,6 +129,8 @@ public class GravityHandler {
         entity.setDeltaMovement(
                 entity.getDeltaMovement().add(0, offset, 0)
         );
+
+        NeoForge.EVENT_BUS.post(new GravityAppliedEvent(entity, offset));
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
