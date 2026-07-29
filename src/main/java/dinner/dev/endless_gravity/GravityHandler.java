@@ -109,7 +109,7 @@ public class GravityHandler {
 
         double progress = EndlessGravityAPI.getOverworldLayerProgress(level, y);
         double maxOffset = Config.COMMON.overworldGravityMaxLayers.get() * Config.COMMON.overworldGravityPerLayer.get();
-        return Math.min(progress * maxOffset, 0.08);
+        return Math.min(progress * maxOffset, 0.07);
     }
 
     private static boolean entityTypeEnabled(Entity entity) {

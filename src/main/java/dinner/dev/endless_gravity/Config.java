@@ -57,6 +57,12 @@ public class Config {
         public final ModConfigSpec.DoubleValue overworldMuffleGain;
         public final ModConfigSpec.DoubleValue overworldMuffleGainHF;
 
+        // Overworld environment
+        public final ModConfigSpec.BooleanValue enableTemperature;
+        public final ModConfigSpec.IntValue temperatureFreezeInterval;
+        public final ModConfigSpec.BooleanValue enableOxygen;
+        public final ModConfigSpec.IntValue oxygenRate;
+
         public Common(ModConfigSpec.Builder builder) {
             builder.push("gravity");
 
@@ -65,28 +71,28 @@ public class Config {
                     .define("enablePlayerGravity", true);
             playerGravityOffset = builder
                     .comment("Upward force per tick for players in The End (default: 0.055). Higher = less gravity.")
-                    .defineInRange("playerGravityOffset", 0.055, 0.0, 0.08);
+                    .defineInRange("playerGravityOffset", 0.055, 0.0, 0.07);
 
             enableItemGravity = builder
                     .comment("Enable item gravity reduction in The End (default: true).")
                     .define("enableItemGravity", true);
             itemGravityOffset = builder
                     .comment("Upward force per tick for items in The End (default: 0.025). Higher = less gravity.")
-                    .defineInRange("itemGravityOffset", 0.025, 0.0, 0.04);
+                    .defineInRange("itemGravityOffset", 0.025, 0.0, 0.035);
 
             enableArrowGravity = builder
                     .comment("Enable arrow/trident gravity reduction in The End (default: true).")
                     .define("enableArrowGravity", true);
             arrowGravityOffset = builder
                     .comment("Upward force per tick for arrows/tridents in The End (default: 0.03). Higher = less gravity.")
-                    .defineInRange("arrowGravityOffset", 0.03, 0.0, 0.05);
+                    .defineInRange("arrowGravityOffset", 0.03, 0.0, 0.04);
 
             enableThrownGravity = builder
                     .comment("Enable thrown projectile gravity reduction in The End (default: true).")
                     .define("enableThrownGravity", true);
             thrownGravityOffset = builder
                     .comment("Upward force per tick for thrown projectiles in The End (default: 0.018). Higher = less gravity.")
-                    .defineInRange("thrownGravityOffset", 0.018, 0.0, 0.03);
+                    .defineInRange("thrownGravityOffset", 0.018, 0.0, 0.025);
 
             builder.pop();
 
@@ -128,7 +134,7 @@ public class Config {
                     .define("enableBlockGravity", true);
             blockGravityOffset = builder
                     .comment("Upward force per tick for falling blocks in The End (default: 0.035). Higher = slower fall.")
-                    .defineInRange("blockGravityOffset", 0.035, 0.0, 0.04);
+                    .defineInRange("blockGravityOffset", 0.035, 0.0, 0.035);
 
             builder.pop();
 
@@ -152,8 +158,8 @@ public class Config {
             builder.push("overworld");
 
             enableOverworldGravity = builder
-                    .comment("Enable layered gravity in the Overworld above Y=1000 (default: false). Also affects Sable sub-levels in the Overworld.")
-                    .define("enableOverworldGravity", false);
+                    .comment("Enable layered gravity in the Overworld above Y=1000 (default: true). Also affects Sable sub-levels in the Overworld.")
+                    .define("enableOverworldGravity", true);
             overworldGravityStartY = builder
                     .comment("Y level where gravity layers begin (default: 1000).")
                     .defineInRange("overworldGravityStartY", 1000, 0, 10000);
@@ -164,14 +170,32 @@ public class Config {
                     .comment("Maximum number of gravity layers (default: 4). Beyond this, gravity stays at the last layer.")
                     .defineInRange("overworldGravityMaxLayers", 4, 1, 20);
             overworldGravityPerLayer = builder
-                    .comment("Upward force per layer, applied continuously (not discrete) to ALL entities (default: 0.02). Total force is clamped to 0.08.")
-                    .defineInRange("overworldGravityPerLayer", 0.02, 0.0, 0.08);
+                    .comment("Upward force per layer, applied continuously (not discrete) to ALL entities (default: 0.015). Total force is clamped to 0.07.")
+                    .defineInRange("overworldGravityPerLayer", 0.015, 0.0, 0.07);
             overworldMuffleGain = builder
                     .comment("Low-pass filter gain at max layer in Overworld (default: 0.2). Lower = more muffled. Interpolated from 1.0 at ground.")
                     .defineInRange("overworldMuffleGain", 0.2, 0.0, 1.0);
             overworldMuffleGainHF = builder
                     .comment("Low-pass filter high-frequency gain at max layer in Overworld (default: 0.1). Lower = less high-frequency sound.")
                     .defineInRange("overworldMuffleGainHF", 0.1, 0.0, 1.0);
+
+            builder.pop();
+
+            builder.push("environment");
+
+            enableTemperature = builder
+                    .comment("Enable freezing damage at high altitude in the Overworld (default: true). Survival players freeze like in powder snow.")
+                    .define("enableTemperature", true);
+            temperatureFreezeInterval = builder
+                    .comment("Ticks between freezing damage ticks at max altitude (default: 20). Higher = slower freezing. Scales with layer progress.")
+                    .defineInRange("temperatureFreezeInterval", 20, 1, 200);
+
+            enableOxygen = builder
+                    .comment("Enable oxygen depletion at high altitude in the Overworld (default: true). Survival players suffocate above the layers.")
+                    .define("enableOxygen", true);
+            oxygenRate = builder
+                    .comment("Ticks per air point lost at max altitude (default: 2). Higher = slower depletion. Scales with layer progress.")
+                    .defineInRange("oxygenRate", 2, 1, 100);
 
             builder.pop();
         }

@@ -4,6 +4,8 @@
   "endless_gravity.config.section.effects": "--- Effects ---",
   "endless_gravity.config.section.gameplay": "--- Gameplay ---",
   "endless_gravity.config.section.sable": "--- Sable Integration ---",
+  "endless_gravity.config.section.overworld": "--- Overworld Layers ---",
+  "endless_gravity.config.section.environment": "--- Overworld Environment ---",
   "endless_gravity.config.enablePlayerGravity": "Player Gravity",
   "endless_gravity.config.enableItemGravity": "Item Gravity",
   "endless_gravity.config.enableArrowGravity": "Arrow Gravity",
@@ -32,5 +34,16 @@
   "endless_gravity.config.false": "OFF",
   "endless_gravity.config.fallDamageMode.normal": "Normal",
   "endless_gravity.config.fallDamageMode.disabled": "Disabled",
-  "endless_gravity.config.fallDamageMode.velocity": "Velocity-Based"
+  "endless_gravity.config.fallDamageMode.velocity": "Velocity-Based",
+  "endless_gravity.config.enableOverworldGravity": "Overworld Gravity",
+  "endless_gravity.config.overworldGravityStartY": "Start Y",
+  "endless_gravity.config.overworldGravityLayerHeight": "Layer Height",
+  "endless_gravity.config.overworldGravityMaxLayers": "Max Layers",
+  "endless_gravity.config.overworldGravityPerLayer": "Force Per Layer",
+  "endless_gravity.config.overworldMuffleGain": "Muffle Volume",
+  "endless_gravity.config.overworldMuffleGainHF": "Muffle High Frequencies",
+  "endless_gravity.config.enableTemperature": "Freezing",
+  "endless_gravity.config.temperatureFreezeInterval": "Freeze Interval",
+  "endless_gravity.config.enableOxygen": "Oxygen Depletion",
+  "endless_gravity.config.oxygenRate": "Oxygen Depletion Rate"
 }
