@@ -21,6 +21,8 @@ public class EndlessGravity {
     public EndlessGravity(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.COMMON_SPEC);
 
+        registerSableMixinConfig();
+
         modEventBus.addListener(RegisterPayloadHandlersEvent.class, event -> {
             PayloadRegistrar registrar = event.registrar("1");
             registrar.playToClient(
@@ -37,5 +39,13 @@ public class EndlessGravity {
         });
 
         LOGGER.info("Endless Gravity loaded");
+    }
+
+    private static void registerSableMixinConfig() {
+        try {
+            org.spongepowered.asm.mixin.Mixins.addConfiguration("endless_gravity.sable.mixins.json");
+        } catch (Exception e) {
+            LOGGER.warn("Failed to register Sable mixin config (Sable may not be installed)", e);
+        }
     }
 }

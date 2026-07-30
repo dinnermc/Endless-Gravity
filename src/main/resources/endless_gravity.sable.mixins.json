@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "dinner.dev.endless_gravity.mixin.sable",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "endless_gravity.refmap.json",
+  "mixins": [
+    "ServerSubLevelMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
