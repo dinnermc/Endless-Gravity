@@ -13,6 +13,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -149,9 +150,12 @@ public class GravityHandler {
         if (gravityEvent.isCanceled()) return;
 
         offset = gravityEvent.getOffset();
-        entity.setDeltaMovement(
-                entity.getDeltaMovement().add(0, offset, 0)
-        );
+        Vec3 before = entity.getDeltaMovement();
+        entity.setDeltaMovement(before.add(0, offset, 0));
+        Vec3 after = entity.getDeltaMovement();
+
+        LOGGER.debug("applyGravity: entity={}, dim={}, before={}, offset={}, after={}",
+                entity, entity.level().dimension().location(), before, offset, after);
 
         NeoForge.EVENT_BUS.post(new GravityAppliedEvent(entity, offset));
     }
