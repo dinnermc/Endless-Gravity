@@ -182,8 +182,8 @@ public class Config {
                     .comment("Enable atmospheric gravity in the Overworld (default: true). Gravity, muffled audio, drag, temperature and oxygen scale with real atmospheric layers from Y=64 (BASE) to Y=3500 (deep space). Also affects Sable sub-levels.")
                     .define("enableAtmosphere", true);
             atmosphereGravityMax = builder
-                    .comment("Maximum upward force per tick at deep space (default: 0.07). Interpolated from 0.0 at BASE Y=64. Higher = less gravity.")
-                    .defineInRange("atmosphereGravityMax", 0.07, 0.0, 0.07);
+                    .comment("Maximum upward force per tick at deep space (default: 0.08). Interpolated from 0.0 at BASE Y=64. Higher = less gravity. 0.08 fully cancels vanilla player gravity for zero-G in deep space.")
+                    .defineInRange("atmosphereGravityMax", 0.08, 0.0, 0.1);
             atmosphereMuffleGain = builder
                     .comment("Low-pass filter gain at deep space Y=3500 (default: 0.01). Lower = more muffled. Interpolated from 1.0 at BASE.")
                     .defineInRange("atmosphereMuffleGain", 0.01, 0.0, 1.0);
