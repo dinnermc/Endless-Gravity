@@ -107,7 +107,6 @@ public class GravityHandler {
      */
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
         if (!EndlessGravityAPI.isOverworldOrSable(level)) return false;
-        if (EndlessGravityAPI.isSableManaged(level)) return false;
         if (!Config.COMMON.enableAtmosphere.get()) return false;
 
         double realY = EndlessGravityAPI.getRealY(entity);
