@@ -14,6 +14,8 @@ public final class DragHelper {
     public static boolean shouldCompensate(Entity entity) {
         Level level = entity.level();
         if (!EndlessGravityAPI.isOverworldOrSable(level)) return false;
+        // Sable handles drag via dimension_physics pressure function
+        if (EndlessGravityAPI.isSableManaged(level)) return false;
         if (!Config.COMMON.enableAtmosphere.get()) return false;
         double realY = EndlessGravityAPI.getRealY(entity);
         return realY > EndlessGravityAPI.BASE;

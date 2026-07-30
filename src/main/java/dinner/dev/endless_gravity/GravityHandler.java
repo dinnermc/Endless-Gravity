@@ -20,12 +20,15 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import org.slf4j.Logger;
+import com.mojang.logging.LogUtils;
 
 
 
 @EventBusSubscriber(modid = EndlessGravity.MODID)
 public class GravityHandler {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static final double VEL_THRESHOLD = 0.005;
 
     @SubscribeEvent
@@ -106,8 +109,14 @@ public class GravityHandler {
      * Returns true if effects were applied.
      */
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
-        if (!EndlessGravityAPI.isOverworldOrSable(level)) return false;
-        if (!Config.COMMON.enableAtmosphere.get()) return false;
+        if (!EndlessGravityAPI.isOverworldOrSable(level)) {
+            LOGGER.debug("Skipping atmosphere: not Overworld/Sable (dim={})", level.dimension().location());
+            return false;
+        }
+        if (!Config.COMMON.enableAtmosphere.get()) {
+            LOGGER.debug("Skipping atmosphere: disabled in config");
+            return false;
+        }
 
         double realY = EndlessGravityAPI.getRealY(entity);
         if (realY <= EndlessGravityAPI.BASE) return false;
@@ -115,6 +124,8 @@ public class GravityHandler {
         double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
         if (offset <= 0) return false;
 
+        LOGGER.debug("Applying atmosphere: entity={}, dim={}, rawY={}, realY={}, offset={}",
+                entity, level.dimension().location(), entity.getY(), realY, offset);
         applyGravity(entity, offset);
         return true;
     }
