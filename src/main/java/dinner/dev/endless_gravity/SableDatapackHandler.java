@@ -31,6 +31,7 @@ public class SableDatapackHandler {
         }
 
         generateEndDatapack();
+        generateOverworldDatapack();
     }
 
     public static void generateDatapack() {
@@ -40,6 +41,7 @@ public class SableDatapackHandler {
             return;
         }
         generateEndDatapack();
+        generateOverworldDatapack();
     }
 
     private static void generateEndDatapack() {
@@ -88,8 +90,7 @@ public class SableDatapackHandler {
 
             int priority = Config.COMMON.overworldSableDatapackPriority.get();
             double gravY = Config.COMMON.overworldSableGravityY.get();
-            double pressure = Config.COMMON.overworldSablePressure.get();
-            double drag = 0.0; // Drag is handled entirely by Endless Gravity mixins
+            double basePressure = Config.COMMON.overworldSablePressure.get();
 
             String json = String.format(Locale.ROOT, """
                     {
@@ -97,7 +98,7 @@ public class SableDatapackHandler {
                       "priority": %d,
                       "base_gravity": [0.0, %.1f, 0.0],
                       "base_pressure": %.1f,
-                      "universal_drag": %.1f,
+                      "universal_drag": 0.09,
                       "magnetic_north": [0.0, 0.0, 0.0],
                       "pressure_function": [
                         { "altitude": -64.0,   "value": 1.25,   "slope": -0.001953 },
@@ -109,7 +110,7 @@ public class SableDatapackHandler {
                         { "altitude": 2500.0,  "value": 0.001,  "slope": -0.000001 },
                         { "altitude": 3500.0,  "value": 0.0,    "slope": 0.0 }
                       ]
-                    }""", priority, gravY, pressure, drag);
+                    }""", priority, gravY, basePressure);
 
             if (!Files.exists(jsonPath) || !Files.readString(jsonPath).equals(json)) {
                 Files.writeString(jsonPath, json);
@@ -117,8 +118,8 @@ public class SableDatapackHandler {
 
             writePackMeta(packMetaPath);
 
-            LOGGER.info("Generated Sable Overworld datapack: gravityY={}, pressure={}, drag={}, priority={}",
-                    gravY, pressure, drag, priority);
+            LOGGER.info("Generated Sable Overworld datapack: gravityY={}, basePressure={}, priority={}",
+                    gravY, basePressure, priority);
         } catch (Exception e) {
             LOGGER.error("Failed to generate Sable Overworld datapack", e);
         }
