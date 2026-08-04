@@ -69,3 +69,7 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" --title "Endless Gravity v$VERSION" --notes "$NOTES"
           fi
+          JAR="build/libs/endless_gravity-${VERSION}.jar"
+          if [ -f "$JAR" ]; then
+            gh release upload "$GITHUB_REF_NAME" "$JAR" --clobber
+          fi
