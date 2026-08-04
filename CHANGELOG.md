@@ -1,11 +1,9 @@
 # Changelog
 
-## 1.1.1 (2026-08-04)
+## 1.1.1
 
 - Updated the Stellar Suit and its item textures
-- Nuevas texturas para la Stellar Suit y sus ítems
-
-## 1.1.0 (2026-08-04)
+## 1.1.0
 
 - **New config screen** — Cloth Config is now bundled (Jar-in-Jar, no manual install). Tabs for **All**, **The End**, **Overworld**, and **General**, color-coded entries, per-entry reset, and amber restart warnings where needed
 - **Atmosphere rework** — the discrete layer/drag system was replaced by a single continuous pressure curve (8 configurable altitude → pressure layers, default `-64:1.25 … 3500:0.0`). Gravity, audio muffling, temperature, and oxygen now all derive from the same curve
