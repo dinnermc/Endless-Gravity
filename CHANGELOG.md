@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 (2026-08-04)
+
+- Updated the Stellar Suit and its item textures
+- Nuevas texturas para la Stellar Suit y sus ítems
+
 ## 1.1.0 (2026-08-04)
 
 - **New config screen** — Cloth Config is now bundled (Jar-in-Jar, no manual install). Tabs for **All**, **The End**, **Overworld**, and **General**, color-coded entries, per-entry reset, and amber restart warnings where needed
