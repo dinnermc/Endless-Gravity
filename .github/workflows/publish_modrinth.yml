@@ -60,21 +60,6 @@ jobs:
               -H "Content-Type: application/json" -d @- \
               "https://api.modrinth.com/v2/version/$VID"
 
-      - name: Repair changelog of v1.1.0 (one-time)
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-        run: |
-          VER="1.1.0"
-          VID=$(curl -fsS -H "Authorization: Bearer $MODRINTH_TOKEN" \
-            "https://api.modrinth.com/v2/project/endless-gravity/version" \
-            | jq -r --arg v "$VER" '.[] | select(.version_number == $v) | .id' | head -n1)
-          if [ -z "$VID" ]; then exit 0; fi
-          CHANGELOG=$(awk -v v="$VER" '/^## /{ if (f) exit; if ($2 == v) f=1 } f{ print }' CHANGELOG.md)
-          jq -n --arg changelog "$CHANGELOG" '{changelog: $changelog}' \
-            | curl -fsS -X PATCH -H "Authorization: Bearer $MODRINTH_TOKEN" \
-              -H "Content-Type: application/json" -d @- \
-              "https://api.modrinth.com/v2/version/$VID"
-
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
