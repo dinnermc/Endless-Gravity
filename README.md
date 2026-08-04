@@ -52,10 +52,6 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 | Recharge Rate | 5 | Tank recharges per second at full pressure |
 | Suffocation Fade Ticks | 100 | Ticks of oxygen left at which the suffocation effect fades in |
 
-## Starship
-
-Craft a **Starship** (upper stage `U` over booster `S`), place it, and right-click to launch. The rocket launches into a Sable sub-level with full rigid-body physics: a liftoff thrust ramp (~1.25→1.39 g), **separation at Y ≥ 1800** (or after 700 ticks), a cruise/drift phase with lateral control, and a powered landing (up to 6 g braking). Engine startup, loop, and shutdown sounds have a 128-block range with distance attenuation. Works best with [Sable](https://modrinth.com/mod/sable) installed.
-
 ## Stellar Suit
 
 Four-piece armor set with a custom in-game model and texture:
