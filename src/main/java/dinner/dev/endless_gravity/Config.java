@@ -3,6 +3,8 @@ package dinner.dev.endless_gravity;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.List;
+
 public class Config {
     public static final ModConfigSpec COMMON_SPEC;
     public static final Common COMMON;
@@ -19,6 +21,7 @@ public class Config {
         public final ModConfigSpec.BooleanValue enableItemGravity;
         public final ModConfigSpec.BooleanValue enableArrowGravity;
         public final ModConfigSpec.BooleanValue enableThrownGravity;
+        public final ModConfigSpec.BooleanValue endEntityGravity;
 
         // Gravity values
         public final ModConfigSpec.DoubleValue playerGravityOffset;
@@ -47,28 +50,35 @@ public class Config {
         public final ModConfigSpec.DoubleValue sablePressure;
         public final ModConfigSpec.DoubleValue sableDrag;
         public final ModConfigSpec.IntValue sableDatapackPriority;
+        public final ModConfigSpec.BooleanValue endSableGravity;
 
         // Sable Overworld
-        public final ModConfigSpec.DoubleValue overworldSableGravityY;
-        public final ModConfigSpec.DoubleValue overworldSablePressure;
-        public final ModConfigSpec.DoubleValue overworldSableDrag;
         public final ModConfigSpec.IntValue overworldSableDatapackPriority;
+        public final ModConfigSpec.BooleanValue overworldSableGravity;
 
         // Atmosphere
         public final ModConfigSpec.BooleanValue enableAtmosphere;
+        public final ModConfigSpec.BooleanValue overworldEntityGravity;
         public final ModConfigSpec.DoubleValue atmosphereGravityMax;
         public final ModConfigSpec.DoubleValue atmosphereMuffleGain;
         public final ModConfigSpec.DoubleValue atmosphereMuffleGainHF;
-        public final ModConfigSpec.DoubleValue atmosphereDrag;
+        public final ModConfigSpec.ConfigValue<List<? extends String>> atmosphereLayers;
 
         // Atmosphere environment
         public final ModConfigSpec.BooleanValue enableTemperature;
         public final ModConfigSpec.IntValue temperatureFreezeInterval;
         public final ModConfigSpec.BooleanValue enableOxygen;
         public final ModConfigSpec.IntValue oxygenRate;
+        public final ModConfigSpec.IntValue oxygenTankCapacity;
+        public final ModConfigSpec.IntValue oxygenRechargeRate;
+        public final ModConfigSpec.IntValue oxygenSuffocationFadeTicks;
 
         public Common(ModConfigSpec.Builder builder) {
             builder.push("gravity");
+
+            endEntityGravity = builder
+                    .comment("Master toggle: completely disable all entity gravity reduction in The End (default: true). Overrides the individual toggles below.")
+                    .define("endEntityGravity", true);
 
             enablePlayerGravity = builder
                     .comment("Enable player gravity reduction in The End (default: true).")
@@ -103,10 +113,10 @@ public class Config {
             builder.push("effects");
 
             enableParticles = builder
-                    .comment("Enable particle gravity reduction in The End (default: true).")
+                    .comment("Enable particle gravity reduction (default: true). Particles fall slower in The End and, scaled by the atmosphere layers, at high altitude in the Overworld and Sable sub-levels.")
                     .define("enableParticles", true);
             particleGravityMultiplier = builder
-                    .comment("Particle gravity multiplier in The End (default: 0.3). 0 = no gravity, 1 = vanilla.")
+                    .comment("Particle gravity multiplier (default: 0.3). Applied in The End and at vacuum altitude in the Overworld; interpolates back to 1.0 (vanilla) as atmosphere pressure increases. 0 = no gravity, 1 = vanilla.")
                     .defineInRange("particleGravityMultiplier", 0.3, 0.0, 1.0);
 
             enableLowPassFilter = builder
@@ -138,11 +148,15 @@ public class Config {
                     .define("enableBlockGravity", true);
             blockGravityOffset = builder
                     .comment("Upward force per tick for falling blocks in The End (default: 0.035). Higher = slower fall.")
-                    .defineInRange("blockGravityOffset", 0.035, 0.0, 0.035);
+                    .defineInRange("blockGravityOffset", 0.035, 0.0, 0.1);
 
             builder.pop();
 
             builder.push("sable");
+
+            endSableGravity = builder
+                    .comment("Master toggle: completely disable Sable gravity changes in The End (default: true). When disabled, The End uses Sable's default gravity.")
+                    .define("endSableGravity", true);
 
             sableGravityY = builder
                     .comment("Sable gravity Y value for The End (default: -4.0). More negative = stronger downward pull.")
@@ -161,15 +175,10 @@ public class Config {
 
             builder.push("sable_overworld");
 
-            overworldSableGravityY = builder
-                    .comment("Sable gravity Y value for the Overworld (default: -1.0). -1.0 = vanilla gravity. Endless Gravity handles per-altitude gravity offsets separately.")
-                    .defineInRange("overworldSableGravityY", -1.0, -20.0, 0.0);
-            overworldSablePressure = builder
-                    .comment("Sable base pressure value for the Overworld (default: 1.0). Pressure decreases with altitude via pressure_function.")
-                    .defineInRange("overworldSablePressure", 1.0, 0.0, 10.0);
-            overworldSableDrag = builder
-                    .comment("Sable universal drag for the Overworld (default: 1.0). 1.0 = vanilla drag. Lower values = less air resistance.")
-                    .defineInRange("overworldSableDrag", 1.0, 0.0, 10.0);
+            overworldSableGravity = builder
+                    .comment("Master toggle: completely disable Sable gravity changes in the Overworld (default: true). When disabled, the Overworld uses Sable's default gravity.")
+                    .define("overworldSableGravity", true);
+
             overworldSableDatapackPriority = builder
                     .comment("Sable datapack priority for the Overworld (default: 2000). Must be > 1000 to override Sable built-in defaults.")
                     .defineInRange("overworldSableDatapackPriority", 2000, 1, 9999);
@@ -181,6 +190,9 @@ public class Config {
             enableAtmosphere = builder
                     .comment("Enable atmospheric gravity in the Overworld (default: true). Gravity, muffled audio, drag, temperature and oxygen scale with real atmospheric layers from Y=64 (BASE) to Y=3500 (deep space). Also affects Sable sub-levels.")
                     .define("enableAtmosphere", true);
+            overworldEntityGravity = builder
+                    .comment("Master toggle: completely disable entity gravity reduction in the Overworld atmosphere (default: true). When disabled, entities keep full gravity at any altitude.")
+                    .define("overworldEntityGravity", true);
             atmosphereGravityMax = builder
                     .comment("Maximum upward force per tick at deep space (default: 0.08). Interpolated from 0.0 at BASE Y=64. Higher = less gravity. 0.08 fully cancels vanilla player gravity for zero-G in deep space.")
                     .defineInRange("atmosphereGravityMax", 0.08, 0.0, 0.1);
@@ -190,9 +202,11 @@ public class Config {
             atmosphereMuffleGainHF = builder
                     .comment("Low-pass filter high-frequency gain at deep space (default: 0.005). Lower = less high-frequency sound.")
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
-            atmosphereDrag = builder
-                    .comment("Drag compensation fraction at deep space (default: 0.5). Cancels Minecraft's natural air drag: 0 = no compensation (normal drag), 1.0 = full inertia (no drag at Y=3500), >1.0 = slight velocity boost. Interpolated from 0 at BASE.")
-                    .defineInRange("atmosphereDrag", 0.5, 0.0, 2.0);
+            atmosphereLayers = builder
+                    .comment("Atmospheric layers as \"altitude:pressure\" pairs - the universal atmosphere controller. The pressure curve drives EVERYTHING: custom gravity and levitation (progress = 1 - pressure), muffled audio, freezing, oxygen depletion, oxygen tank recharging (full atmosphere = pressure >= 1.0), suffocation and the Sable Overworld datapack pressure_function. Pressure 1.0 at base = full atmosphere, 0.0 at deep space = vacuum. Default: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
+                    .defineList("atmosphereLayers",
+                            List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0"),
+                            obj -> obj instanceof String);
 
             builder.pop();
 
@@ -209,8 +223,19 @@ public class Config {
                     .comment("Enable oxygen depletion at high altitude in the Overworld (default: true). Survival players suffocate above the layers.")
                     .define("enableOxygen", true);
             oxygenRate = builder
-                    .comment("Ticks per air point lost at max altitude (default: 2). Higher = slower depletion. Scales with atmosphere progress.")
-                    .defineInRange("oxygenRate", 2, 1, 100);
+                    .comment("Ticks per air point lost at max altitude (default: 8). Higher = slower depletion. Scales with atmosphere progress.")
+                    .defineInRange("oxygenRate", 8, 1, 100);
+
+            oxygenTankCapacity = builder
+                    .comment("Oxygen tank capacity of the stellar chestplate (default: 1000). Points of oxygen stored in the chestplate; the custom HUD shows the tank level. Breathing requires the stellar helmet AND chestplate.")
+                    .defineInRange("oxygenTankCapacity", 1000, 50, 5000);
+            oxygenRechargeRate = builder
+                    .comment("Ticks per oxygen point recharged while in the troposphere or below (Y <= 400) (default: 5). Lower = faster recharge.")
+                    .defineInRange("oxygenRechargeRate", 5, 1, 200);
+
+            oxygenSuffocationFadeTicks = builder
+                    .comment("Ticks without oxygen until the screen goes fully dark and the player dies (default: 100 = 5 seconds). The client fades the screen to black during this time.")
+                    .defineInRange("oxygenSuffocationFadeTicks", 100, 20, 600);
 
             builder.pop();
         }

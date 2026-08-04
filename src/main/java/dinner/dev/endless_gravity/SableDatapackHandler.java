@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Locale;
 
 @EventBusSubscriber(modid = EndlessGravity.MODID)
@@ -52,6 +53,12 @@ public class SableDatapackHandler {
 
             Files.createDirectories(dataDir);
 
+            if (!Config.COMMON.endSableGravity.get()) {
+                Files.deleteIfExists(jsonPath);
+                LOGGER.info("Sable End gravity disabled, removed datapack: {}", jsonPath);
+                return;
+            }
+
             int priority = Config.COMMON.sableDatapackPriority.get();
             double gravY = Config.COMMON.sableGravityY.get();
             double pressure = Config.COMMON.sablePressure.get();
@@ -88,29 +95,35 @@ public class SableDatapackHandler {
 
             Files.createDirectories(dataDir);
 
+            if (!Config.COMMON.overworldSableGravity.get()) {
+                Files.deleteIfExists(jsonPath);
+                LOGGER.info("Sable Overworld gravity disabled, removed datapack: {}", jsonPath);
+                return;
+            }
+
             int priority = Config.COMMON.overworldSableDatapackPriority.get();
-            double gravY = Config.COMMON.overworldSableGravityY.get();
-            double basePressure = Config.COMMON.overworldSablePressure.get();
+            List<AtmosphereLayers.Layer> layers = AtmosphereLayers.parse(Config.COMMON.atmosphereLayers.get());
+
+            StringBuilder pressureFunction = new StringBuilder();
+            for (int i = 0; i < layers.size(); i++) {
+                AtmosphereLayers.Layer layer = layers.get(i);
+                if (i > 0) pressureFunction.append(",\n");
+                pressureFunction.append(String.format(Locale.ROOT,
+                        "                        { \"altitude\": %.1f,   \"value\": %.4f,   \"slope\": %.6f }",
+                        layer.altitude(), layer.pressure(), AtmosphereLayers.getSlope(layers, i)));
+            }
 
             String json = String.format(Locale.ROOT, """
                     {
                       "dimension": "minecraft:overworld",
                       "priority": %d,
-                      "base_gravity": [0.0, %.1f, 0.0],
-                      "base_pressure": %.1f,
+                      "base_pressure": 1.0,
                       "universal_drag": 0.09,
                       "magnetic_north": [0.0, 0.0, 0.0],
                       "pressure_function": [
-                        { "altitude": -64.0,   "value": 1.25,   "slope": -0.001953 },
-                        { "altitude": 64.0,    "value": 1.0,    "slope": -0.001488 },
-                        { "altitude": 400.0,   "value": 0.5,    "slope": -0.000600 },
-                        { "altitude": 900.0,   "value": 0.2,    "slope": -0.000400 },
-                        { "altitude": 1200.0,  "value": 0.08,   "slope": -0.000117 },
-                        { "altitude": 1800.0,  "value": 0.01,   "slope": -0.000013 },
-                        { "altitude": 2500.0,  "value": 0.001,  "slope": -0.000001 },
-                        { "altitude": 3500.0,  "value": 0.0,    "slope": 0.0 }
+                    %s
                       ]
-                    }""", priority, gravY, basePressure);
+                    }""", priority, pressureFunction);
 
             if (!Files.exists(jsonPath) || !Files.readString(jsonPath).equals(json)) {
                 Files.writeString(jsonPath, json);
@@ -118,8 +131,8 @@ public class SableDatapackHandler {
 
             writePackMeta(packMetaPath);
 
-            LOGGER.info("Generated Sable Overworld datapack: gravityY={}, basePressure={}, priority={}",
-                    gravY, basePressure, priority);
+            LOGGER.info("Generated Sable Overworld datapack: layers={}, priority={}",
+                    layers.size(), priority);
         } catch (Exception e) {
             LOGGER.error("Failed to generate Sable Overworld datapack", e);
         }

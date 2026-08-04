@@ -1,62 +1,80 @@
 # Endless Gravity
 
-Low gravity for **The End** and layered gravity for the **Overworld**. Jump higher, fall slower, float longer.
+Low gravity for **The End** and layered atmosphere physics for the **Overworld**. Jump higher, fall slower, float longer — and fly to space with a starship.
 
 ## Features
 
-- **Reduced gravity** for players, items, arrows, thrown projectiles, and falling blocks in The End — fully configurable per entity type
-- **Overworld layered gravity** — enable gravity layers above a configurable Y level with continuous (non-discrete) force, auto-applied to Sable sub-levels
+- **The End** — reduced gravity for players, items, arrows, thrown projectiles, and falling blocks, fully configurable per entity type
+- **Overworld atmosphere** — a continuous pressure curve (8 configurable layers) drives gravity, audio muffling, temperature, and oxygen above Y 64, up to full vacuum at Y 3500
 - **Fall damage** — three modes: normal, disabled, or velocity-based with configurable scale and minimum velocity
-- **Audio filters** — muffled low-pass sound effect in The End, plus height-based muffling in Overworld space layers (interpolated from clear at ground to muffled at max altitude)
-- **Particle gravity** — particles drift slower in low-gravity zones
-- **Sable integration** — optional physics datapack (gravity Y, pressure, drag) auto-enabled on new worlds
-- **Addon API** — four events (`GravityImmunityEvent`, `GravityApplicationEvent`, `GravityAppliedEvent`, `FallDamageCalculationEvent`) for addons to override, cancel, or react to gravity; server→client config sync via network payload
-- **Compatible** with any modded dimension or sub-level
+- **Starship** — build a two-block rocket (Super Heavy booster + Starship upper stage), launch it into a Sable sub-level, separate in space, drift, and land with full engine audio
+- **Stellar Suit** — full armor set; the chestplate carries an oxygen tank with an inventory durability bar, and helmet + chestplate let you breathe in thin air
+- **Sable integration** — optional physics datapack (gravity, pressure, drag) auto-generated for The End and the Overworld with configurable priorities
+- **Modded config screen** — Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs, color-coded entries, and per-entry reset
+- **Addon API** — `EndlessGravityAPI` utility (pressure, atmosphere progress, real Y projection, Sable helpers) plus the `endless_gravity:gravity_immune` entity type tag
+- **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
 
 ## Configuration
 
-Open the mod settings from the NeoForge mod list. All values can be toggled and adjusted per-option.
+Open the mod settings from the NeoForge mod list (or *Mods → Endless Gravity → Config*). Changes apply live where possible; the audio filter and Sable datapack need a restart (marked in amber).
 
 ### The End
 
 | Setting | Default | Description |
 |---|---|---|
+| End Gravity | ON | Master toggle for low gravity in The End |
 | Player Gravity Offset | 0.055 | Upward force per tick. Higher = less gravity |
 | Item Gravity Offset | 0.025 | Upward force per tick for items |
 | Arrow Gravity Offset | 0.03 | Upward force per tick for arrows/tridents |
 | Thrown Projectile Offset | 0.018 | Upward force per tick for thrown projectiles |
 | Falling Block Offset | 0.035 | Upward force per tick for sand, gravel, anvils, dragon eggs |
-| Particle Multiplier | 0.3 | 0 = no gravity, 1 = vanilla |
-| Fall Damage Mode | Velocity-Based | Normal / Disabled / Velocity-Based |
-| Audio Filter Gain | 0.4 | Low-pass filter volume (lower = more muffled) |
-| Audio Filter Gain HF | 0.3 | Low-pass filter high-frequency volume |
+| Particle Gravity Multiplier | 0.3 | 0 = no gravity, 1 = vanilla |
+| Fall Damage Mode | Velocity-Based | Normal / Disabled / Velocity-Based (shared with the Overworld) |
+| Fall Damage Velocity Scale | 1.0 | Damage multiplier for velocity-based mode |
+| Fall Damage Min Velocity | 0.6 | Minimum fall velocity before damage applies |
+| Audio Filter Gain | 0.1 | Low-pass filter volume in The End (lower = more muffled) |
+| Audio Filter Gain HF | 0.05 | Low-pass filter high-frequency volume |
 
-### Overworld Layers
+### Overworld
 
 | Setting | Default | Description |
 |---|---|---|
-| Enable Overworld Gravity | false | Enable layered gravity above a Y threshold |
-| Start Y | 1000 | Y level where layers begin |
-| Layer Height | 500 | Blocks per layer |
-| Max Layers | 4 | Maximum layers before plateau |
-| Force Per Layer | 0.02 | Continuous upward force per layer (clamped to 0.08) |
-| Muffle Gain | 0.2 | Low-pass gain at max layers (interpolated from 1.0 at ground) |
-| Muffle Gain HF | 0.1 | Low-pass high-frequency gain at max layers |
+| Enable Atmosphere | ON | Master toggle for Overworld space effects |
+| Entity Gravity | ON | Apply gravity from the pressure curve to entities |
+| Max Gravity Offset | 0.08 | Upward force at full vacuum (progress × max) |
+| Muffle Gain | 0.01 | Low-pass gain at full vacuum (interpolated from 1.0 at ground) |
+| Muffle Gain HF | 0.005 | Low-pass high-frequency gain at full vacuum |
+| Atmosphere Layers | 8 layers | Altitude → pressure pairs: `-64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0` |
+| Enable Temperature | ON | Freeze (ice overlay) when pressure drops in space |
+| Freeze Interval | 20 | Ticks between freeze damage applications |
+| Enable Oxygen | ON | Suffocation in thin air without a Stellar Suit |
+| Oxygen Rate | 8 | Air units consumed per second at altitude |
+| Tank Capacity | 1000 | Stellar chestplate oxygen tank capacity |
+| Recharge Rate | 5 | Tank recharges per second at full pressure |
+| Suffocation Fade Ticks | 100 | Ticks of oxygen left at which the suffocation effect fades in |
 
-### Sable Integration
+## Starship
 
-If [Sable](https://modrinth.com/mod/sable) is installed, Endless Gravity generates a datapack with custom physics for The End. Configure gravity, pressure, drag, and priority from the mod settings.
+Craft a **Starship** (upper stage `U` over booster `S`), place it, and right-click to launch. The rocket launches into a Sable sub-level with full rigid-body physics: a liftoff thrust ramp (~1.25→1.39 g), **separation at Y ≥ 1800** (or after 700 ticks), a cruise/drift phase with lateral control, and a powered landing (up to 6 g braking). Engine startup, loop, and shutdown sounds have a 128-block range with distance attenuation. Works best with [Sable](https://modrinth.com/mod/sable) installed.
+
+## Stellar Suit
+
+Four-piece armor set with a custom in-game model and texture:
+
+- **Chestplate** — oxygen tank (default 1000 units). Shows a durability-style bar in the inventory; cyan at >25%, red when low. Drains faster at altitude, recharges at full pressure.
+- **Helmet** — must be worn with the chestplate to breathe in thin air.
+- **Leggings & Boots** — set bonuses; complete the suit.
 
 ## Addon API
 
-Endless Gravity provides four events on `NeoForge.EVENT_BUS`:
+`EndlessGravityAPI` (Java, `dinner.dev.endless_gravity.EndlessGravityAPI`) provides:
 
-| Event | Cancellable | When | Use case |
-|---|---|---|---|
-| `GravityImmunityEvent` | Yes | Before the tag-based immunity check | Grant/deny temporary immunity per tick |
-| `GravityApplicationEvent` | Yes | Before gravity is applied | Override offset or cancel entirely |
-| `GravityAppliedEvent` | No | After gravity is applied | React to the applied offset |
-| `FallDamageCalculationEvent` | Yes | When calculating velocity-based fall damage | Override damage multiplier/distance |
+- `getPressure(y)` / `getAtmosphereProgress(y)` — read the configured pressure curve
+- `getAtmosphereOffset(y)`, `getAtmosphereMuffleGain(y)`, `getAtmosphereMuffleGainHF(y)` — derived atmosphere values
+- `getTemperatureProgress(y)`, `getOxygenProgress(y)` — environment progress
+- `getRealY(entity)`, `getRealY(level, pos)` — project positions out of Sable sub-levels into global space
+- `isSableLoaded()`, `isSableManaged(level)`, `isOverworldOrSable(level)` — dimension/Sable helpers
+- `GRAVITY_IMMUNE` tag — add entity types to `data/endless_gravity/tags/entity/gravity_immune.json` to make them ignore low gravity in The End
 
 All gameplay-affecting config values are synced from server to client on login via `ConfigSyncPayload`.
 
@@ -64,7 +82,8 @@ All gameplay-affecting config values are synced from server to client on login v
 
 - Minecraft 1.21.1
 - NeoForge 21.1+
-- Sable (optional)
+- Cloth Config — bundled (via Jar-in-Jar), no manual install
+- Sable (optional; required for the starship)
 
 ## License
 

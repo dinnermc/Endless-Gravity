@@ -1,650 +1,289 @@
 package dinner.dev.endless_gravity;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
+import me.shedaniel.clothconfig2.api.ConfigBuilder;
+import me.shedaniel.clothconfig2.api.ConfigCategory;
+import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
+import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
 import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-public class EndlessGravityConfigScreen extends Screen {
+public class EndlessGravityConfigScreen {
 
-    private static final int TOP_MARGIN = 28;
-    private static final int BOTTOM_MARGIN = 36;
-    private static final int SCROLL_SPEED = 18;
+    private static final int TEXT_WHITE = 0xFFFFFF;
+    private static final int TEXT_GRAY = 0xAAAAAA;
+    private static final int TEXT_BLUE = 0x66CCFF;
+    private static final int TEXT_GREEN = 0x55FF55;
+    private static final int TEXT_RED = 0xFF5555;
+    private static final int TEXT_AMBER = 0xFFAA00;
 
-    private final Screen parent;
-    private final boolean sableLoaded;
+    private EndlessGravityConfigScreen() {}
 
-    // Scroll
-    private int scrollOffset = 0;
-    private int maxScroll = 0;
-    private int contentBottom = 0;
-    private final List<AbstractWidget> scrollWidgets = new ArrayList<>();
-    private final List<Integer> scrollOriginalY = new ArrayList<>();
-    private final List<HeaderEntry> headers = new ArrayList<>();
-
-    // Gravity
-    private double playerGravity;
-    private double itemGravity;
-    private double arrowGravity;
-    private double thrownGravity;
-
-    // Effects
-    private double particleMultiplier;
-    private boolean enableLowPassFilter;
-    private double lowPassGain;
-    private double lowPassGainHF;
-
-    // Gameplay
-    private int fallDamageMode;
-    private double fallDamageVelocityScale;
-    private double fallDamageMinVelocity;
-    private boolean enableBlockGravity;
-    private double blockGravityOffset;
-
-    // Sable
-    private double sableGravityY;
-    private double sablePressure;
-    private double sableDrag;
-    private int sableDatapackPriority;
-
-    // Sable Overworld
-    private double overworldSableGravityY;
-    private double overworldSablePressure;
-    private double overworldSableDrag;
-    private int overworldSableDatapackPriority;
-    private int restartWarningY = -1;
-
-    // Atmosphere
-    private boolean enableAtmosphere;
-    private double atmosphereGravityMax;
-    private double atmosphereMuffleGain;
-    private double atmosphereMuffleGainHF;
-    private double atmosphereDrag;
-
-    // Environment
-    private boolean enableTemperature;
-    private int temperatureFreezeInterval;
-    private boolean enableOxygen;
-    private int oxygenRate;
-
-    // Widget references for reset
-    private ConfigSlider playerSlider;
-    private ConfigSlider itemSlider;
-    private ConfigSlider arrowSlider;
-    private ConfigSlider thrownSlider;
-    private ConfigSlider particleSlider;
-    private Button enableLowPassFilterToggle;
-    private ConfigSlider filterGainSlider;
-    private ConfigSlider filterHFSlider;
-    private Button fallDamageModeToggle;
-    private ConfigSlider velocityScaleSlider;
-    private ConfigSlider minVelocitySlider;
-    private Button enableBlockGravityToggle;
-    private ConfigSlider blockGravitySlider;
-    private ConfigSlider sablePrioritySlider;
-    private ConfigSlider sableGravityYSlider;
-    private ConfigSlider sablePressureSlider;
-    private ConfigSlider sableDragSlider;
-    private ConfigSlider overworldSableGravityYSlider;
-    private ConfigSlider overworldSablePressureSlider;
-    private ConfigSlider overworldSableDragSlider;
-    private ConfigSlider overworldSablePrioritySlider;
-
-    // Widget references for atmosphere reset
-    private Button enableAtmosphereToggle;
-    private ConfigSlider atmosphereGravitySlider;
-    private ConfigSlider atmosphereDragSlider;
-    private ConfigSlider atmosphereMuffleGainSlider;
-    private ConfigSlider atmosphereMuffleGainHFSlider;
-
-    // Widget references for environment reset
-    private Button enableTemperatureToggle;
-    private ConfigSlider freezeIntervalSlider;
-    private Button enableOxygenToggle;
-    private ConfigSlider oxygenRateSlider;
-
-    public EndlessGravityConfigScreen(Screen parent) {
-        super(Component.translatable("endless_gravity.config.title"));
-        this.parent = parent;
-        boolean loaded;
-        try {
-            loaded = ModList.get().isLoaded("sable");
-        } catch (Exception e) {
-            loaded = false;
-        }
-        this.sableLoaded = loaded;
+    public static Screen create(Screen parent) {
+        return new Factory(parent).build();
     }
 
-    @Override
-    protected void init() {
-        scrollOffset = 0;
-        scrollWidgets.clear();
-        scrollOriginalY.clear();
-        headers.clear();
-        contentBottom = 0;
+    private enum FallDamageMode {
+        NORMAL, DISABLED, VELOCITY;
 
-        playerGravity = Config.COMMON.playerGravityOffset.get();
-        itemGravity = Config.COMMON.itemGravityOffset.get();
-        arrowGravity = Config.COMMON.arrowGravityOffset.get();
-        thrownGravity = Config.COMMON.thrownGravityOffset.get();
-        particleMultiplier = Config.COMMON.particleGravityMultiplier.get();
-        enableLowPassFilter = Config.COMMON.enableLowPassFilter.get();
-        lowPassGain = Config.COMMON.lowPassGain.get();
-        lowPassGainHF = Config.COMMON.lowPassGainHF.get();
-        fallDamageMode = Config.COMMON.fallDamageMode.get();
-        fallDamageVelocityScale = Config.COMMON.fallDamageVelocityScale.get();
-        fallDamageMinVelocity = Config.COMMON.fallDamageMinVelocity.get();
-        enableBlockGravity = Config.COMMON.enableBlockGravity.get();
-        blockGravityOffset = Config.COMMON.blockGravityOffset.get();
+        static FallDamageMode fromInt(int value) {
+            return switch (value) {
+                case 0 -> NORMAL;
+                case 2 -> VELOCITY;
+                default -> DISABLED;
+            };
+        }
+    }
 
-        if (sableLoaded) {
-            sableGravityY = Config.COMMON.sableGravityY.get();
-            sablePressure = Config.COMMON.sablePressure.get();
-            sableDrag = Config.COMMON.sableDrag.get();
-            sableDatapackPriority = Config.COMMON.sableDatapackPriority.get();
-            overworldSableGravityY = Config.COMMON.overworldSableGravityY.get();
-            overworldSablePressure = Config.COMMON.overworldSablePressure.get();
-            overworldSableDrag = Config.COMMON.overworldSableDrag.get();
-            overworldSableDatapackPriority = Config.COMMON.overworldSableDatapackPriority.get();
+    private static final class Factory {
+        private final Screen parent;
+        private final boolean sableLoaded;
+        private final List<AtmosphereLayers.Layer> layers = new ArrayList<>();
+
+        Factory(Screen parent) {
+            this.parent = parent;
+            this.sableLoaded = ModList.get().isLoaded("sable");
+            loadLayers();
         }
 
-        enableAtmosphere = Config.COMMON.enableAtmosphere.get();
-        atmosphereGravityMax = Config.COMMON.atmosphereGravityMax.get();
-        atmosphereMuffleGain = Config.COMMON.atmosphereMuffleGain.get();
-        atmosphereMuffleGainHF = Config.COMMON.atmosphereMuffleGainHF.get();
-        atmosphereDrag = Config.COMMON.atmosphereDrag.get();
+        Screen build() {
+            ConfigBuilder builder = ConfigBuilder.create()
+                    .setParentScreen(parent)
+                    .setTitle(Component.translatable("endless_gravity.config.title"))
+                    .setDoesConfirmSave(false)
+                    .setSavingRunnable(this::finishSave);
 
-        enableTemperature = Config.COMMON.enableTemperature.get();
-        temperatureFreezeInterval = Config.COMMON.temperatureFreezeInterval.get();
-        enableOxygen = Config.COMMON.enableOxygen.get();
-        oxygenRate = Config.COMMON.oxygenRate.get();
+            ConfigEntryBuilder entry = builder.entryBuilder();
 
-        int x = this.width / 2 - 155;
-        int w = 310;
-        int gap = 22;
-        int y = TOP_MARGIN;
-
-        addHeader(y, "endless_gravity.config.section.gravity");
-        y += 12;
-
-        playerSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.playerGravityOffset",
-                playerGravity, 0.0, 0.07, v -> playerGravity = v, false));
-
-        itemSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.itemGravityOffset",
-                itemGravity, 0.0, 0.035, v -> itemGravity = v, false));
-
-        arrowSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.arrowGravityOffset",
-                arrowGravity, 0.0, 0.04, v -> arrowGravity = v, false));
-
-        thrownSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.thrownGravityOffset",
-                thrownGravity, 0.0, 0.025, v -> thrownGravity = v, false));
-
-        y += gap + 10;
-        addHeader(y, "endless_gravity.config.section.effects");
-        y += 12;
-
-        particleSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.particleGravityMultiplier",
-                particleMultiplier, 0.0, 1.0, v -> particleMultiplier = v, false));
-
-        y += gap;
-        enableLowPassFilterToggle = addScroll(Button.builder(
-                toggleLabel("endless_gravity.config.enableLowPassFilter", enableLowPassFilter),
-                b -> {
-                    enableLowPassFilter = !enableLowPassFilter;
-                    b.setMessage(toggleLabel("endless_gravity.config.enableLowPassFilter", enableLowPassFilter));
-                    filterGainSlider.active = enableLowPassFilter;
-                    filterHFSlider.active = enableLowPassFilter;
-                }
-        ).bounds(x, y, w, 20).build());
-
-        filterGainSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.lowPassGain",
-                lowPassGain, 0.0, 1.0, v -> lowPassGain = v, false));
-        filterGainSlider.active = enableLowPassFilter;
-
-        filterHFSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.lowPassGainHF",
-                lowPassGainHF, 0.0, 1.0, v -> lowPassGainHF = v, false));
-        filterHFSlider.active = enableLowPassFilter;
-
-        y += gap + 10;
-        addHeader(y, "endless_gravity.config.section.gameplay");
-        y += 12;
-
-        fallDamageModeToggle = addScroll(Button.builder(
-                fallDamageModeLabel(),
-                b -> {
-                    fallDamageMode = (fallDamageMode + 1) % 3;
-                    b.setMessage(fallDamageModeLabel());
-                    velocityScaleSlider.active = (fallDamageMode == 2);
-                }
-        ).bounds(x, y, w, 20).build());
-
-        velocityScaleSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.fallDamageVelocityScale",
-                fallDamageVelocityScale, 0.1, 10.0, v -> fallDamageVelocityScale = v, false));
-        velocityScaleSlider.active = (fallDamageMode == 2);
-
-        minVelocitySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.fallDamageMinVelocity",
-                fallDamageMinVelocity, 0.0, 5.0, v -> fallDamageMinVelocity = v, false));
-        minVelocitySlider.active = (fallDamageMode == 2);
-
-        y += gap;
-        enableBlockGravityToggle = addScroll(Button.builder(
-                toggleLabel("endless_gravity.config.enableBlockGravity", enableBlockGravity),
-                b -> {
-                    enableBlockGravity = !enableBlockGravity;
-                    b.setMessage(toggleLabel("endless_gravity.config.enableBlockGravity", enableBlockGravity));
-                    blockGravitySlider.active = enableBlockGravity;
-                }
-        ).bounds(x, y, w, 20).build());
-
-        blockGravitySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.blockGravityOffset",
-                blockGravityOffset, 0.0, 0.04, v -> blockGravityOffset = v, false));
-        blockGravitySlider.active = enableBlockGravity;
-
-        if (sableLoaded) {
-            y += gap + 10;
-            addHeader(y, "endless_gravity.config.section.sable");
-            y += 12;
-
-            sableGravityYSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.sableGravityY",
-                    sableGravityY, -20.0, 0.0, v -> sableGravityY = v, true));
-
-            sablePressureSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.sablePressure",
-                    sablePressure, 0.0, 10.0, v -> sablePressure = v, true));
-
-            sableDragSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.sableDrag",
-                    sableDrag, 0.0, 10.0, v -> sableDrag = v, true));
-
-            sablePrioritySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.sableDatapackPriority",
-                    sableDatapackPriority, 1, 9999, v -> sableDatapackPriority = (int) Math.round(v), true));
-
-            y += gap + 10;
-            addHeader(y, "endless_gravity.config.section.sable_overworld");
-            y += 12;
-
-            overworldSableGravityYSlider = addScroll(new ConfigSlider(x, y, "endless_gravity.config.overworldSableGravityY",
-                    overworldSableGravityY, -20.0, 0.0, v -> overworldSableGravityY = v, true));
-
-            overworldSablePressureSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldSablePressure",
-                    overworldSablePressure, 0.0, 10.0, v -> overworldSablePressure = v, true));
-
-            overworldSableDragSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldSableDrag",
-                    overworldSableDrag, 0.0, 10.0, v -> overworldSableDrag = v, true));
-
-            overworldSablePrioritySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.overworldSableDatapackPriority",
-                    overworldSableDatapackPriority, 1, 9999, v -> overworldSableDatapackPriority = (int) Math.round(v), true));
-
-            restartWarningY = y + gap + 20;
+            ConfigCategory all = builder.getOrCreateCategory(text("endless_gravity.config.section.all"));
+            buildEnd(builder, entry, all);
+            buildOverworld(builder, entry, all);
+            buildGeneral(builder, entry, all);
+            return builder.build();
         }
 
-        y += gap + 10;
-        addHeader(y, "endless_gravity.config.section.atmosphere");
-        y += 12;
+        private void buildEnd(ConfigBuilder builder, ConfigEntryBuilder entry, ConfigCategory all) {
+            ConfigCategory cat = category(builder, "endless_gravity.config.section.end");
+            SubCategoryBuilder allEnd = group(entry, "endless_gravity.config.section.end");
 
-        enableAtmosphereToggle = addScroll(Button.builder(
-                toggleLabel("endless_gravity.config.enableAtmosphere", enableAtmosphere),
-                b -> {
-                    enableAtmosphere = !enableAtmosphere;
-                    b.setMessage(toggleLabel("endless_gravity.config.enableAtmosphere", enableAtmosphere));
-                    atmosphereGravitySlider.active = enableAtmosphere;
-                    atmosphereMuffleGainSlider.active = enableAtmosphere;
-                    atmosphereMuffleGainHFSlider.active = enableAtmosphere;
-                    atmosphereDragSlider.active = enableAtmosphere;
-                }
-        ).bounds(x, y, w, 20).build());
+            SubCategoryBuilder gravity = group(entry, "endless_gravity.config.group.gravity");
+            addToggle(gravity, entry, "endless_gravity.config.endEntityGravity", Config.COMMON.endEntityGravity, true);
+            addDouble(gravity, entry, "endless_gravity.config.playerGravityOffset", Config.COMMON.playerGravityOffset,
+                    0.0, 0.07, 0.055, TEXT_WHITE);
+            addDouble(gravity, entry, "endless_gravity.config.itemGravityOffset", Config.COMMON.itemGravityOffset,
+                    0.0, 0.035, 0.025, TEXT_GRAY);
+            addDouble(gravity, entry, "endless_gravity.config.arrowGravityOffset", Config.COMMON.arrowGravityOffset,
+                    0.0, 0.04, 0.03, TEXT_GRAY);
+            addDouble(gravity, entry, "endless_gravity.config.thrownGravityOffset", Config.COMMON.thrownGravityOffset,
+                    0.0, 0.025, 0.018, TEXT_GRAY);
+            addToggle(gravity, entry, "endless_gravity.config.enableBlockGravity", Config.COMMON.enableBlockGravity, true);
+            addDouble(gravity, entry, "endless_gravity.config.blockGravityOffset", Config.COMMON.blockGravityOffset,
+                    0.0, 0.1, 0.035, TEXT_GRAY);
+            cat.addEntry(gravity.build());
+            allEnd.add(gravity.build());
 
-        atmosphereGravitySlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereGravityMax",
-                atmosphereGravityMax, 0.0, 0.07, v -> atmosphereGravityMax = v, false));
-        atmosphereGravitySlider.active = enableAtmosphere;
+            SubCategoryBuilder audio = group(entry, "endless_gravity.config.group.audio");
+            addToggle(audio, entry, "endless_gravity.config.enableLowPassFilter", Config.COMMON.enableLowPassFilter, true);
+            addDouble(audio, entry, "endless_gravity.config.lowPassGain", Config.COMMON.lowPassGain,
+                    0.0, 1.0, 0.1, TEXT_WHITE);
+            addDouble(audio, entry, "endless_gravity.config.lowPassGainHF", Config.COMMON.lowPassGainHF,
+                    0.0, 1.0, 0.05, TEXT_GRAY);
+            cat.addEntry(audio.build());
+            allEnd.add(audio.build());
 
-        atmosphereMuffleGainSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereMuffleGain",
-                atmosphereMuffleGain, 0.0, 1.0, v -> atmosphereMuffleGain = v, false));
-        atmosphereMuffleGainSlider.active = enableAtmosphere;
-
-        atmosphereMuffleGainHFSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereMuffleGainHF",
-                atmosphereMuffleGainHF, 0.0, 1.0, v -> atmosphereMuffleGainHF = v, false));
-        atmosphereMuffleGainHFSlider.active = enableAtmosphere;
-
-        atmosphereDragSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.atmosphereDrag",
-                atmosphereDrag, 0.0, 2.0, v -> atmosphereDrag = v, false));
-        atmosphereDragSlider.active = enableAtmosphere;
-
-        y += gap + 10;
-        addHeader(y, "endless_gravity.config.section.environment");
-        y += 12;
-
-        enableTemperatureToggle = addScroll(Button.builder(
-                toggleLabel("endless_gravity.config.enableTemperature", enableTemperature),
-                b -> {
-                    enableTemperature = !enableTemperature;
-                    b.setMessage(toggleLabel("endless_gravity.config.enableTemperature", enableTemperature));
-                    freezeIntervalSlider.active = enableTemperature;
-                }
-        ).bounds(x, y, w, 20).build());
-
-        freezeIntervalSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.temperatureFreezeInterval",
-                temperatureFreezeInterval, 1, 200, v -> temperatureFreezeInterval = (int) Math.round(v), true));
-        freezeIntervalSlider.active = enableTemperature;
-
-        y += gap;
-        enableOxygenToggle = addScroll(Button.builder(
-                toggleLabel("endless_gravity.config.enableOxygen", enableOxygen),
-                b -> {
-                    enableOxygen = !enableOxygen;
-                    b.setMessage(toggleLabel("endless_gravity.config.enableOxygen", enableOxygen));
-                    oxygenRateSlider.active = enableOxygen;
-                }
-        ).bounds(x, y, w, 20).build());
-
-        oxygenRateSlider = addScroll(new ConfigSlider(x, y += gap, "endless_gravity.config.oxygenRate",
-                oxygenRate, 1, 100, v -> oxygenRate = (int) Math.round(v), true));
-        oxygenRateSlider.active = enableOxygen;
-
-        contentBottom = y + gap + (sableLoaded ? 24 : 0);
-        int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
-        maxScroll = Math.max(0, contentBottom - contentClipBottom);
-
-        int btnY = this.height - BOTTOM_MARGIN + 8;
-        int btnW = (w - 10) / 3;
-        addRenderableWidget(Button.builder(
-                Component.translatable("endless_gravity.config.resetDefaults"),
-                b -> resetToDefaults()
-        ).bounds(x, btnY, btnW, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.translatable("gui.done"),
-                b -> { save(); minecraft.setScreen(parent); }
-        ).bounds(x + btnW + 5, btnY, btnW, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.translatable("gui.cancel"),
-                b -> minecraft.setScreen(parent)
-        ).bounds(x + (btnW + 5) * 2, btnY, btnW, 20).build());
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T extends AbstractWidget> T addScroll(T widget) {
-        addRenderableWidget(widget);
-        scrollWidgets.add(widget);
-        scrollOriginalY.add(widget.getY());
-        return widget;
-    }
-
-    private void addHeader(int y, String key) {
-        headers.add(new HeaderEntry(y, key));
-    }
-
-    private Component fallDamageModeLabel() {
-        String key = switch (fallDamageMode) {
-            case 0 -> "endless_gravity.config.fallDamageMode.normal";
-            case 2 -> "endless_gravity.config.fallDamageMode.velocity";
-            default -> "endless_gravity.config.fallDamageMode.disabled";
-        };
-        return Component.translatable("endless_gravity.config.fallDamageMode")
-                .append(Component.literal(": "))
-                .append(Component.translatable(key));
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (maxScroll <= 0) return false;
-        int old = scrollOffset;
-        scrollOffset = Mth.clamp(scrollOffset - (int) (verticalAmount * SCROLL_SPEED), 0, maxScroll);
-        if (scrollOffset != old) {
-            for (int i = 0; i < scrollWidgets.size(); i++) {
-                scrollWidgets.get(i).setY(scrollOriginalY.get(i) - scrollOffset);
+            if (sableLoaded) {
+                SubCategoryBuilder sable = group(entry, "endless_gravity.config.group.sable_end");
+                sable.add(entry.startTextDescription(colored("endless_gravity.config.restartWarning", TEXT_AMBER)).build());
+                addToggle(sable, entry, "endless_gravity.config.endSableGravity", Config.COMMON.endSableGravity, true);
+                addDouble(sable, entry, "endless_gravity.config.sableGravityY", Config.COMMON.sableGravityY,
+                        -20.0, 0.0, -4.0, TEXT_WHITE);
+                addDouble(sable, entry, "endless_gravity.config.sablePressure", Config.COMMON.sablePressure,
+                        0.0, 10.0, 0.0, TEXT_GRAY);
+                addDouble(sable, entry, "endless_gravity.config.sableDrag", Config.COMMON.sableDrag,
+                        0.0, 10.0, 0.05, TEXT_GRAY);
+                addIntSlider(sable, entry, "endless_gravity.config.sableDatapackPriority", Config.COMMON.sableDatapackPriority,
+                        1, 9999, 9999, TEXT_GRAY);
+                cat.addEntry(sable.build());
+                allEnd.add(sable.build());
             }
-        }
-        return true;
-    }
 
-    private void resetToDefaults() {
-        playerGravity = 0.055;
-        itemGravity = 0.025;
-        arrowGravity = 0.03;
-        thrownGravity = 0.018;
-        particleMultiplier = 0.3;
-        enableLowPassFilter = true;
-        lowPassGain = 0.1;
-        lowPassGainHF = 0.05;
-        fallDamageMode = 2;
-        fallDamageVelocityScale = 1.0;
-        fallDamageMinVelocity = 0.6;
-        enableBlockGravity = true;
-        blockGravityOffset = 0.035;
-
-        playerSlider.setActualValue(0.055);
-        itemSlider.setActualValue(0.025);
-        arrowSlider.setActualValue(0.03);
-        thrownSlider.setActualValue(0.018);
-        particleSlider.setActualValue(0.3);
-        enableLowPassFilterToggle.setMessage(toggleLabel("endless_gravity.config.enableLowPassFilter", true));
-        filterGainSlider.setActualValue(0.1);
-        filterHFSlider.setActualValue(0.05);
-        filterGainSlider.active = true;
-        filterHFSlider.active = true;
-        fallDamageModeToggle.setMessage(fallDamageModeLabel());
-        velocityScaleSlider.setActualValue(1.0);
-        velocityScaleSlider.active = true;
-        minVelocitySlider.setActualValue(0.6);
-        minVelocitySlider.active = true;
-        enableBlockGravityToggle.setMessage(toggleLabel("endless_gravity.config.enableBlockGravity", true));
-        blockGravitySlider.setActualValue(0.035);
-        blockGravitySlider.active = true;
-
-        if (sableLoaded) {
-            sableGravityY = -4.0;
-            sablePressure = 0.0;
-            sableDrag = 0.05;
-            sableDatapackPriority = 9999;
-            sableGravityYSlider.setActualValue(-4.0);
-            sablePressureSlider.setActualValue(0.0);
-            sableDragSlider.setActualValue(0.05);
-            sablePrioritySlider.setActualValue(9999.0);
-
-            overworldSableGravityY = -1.0;
-            overworldSablePressure = 1.0;
-            overworldSableDrag = 1.0;
-            overworldSableDatapackPriority = 2000;
-            overworldSableGravityYSlider.setActualValue(-1.0);
-            overworldSablePressureSlider.setActualValue(1.0);
-            overworldSableDragSlider.setActualValue(1.0);
-            overworldSablePrioritySlider.setActualValue(2000.0);
+            all.addEntry(allEnd.build());
         }
 
-        enableAtmosphere = true;
-        atmosphereGravityMax = 0.07;
-        atmosphereMuffleGain = 0.01;
-        atmosphereMuffleGainHF = 0.005;
-        atmosphereDrag = 1.0;
-        enableAtmosphereToggle.setMessage(toggleLabel("endless_gravity.config.enableAtmosphere", true));
-        atmosphereGravitySlider.setActualValue(0.07);
-        atmosphereGravitySlider.active = true;
-        atmosphereMuffleGainSlider.setActualValue(0.01);
-        atmosphereMuffleGainSlider.active = true;
-        atmosphereMuffleGainHFSlider.setActualValue(0.005);
-        atmosphereMuffleGainHFSlider.active = true;
-        atmosphereDragSlider.setActualValue(1.0);
-        atmosphereDragSlider.active = true;
+        private void buildOverworld(ConfigBuilder builder, ConfigEntryBuilder entry, ConfigCategory all) {
+            ConfigCategory cat = category(builder, "endless_gravity.config.section.overworld");
+            SubCategoryBuilder allOverworld = group(entry, "endless_gravity.config.section.overworld");
 
-        enableTemperature = true;
-        temperatureFreezeInterval = 20;
-        enableOxygen = true;
-        oxygenRate = 2;
-        enableTemperatureToggle.setMessage(toggleLabel("endless_gravity.config.enableTemperature", true));
-        freezeIntervalSlider.setActualValue(20.0);
-        freezeIntervalSlider.active = true;
-        enableOxygenToggle.setMessage(toggleLabel("endless_gravity.config.enableOxygen", true));
-        oxygenRateSlider.setActualValue(2.0);
-        oxygenRateSlider.active = true;
-    }
+            SubCategoryBuilder atmosphere = group(entry, "endless_gravity.config.group.atmosphere");
+            addToggle(atmosphere, entry, "endless_gravity.config.enableAtmosphere", Config.COMMON.enableAtmosphere, true);
+            addToggle(atmosphere, entry, "endless_gravity.config.overworldEntityGravity", Config.COMMON.overworldEntityGravity, true);
+            addDouble(atmosphere, entry, "endless_gravity.config.atmosphereGravityMax", Config.COMMON.atmosphereGravityMax,
+                    0.0, 0.1, 0.08, TEXT_WHITE);
+            addDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGain", Config.COMMON.atmosphereMuffleGain,
+                    0.0, 1.0, 0.01, TEXT_WHITE);
+            addDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGainHF", Config.COMMON.atmosphereMuffleGainHF,
+                    0.0, 1.0, 0.005, TEXT_GRAY);
+            cat.addEntry(atmosphere.build());
+            allOverworld.add(atmosphere.build());
 
-    private void save() {
-        Config.COMMON.playerGravityOffset.set(playerGravity);
-        Config.COMMON.itemGravityOffset.set(itemGravity);
-        Config.COMMON.arrowGravityOffset.set(arrowGravity);
-        Config.COMMON.thrownGravityOffset.set(thrownGravity);
-        Config.COMMON.particleGravityMultiplier.set(particleMultiplier);
-        Config.COMMON.enableLowPassFilter.set(enableLowPassFilter);
-        Config.COMMON.lowPassGain.set(lowPassGain);
-        Config.COMMON.lowPassGainHF.set(lowPassGainHF);
-        Config.COMMON.fallDamageMode.set(fallDamageMode);
-        Config.COMMON.fallDamageVelocityScale.set(fallDamageVelocityScale);
-        Config.COMMON.fallDamageMinVelocity.set(fallDamageMinVelocity);
-        Config.COMMON.enableBlockGravity.set(enableBlockGravity);
-        Config.COMMON.blockGravityOffset.set(blockGravityOffset);
+            SubCategoryBuilder layersSub = entry.startSubCategory(
+                            colored("endless_gravity.config.atmosphereLayers", TEXT_BLUE))
+                    .setExpanded(false)
+                    .setTooltip(text("endless_gravity.config.atmosphereLayers.tooltip"));
+            for (int i = 0; i < AtmosphereLayers.LAYER_COUNT; i++) {
+                final int index = i;
+                AtmosphereLayers.Layer layer = layers.get(index);
+                SubCategoryBuilder layerSub = entry.startSubCategory(
+                                colored("endless_gravity.config.layerShort", TEXT_GRAY, index + 1))
+                        .setExpanded(true);
+                layerSub.add(entry.startDoubleField(text("endless_gravity.config.columnAltitude"), layer.altitude())
+                        .setMin(-64.0).setMax(4000.0)
+                        .setDefaultValue(AtmosphereLayers.defaults().get(index).altitude())
+                        .setSaveConsumer(value -> layers.set(index, new AtmosphereLayers.Layer(value, layers.get(index).pressure())))
+                        .build());
+                layerSub.add(entry.startDoubleField(colored("endless_gravity.config.columnPressure", TEXT_GRAY), layer.pressure())
+                        .setMin(0.0).setMax(2.0)
+                        .setDefaultValue(AtmosphereLayers.defaults().get(index).pressure())
+                        .setSaveConsumer(value -> layers.set(index, new AtmosphereLayers.Layer(layers.get(index).altitude(), value)))
+                        .build());
+                layersSub.add(layerSub.build());
+            }
+            cat.addEntry(layersSub.build());
+            allOverworld.add(layersSub.build());
 
-        if (sableLoaded) {
-            Config.COMMON.sableGravityY.set(sableGravityY);
-            Config.COMMON.sablePressure.set(sablePressure);
-            Config.COMMON.sableDrag.set(sableDrag);
-            Config.COMMON.sableDatapackPriority.set(sableDatapackPriority);
-            Config.COMMON.overworldSableGravityY.set(overworldSableGravityY);
-            Config.COMMON.overworldSablePressure.set(overworldSablePressure);
-            Config.COMMON.overworldSableDrag.set(overworldSableDrag);
-            Config.COMMON.overworldSableDatapackPriority.set(overworldSableDatapackPriority);
-            SableDatapackHandler.generateDatapack();
+            SubCategoryBuilder temperature = group(entry, "endless_gravity.config.group.temperature");
+            addToggle(temperature, entry, "endless_gravity.config.enableTemperature", Config.COMMON.enableTemperature, true);
+            addIntSlider(temperature, entry, "endless_gravity.config.temperatureFreezeInterval", Config.COMMON.temperatureFreezeInterval,
+                    1, 200, 20, TEXT_GRAY);
+            cat.addEntry(temperature.build());
+            allOverworld.add(temperature.build());
+
+            SubCategoryBuilder oxygen = group(entry, "endless_gravity.config.group.oxygen");
+            addToggle(oxygen, entry, "endless_gravity.config.enableOxygen", Config.COMMON.enableOxygen, true);
+            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenRate", Config.COMMON.oxygenRate,
+                    1, 100, 8, TEXT_GRAY);
+            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenTankCapacity", Config.COMMON.oxygenTankCapacity,
+                    50, 5000, 1000, TEXT_WHITE);
+            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenRechargeRate", Config.COMMON.oxygenRechargeRate,
+                    1, 200, 5, TEXT_GRAY);
+            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenSuffocationFadeTicks", Config.COMMON.oxygenSuffocationFadeTicks,
+                    20, 600, 100, TEXT_GRAY);
+            cat.addEntry(oxygen.build());
+            allOverworld.add(oxygen.build());
+
+            if (sableLoaded) {
+                SubCategoryBuilder sable = group(entry, "endless_gravity.config.group.sable_overworld");
+                sable.add(entry.startTextDescription(colored("endless_gravity.config.restartWarning", TEXT_AMBER)).build());
+                addToggle(sable, entry, "endless_gravity.config.overworldSableGravity", Config.COMMON.overworldSableGravity, true);
+                addIntSlider(sable, entry, "endless_gravity.config.overworldSableDatapackPriority", Config.COMMON.overworldSableDatapackPriority,
+                        1, 9999, 2000, TEXT_GRAY);
+                cat.addEntry(sable.build());
+                allOverworld.add(sable.build());
+            }
+
+            all.addEntry(allOverworld.build());
         }
 
-        Config.COMMON.enableAtmosphere.set(enableAtmosphere);
-        Config.COMMON.atmosphereGravityMax.set(atmosphereGravityMax);
-        Config.COMMON.atmosphereMuffleGain.set(atmosphereMuffleGain);
-        Config.COMMON.atmosphereMuffleGainHF.set(atmosphereMuffleGainHF);
-        Config.COMMON.atmosphereDrag.set(atmosphereDrag);
-        Config.COMMON.enableTemperature.set(enableTemperature);
-        Config.COMMON.temperatureFreezeInterval.set(temperatureFreezeInterval);
-        Config.COMMON.enableOxygen.set(enableOxygen);
-        Config.COMMON.oxygenRate.set(oxygenRate);
-    }
+        private void buildGeneral(ConfigBuilder builder, ConfigEntryBuilder entry, ConfigCategory all) {
+            ConfigCategory cat = category(builder, "endless_gravity.config.section.general");
+            SubCategoryBuilder allGeneral = group(entry, "endless_gravity.config.section.general");
+            var particle = entry.startDoubleField(colored("endless_gravity.config.particleGravityMultiplier", TEXT_WHITE),
+                            Config.COMMON.particleGravityMultiplier.get())
+                    .setMin(0.0).setMax(1.0).setDefaultValue(0.3)
+                    .setSaveConsumer(Config.COMMON.particleGravityMultiplier::set)
+                    .build();
+            cat.addEntry(particle);
+            allGeneral.add(particle);
+            var mode = entry.startEnumSelector(text("endless_gravity.config.fallDamageMode"), FallDamageMode.class,
+                            FallDamageMode.fromInt(Config.COMMON.fallDamageMode.get()))
+                    .setDefaultValue(FallDamageMode.VELOCITY)
+                    .setEnumNameProvider(e -> colored("endless_gravity.config.fallDamageMode."
+                                    + ((FallDamageMode) e).name().toLowerCase(Locale.ROOT),
+                            switch ((FallDamageMode) e) {
+                                case DISABLED -> TEXT_RED;
+                                case VELOCITY -> TEXT_GREEN;
+                                default -> TEXT_WHITE;
+                            }))
+                    .setSaveConsumer(m -> Config.COMMON.fallDamageMode.set(m.ordinal()))
+                    .build();
+            cat.addEntry(mode);
+            allGeneral.add(mode);
+            var scale = entry.startDoubleField(colored("endless_gravity.config.fallDamageVelocityScale", TEXT_WHITE),
+                            Config.COMMON.fallDamageVelocityScale.get())
+                    .setMin(0.1).setMax(10.0).setDefaultValue(1.0)
+                    .setSaveConsumer(Config.COMMON.fallDamageVelocityScale::set)
+                    .build();
+            cat.addEntry(scale);
+            allGeneral.add(scale);
+            var minVelocity = entry.startDoubleField(colored("endless_gravity.config.fallDamageMinVelocity", TEXT_GRAY),
+                            Config.COMMON.fallDamageMinVelocity.get())
+                    .setMin(0.0).setMax(5.0).setDefaultValue(0.6)
+                    .setSaveConsumer(Config.COMMON.fallDamageMinVelocity::set)
+                    .build();
+            cat.addEntry(minVelocity);
+            allGeneral.add(minVelocity);
+            all.addEntry(allGeneral.build());
+        }
 
-    private static Component toggleLabel(String key, boolean value) {
-        return Component.translatable(key)
-                .append(Component.literal(": "))
-                .append(Component.translatable("endless_gravity.config." + value));
-    }
+        private void addToggle(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
+                               ModConfigSpec.BooleanValue value, boolean defaultValue) {
+            group.add(entry.startBooleanToggle(text(key), value.get())
+                    .setDefaultValue(defaultValue)
+                    .setSaveConsumer(value::set)
+                    .setYesNoTextSupplier(v -> colored("endless_gravity.config." + v, v ? TEXT_GREEN : TEXT_GRAY))
+                    .build());
+        }
 
-    @Override
-    public void renderBackground(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-    }
+        private void addDouble(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
+                               ModConfigSpec.DoubleValue value, double min, double max, double defaultValue, int color) {
+            group.add(entry.startDoubleField(colored(key, color), value.get())
+                    .setMin(min).setMax(max).setDefaultValue(defaultValue)
+                    .setSaveConsumer(value::set)
+                    .build());
+        }
 
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+        private void addIntSlider(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
+                                  ModConfigSpec.IntValue value, int min, int max, int defaultValue, int color) {
+            group.add(entry.startIntSlider(colored(key, color), value.get(), min, max)
+                    .setDefaultValue(defaultValue)
+                    .setSaveConsumer(value::set)
+                    .build());
+        }
 
-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 8, 0xFFFFFF);
-
-        int contentTop = TOP_MARGIN;
-        int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
-        guiGraphics.enableScissor(0, contentTop, this.width, contentClipBottom);
-
-        for (HeaderEntry h : headers) {
-            int drawY = h.y() - scrollOffset;
-            if (drawY >= contentTop - 12) {
-                guiGraphics.drawCenteredString(this.font,
-                        Component.translatable(h.key()),
-                        this.width / 2, drawY, 0x88AAFF);
+        private void loadLayers() {
+            layers.clear();
+            List<AtmosphereLayers.Layer> parsed = AtmosphereLayers.parse(Config.COMMON.atmosphereLayers.get());
+            for (int i = 0; i < AtmosphereLayers.LAYER_COUNT; i++) {
+                layers.add(i < parsed.size() ? parsed.get(i) : AtmosphereLayers.defaults().get(i));
             }
         }
 
-        if (sableLoaded && restartWarningY > 0) {
-            int drawY = restartWarningY - scrollOffset;
-            if (drawY >= contentTop) {
-                guiGraphics.drawCenteredString(this.font,
-                        Component.translatable("endless_gravity.config.restartWarning"),
-                        this.width / 2, drawY, 0xFFFF55);
+        private void finishSave() {
+            Config.COMMON.atmosphereLayers.set(AtmosphereLayers.serialize(layers));
+            if (sableLoaded) {
+                SableDatapackHandler.generateDatapack();
             }
         }
 
-        for (var w : this.renderables) {
-            if (scrollWidgets.contains(w)) {
-                w.render(guiGraphics, mouseX, mouseY, partialTick);
-            }
-        }
-        guiGraphics.disableScissor();
-
-        for (var w : this.renderables) {
-            if (!scrollWidgets.contains(w)) {
-                w.render(guiGraphics, mouseX, mouseY, partialTick);
-            }
+        private static SubCategoryBuilder group(ConfigEntryBuilder entry, String key) {
+            return entry.startSubCategory(colored(key, TEXT_BLUE)).setExpanded(true);
         }
 
-        if (maxScroll > 0) {
-            int sbX = this.width - 6;
-            int sbW = 4;
-            int sbY = contentTop;
-            int sbH = contentClipBottom - contentTop;
-
-            guiGraphics.fill(sbX, sbY, sbX + sbW, sbY + sbH, 0x40000000);
-
-            int thumbH = Math.max(12, (int) ((float) sbH * (contentClipBottom - contentTop) / (contentBottom)));
-            int thumbY = sbY + (int) ((float) scrollOffset / maxScroll * (sbH - thumbH));
-            guiGraphics.fill(sbX, thumbY, sbX + sbW, thumbY + thumbH, 0xFFAAAAAA);
-        }
-    }
-
-    @Override
-    public void onClose() {
-        minecraft.setScreen(parent);
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int contentClipBottom = this.height - BOTTOM_MARGIN + 8;
-        if (mouseY >= contentClipBottom) {
-            for (var child : this.children()) {
-                if (child instanceof Button && child.isMouseOver(mouseX, mouseY)) {
-                    return child.mouseClicked(mouseX, mouseY, button);
-                }
-            }
-            return false;
-        }
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    private record HeaderEntry(int y, String key) {}
-
-    private class ConfigSlider extends AbstractSliderButton {
-        private final double min;
-        private final double max;
-        private final String key;
-        private final java.util.function.DoubleConsumer setter;
-        private final boolean isInteger;
-
-        ConfigSlider(int x, int y, String key, double current, double min, double max,
-                     java.util.function.DoubleConsumer setter, boolean isInteger) {
-            super(x, y, 310, 20, Component.translatable(key), (current - min) / (max - min));
-            this.min = min;
-            this.max = max;
-            this.key = key;
-            this.setter = setter;
-            this.isInteger = isInteger;
-            this.updateMessage();
+        private static ConfigCategory category(ConfigBuilder builder, String key) {
+            return builder.getOrCreateCategory(text(key));
         }
 
-        @Override
-        protected void updateMessage() {
-            if (key == null) return;
-            double actual = min + this.value * (max - min);
-            String valueStr = isInteger ? String.valueOf((int) Math.round(actual))
-                    : String.format("%.3f", actual);
-            setMessage(Component.translatable(key)
-                    .append(Component.literal(": " + valueStr)));
+        private static Component text(String key, Object... args) {
+            return Component.translatable(key, args);
         }
 
-        @Override
-        protected void applyValue() {
-            setter.accept(min + this.value * (max - min));
-        }
-
-        public void setActualValue(double actual) {
-            this.value = Mth.clamp((actual - min) / (max - min), 0.0, 1.0);
-            updateMessage();
+        private static Component colored(String key, int color, Object... args) {
+            return Component.translatable(key, args).withColor(color);
         }
     }
 }

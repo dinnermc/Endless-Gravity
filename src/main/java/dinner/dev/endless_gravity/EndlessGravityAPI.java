@@ -12,8 +12,13 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Public API for Endless Gravity. Other mods can use this to read config values,
- * check gravity state, and interact with the gravity immune tag.
+ * Public API for Endless Gravity. Other mods can use this to check gravity state,
+ * read atmosphere progress, and interact with the gravity immune tag.
+ * <p>
+ * The atmosphere is controlled by a single configurable pressure curve
+ * (see {@link AtmosphereLayers}): pressure 1.0 at base = full atmosphere,
+ * pressure 0.0 at deep space = vacuum. Every atmosphere system (gravity,
+ * muffle, temperature, oxygen, Sable physics) derives from that curve.
  */
 public final class EndlessGravityAPI {
 
@@ -24,16 +29,8 @@ public final class EndlessGravityAPI {
     public static final TagKey<EntityType<?>> GRAVITY_IMMUNE =
             TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(EndlessGravity.MODID, "gravity_immune"));
 
-    // Real atmospheric layer boundaries
+    /** Sea-level reference altitude. Atmosphere effects are gated to start above this. */
     public static final double BASE = 64.0;
-    public static final double TROPOPAUSE = 400.0;
-    public static final double STRATOPAUSE = 900.0;
-    public static final double MESOPAUSE = 1200.0;
-    public static final double KARMAN_LINE = 1800.0;
-    public static final double SPACE = 2500.0;
-    public static final double SPACE_DEEP = 3500.0;
-
-    private static final double[] LAYER_TOPS = {BASE, TROPOPAUSE, STRATOPAUSE, MESOPAUSE, KARMAN_LINE, SPACE, SPACE_DEEP};
 
     private EndlessGravityAPI() {}
 
@@ -45,113 +42,24 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Returns {@code true} if the given level is The End (where gravity effects are active).
+     * Returns the atmosphere pressure at the given Y level, from the configured atmosphere layers.
+     * 1.0 at base (full atmosphere), 0.0 at vacuum.
      */
-    public static boolean isGravityEnabled(Level level) {
-        return level.dimension() == Level.END;
+    public static double getPressure(double y) {
+        return AtmosphereLayers.getPressure(y);
     }
 
     /**
-     * Returns the current player gravity offset from config.
-     */
-    public static double getPlayerGravityOffset() {
-        return Config.COMMON.playerGravityOffset.get();
-    }
-
-    /**
-     * Returns the current item gravity offset from config.
-     */
-    public static double getItemGravityOffset() {
-        return Config.COMMON.itemGravityOffset.get();
-    }
-
-    /**
-     * Returns the current arrow gravity offset from config.
-     */
-    public static double getArrowGravityOffset() {
-        return Config.COMMON.arrowGravityOffset.get();
-    }
-
-    /**
-     * Returns the current thrown projectile gravity offset from config.
-     */
-    public static double getThrownGravityOffset() {
-        return Config.COMMON.thrownGravityOffset.get();
-    }
-
-    /**
-     * Returns the current falling block gravity offset from config.
-     */
-    public static double getBlockGravityOffset() {
-        return Config.COMMON.blockGravityOffset.get();
-    }
-
-    /**
-     * Returns {@code true} if player gravity is enabled in config.
-     */
-    public static boolean isPlayerGravityEnabled() {
-        return Config.COMMON.enablePlayerGravity.get();
-    }
-
-    /**
-     * Returns {@code true} if item gravity is enabled in config.
-     */
-    public static boolean isItemGravityEnabled() {
-        return Config.COMMON.enableItemGravity.get();
-    }
-
-    /**
-     * Returns {@code true} if arrow gravity is enabled in config.
-     */
-    public static boolean isArrowGravityEnabled() {
-        return Config.COMMON.enableArrowGravity.get();
-    }
-
-    /**
-     * Returns {@code true} if thrown projectile gravity is enabled in config.
-     */
-    public static boolean isThrownGravityEnabled() {
-        return Config.COMMON.enableThrownGravity.get();
-    }
-
-    /**
-     * Returns {@code true} if falling block gravity is enabled in config.
-     */
-    public static boolean isBlockGravityEnabled() {
-        return Config.COMMON.enableBlockGravity.get();
-    }
-
-    /**
-     * Returns the fall damage mode: 0 = normal, 1 = disabled, 2 = velocity-based.
-     */
-    public static int getFallDamageMode() {
-        return Config.COMMON.fallDamageMode.get();
-    }
-
-    /**
-     * Returns the atmosphere progress for a given Y level, from 0.0 at BASE (Y=64) to 1.0 at SPACE_DEEP (Y=3500).
-     * Uses piecewise linear interpolation across real atmospheric layers:
-     * BASE(64) -> TROPOPAUSE(400) -> STRATOPAUSE(900) -> MESOPAUSE(1200) -> KARMAN_LINE(1800) -> SPACE(2500) -> SPACE_DEEP(3500).
+     * Returns the atmosphere progress for a given Y level, from 0.0 at full atmosphere pressure
+     * to 1.0 at vacuum, derived from the configured atmospheric layers (progress = 1 - pressure).
      */
     public static double getAtmosphereProgress(double y) {
-        if (y <= BASE) return 0.0;
-        if (y >= SPACE_DEEP) return 1.0;
-        for (int i = 0; i < LAYER_TOPS.length - 1; i++) {
-            if (y <= LAYER_TOPS[i + 1]) {
-                double layerStart = LAYER_TOPS[i];
-                double layerEnd = LAYER_TOPS[i + 1];
-                double layerFraction = (y - layerStart) / (layerEnd - layerStart);
-                double layerIndex = (double) i / (LAYER_TOPS.length - 1);
-                double nextLayerIndex = (double) (i + 1) / (LAYER_TOPS.length - 1);
-                return layerIndex + layerFraction * (nextLayerIndex - layerIndex);
-            }
-        }
-        return 1.0;
+        return AtmosphereLayers.getProgress(y);
     }
 
     /**
      * Returns the atmosphere gravity offset at the given Y level.
-     * 0.0 at BASE, max at SPACE_DEEP, using piecewise linear interpolation.
+     * 0.0 at full pressure, max at vacuum, following the configured atmosphere layers.
      */
     public static double getAtmosphereOffset(double y) {
         if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
@@ -161,7 +69,7 @@ public final class EndlessGravityAPI {
 
     /**
      * Returns the atmosphere muffle gain at the given Y level.
-     * 1.0 at BASE, Config value at SPACE_DEEP.
+     * 1.0 at full pressure, Config value at vacuum.
      */
     public static double getAtmosphereMuffleGain(double y) {
         double progress = getAtmosphereProgress(y);
@@ -170,33 +78,11 @@ public final class EndlessGravityAPI {
 
     /**
      * Returns the atmosphere muffle gain HF at the given Y level.
-     * 1.0 at BASE, Config value at SPACE_DEEP.
+     * 1.0 at full pressure, Config value at vacuum.
      */
     public static double getAtmosphereMuffleGainHF(double y) {
         double progress = getAtmosphereProgress(y);
         return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGainHF.get());
-    }
-
-    private static final double FULL_INERTIA_FACTOR = 1.0 / 0.91;
-
-    /**
-     * Drag progress: 0.0 at BASE, 1.0 at KARMAN_LINE (full inertia in space).
-     * Above KARMAN_LINE stays at 1.0 — zero drag in vacuum.
-     */
-    public static double getDragProgress(double y) {
-        if (y <= BASE) return 0.0;
-        if (y >= KARMAN_LINE) return 1.0;
-        return (y - BASE) / (KARMAN_LINE - BASE);
-    }
-
-    /**
-     * Returns the drag compensation factor for the given Y level.
-     * 1.0 at BASE (vanilla drag), scaling to FULL_INERTIA_FACTOR at KARMAN_LINE.
-     * In space (above KARMAN_LINE), drag is fully canceled — true vacuum physics.
-     */
-    public static double getAtmosphereDrag(double y) {
-        double dragProgress = getDragProgress(y);
-        return 1.0 + dragProgress * (FULL_INERTIA_FACTOR - 1.0) * Config.COMMON.atmosphereDrag.get();
     }
 
     /**
@@ -223,6 +109,28 @@ public final class EndlessGravityAPI {
             return realPos.y;
         } catch (Exception e) {
             return getSubLevelOriginY(entity);
+        }
+    }
+
+    /**
+     * Projects an arbitrary position out of a Sable sub-level into global (Overworld) space.
+     * Returns the position's global Y coordinate, or {@code pos.y} unchanged when not in a sub-level.
+     */
+    public static double getRealY(Level level, Vec3 pos) {
+        ResourceKey<Level> dim = level.dimension();
+
+        if (dim == Level.OVERWORLD || dim == Level.END || dim == Level.NETHER) {
+            return pos.y;
+        }
+
+        if (!dim.location().getNamespace().equals("sable")) {
+            return pos.y;
+        }
+
+        try {
+            return SableCompanion.INSTANCE.projectOutOfSubLevel(level, pos).y;
+        } catch (Exception e) {
+            return pos.y;
         }
     }
 
@@ -276,32 +184,18 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Temperature progress for freezing effects.
-     * 0.0 at BASE (comfortable), ramps to 1.0 at STRATOPAUSE (max freeze).
-     * Above STRATOPAUSE stays at 1.0.
+     * Temperature progress for freezing effects, derived from the configured atmosphere layers.
+     * 0.0 at full atmosphere pressure (comfortable), ramps to 1.0 at vacuum (max freeze).
      */
     public static double getTemperatureProgress(double y) {
-        if (y <= BASE) return 0.0;
-        if (y >= STRATOPAUSE) return 1.0;
-        return (y - BASE) / (STRATOPAUSE - BASE);
+        return AtmosphereLayers.getProgress(y);
     }
 
     /**
-     * Oxygen depletion progress.
-     * 0.0 at BASE (normal air), ramps to 1.0 at KARMAN_LINE (vacuum).
-     * Above KARMAN_LINE stays at 1.0.
+     * Oxygen depletion progress, derived from the configured atmosphere layers.
+     * 0.0 at full atmosphere pressure (normal air), ramps to 1.0 at vacuum.
      */
     public static double getOxygenProgress(double y) {
-        if (y <= BASE) return 0.0;
-        if (y >= KARMAN_LINE) return 1.0;
-        return (y - BASE) / (KARMAN_LINE - BASE);
-    }
-
-    /**
-     * @deprecated Use {@link #getAtmosphereProgress(double)} instead.
-     */
-    @Deprecated
-    public static double getOverworldLayerProgress(Level level, double y) {
-        return getAtmosphereProgress(y);
+        return AtmosphereLayers.getProgress(y);
     }
 }
