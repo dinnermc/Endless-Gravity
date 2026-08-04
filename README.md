@@ -15,7 +15,7 @@ Low gravity for **The End** and layered atmosphere physics for the **Overworld**
 
 ## Configuration
 
-Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity*). Changes apply live where possible; the audio filter and Sable datapack need a restart (marked in amber).
+Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity*). Changes apply live where possible; the audio filter and Sable datapack need a restart.
 
 ### The End
 
