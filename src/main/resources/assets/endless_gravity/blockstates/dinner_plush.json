@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "endless_gravity:block/dinner_plush",
+      "y": 270
+    },
+    "facing=east": {
+      "model": "endless_gravity:block/dinner_plush"
+    },
+    "facing=south": {
+      "model": "endless_gravity:block/dinner_plush",
+      "y": 90
+    },
+    "facing=west": {
+      "model": "endless_gravity:block/dinner_plush",
+      "y": 180
+    }
+  }
+}

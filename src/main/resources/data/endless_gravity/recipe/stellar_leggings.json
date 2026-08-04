@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "endless_gravity",
+  "pattern": [
+    "SSS",
+    "S S",
+    "S S"
+  ],
+  "key": {
+    "S": {
+      "item": "create:sturdy_sheet"
+    }
+  },
+  "result": {
+    "id": "endless_gravity:stellar_leggings",
+    "count": 1
+  }
+}

@@ -10,8 +10,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 @EventBusSubscriber(modid = EndlessGravity.MODID, value = Dist.CLIENT)
 public class ClientGravityHandler {
@@ -21,6 +24,9 @@ public class ClientGravityHandler {
     private static Field particleGravityField;
     private static Field particlesMapField;
     private static boolean fieldsResolved = false;
+
+    // Overworld/sub-level particles are scaled exactly once at spawn (weak keys, so old particles get GC'd)
+    private static final Set<Particle> SCALED = Collections.newSetFromMap(new WeakHashMap<>());
 
     private static void resolveFields() {
         if (fieldsResolved) return;
@@ -44,7 +50,11 @@ public class ClientGravityHandler {
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
-        if (mc.level.dimension() != Level.END) return;
+        boolean isEnd = mc.level.dimension() == Level.END;
+        boolean isOverworld = mc.level.dimension() == Level.OVERWORLD;
+        boolean isSableSubLevel = mc.level.dimension().location().getNamespace().equals("sable");
+        if (!isEnd && !isOverworld && !isSableSubLevel) return;
+        if (!isEnd && !Config.COMMON.enableAtmosphere.get()) return;
         if (mc.player.tickCount % 4 != 0) return;
 
         resolveFields();
@@ -62,7 +72,20 @@ public class ClientGravityHandler {
                 for (Particle particle : queue) {
                     float g = particleGravityField.getFloat(particle);
                     if (g > VANILLA_THRESHOLD) {
-                        particleGravityField.setFloat(particle, g * multiplier);
+                        if (isEnd) {
+                            particleGravityField.setFloat(particle, g * multiplier);
+                        } else {
+                            // Scale once per particle at spawn: gravity lerps from vanilla (1.0)
+                            // at full pressure down to the configured multiplier at vacuum,
+                            // following the atmosphere layers (progress = 1 - pressure).
+                            // Sub-level positions are projected out to global Overworld space.
+                            if (!SCALED.add(particle)) continue;
+                            double globalY = EndlessGravityAPI.getRealY(mc.level, particle.getBoundingBox().getCenter());
+                            double progress = AtmosphereLayers.getProgress(globalY);
+                            float m = 1.0F + (float) progress * (multiplier - 1.0F);
+                            if (m >= 1.0F) continue;
+                            particleGravityField.setFloat(particle, g * m);
+                        }
                     }
                 }
             }
