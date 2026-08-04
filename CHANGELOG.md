@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- Fix suffocation death loop on respawn — the suffocation timer is now cleared on death and respawn, so a player never dies the same tick they reappear
+- Fix vanilla air bubbles no longer appear in the hotbar — the mod no longer manipulates the vanilla air meter
+- Change oxygen suffocation now only starts in genuinely thin air (atmosphere progress ≥ 0.5, roughly Y 400+ with default layers), keeping the troposphere breathable so elevated spawns never cause a death loop
 ## 1.1.1
 
 - Updated the Stellar Suit and its item textures
