@@ -20,15 +20,47 @@ jobs:
           distribution: temurin
 
       - run: chmod +x gradlew
-      - run: ./gradlew build modrinth
+
+      - name: Check if version already published
+        id: check
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          if curl -fsS -H "Authorization: Bearer $MODRINTH_TOKEN" \
+            "https://api.modrinth.com/v2/project/endless-gravity/version?version_number=${GITHUB_REF_NAME#v}" \
+            | grep -q '"id"'; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload to Modrinth
+        if: steps.check.outputs.exists == 'false'
+        run: ./gradlew build modrinth
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
 
-      - name: Create GitHub Release
+      - name: Update Modrinth version changelog
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          VERSION_ID=$(curl -fsS -H "Authorization: Bearer $MODRINTH_TOKEN" \
+            "https://api.modrinth.com/v2/project/endless-gravity/version?version_number=${GITHUB_REF_NAME#v}" \
+            | jq -r '.[0].id')
+          CHANGELOG=$(awk 'BEGIN{n=0} /^## /{n++} n==1{print}' CHANGELOG.md)
+          jq -n --arg changelog "$CHANGELOG" '{changelog: $changelog}' \
+            | curl -fsS -X PATCH -H "Authorization: Bearer $MODRINTH_TOKEN" \
+              -H "Content-Type: application/json" -d @- \
+              "https://api.modrinth.com/v2/version/$VERSION_ID"
+
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Endless Gravity v$VERSION" \
-            --notes "See [Modrinth](https://modrinth.com/project/endless-gravity/version/$GITHUB_REF_NAME) for changelog."
+          NOTES="See [Modrinth](https://modrinth.com/project/endless-gravity/version/$GITHUB_REF_NAME) for changelog."
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --title "Endless Gravity v$VERSION" --notes "$NOTES"
+          else
+            gh release create "$GITHUB_REF_NAME" --title "Endless Gravity v$VERSION" --notes "$NOTES"
+          fi
