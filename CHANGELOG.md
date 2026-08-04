@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.3
+
+- Freezing is now deadly in space — frost damage scales with altitude and the time spent exposed (a single burst gone in seconds at deep space). Only the Stellar Suit can stop it
+- Default max gravity offset lowered to 0.075: deep space keeps a tiny residual pull instead of perfect zero-G, so motion always slows down on its own
+
 ## 1.1.2
 
 - Fix suffocation death loop on respawn — the suffocation timer is now cleared on death and respawn, so a player never dies the same tick they reappear

@@ -40,7 +40,7 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 |---|---|---|
 | Enable Atmosphere | ON | Master toggle for Overworld space effects |
 | Entity Gravity | ON | Apply gravity from the pressure curve to entities |
-| Max Gravity Offset | 0.08 | Upward force at full vacuum (progress × max) |
+| Max Gravity Offset | 0.075 | Upward force at full vacuum (progress × max) |
 | Muffle Gain | 0.01 | Low-pass gain at full vacuum (interpolated from 1.0 at ground) |
 | Muffle Gain HF | 0.005 | Low-pass high-frequency gain at full vacuum |
 | Atmosphere Layers | 8 layers | Altitude → pressure pairs: `-64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0` |

@@ -27,18 +27,21 @@ public class EnvironmentHandler {
     public static final double SUFFOCATION_PROGRESS_THRESHOLD = 0.5;
 
     private static final Map<UUID, Integer> suffocationStartTicks = new HashMap<>();
+    private static final Map<UUID, Integer> freezeStartTicks = new HashMap<>();
 
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         // A fresh respawn must never inherit a stale suffocation timer, otherwise the
         // player can be killed the same tick they reappear (infinite death loop).
         suffocationStartTicks.remove(event.getEntity().getUUID());
+        freezeStartTicks.remove(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof Player player) {
             suffocationStartTicks.remove(player.getUUID());
+            freezeStartTicks.remove(player.getUUID());
         }
     }
 
@@ -60,8 +63,14 @@ public class EnvironmentHandler {
                 double tempProgress = EndlessGravityAPI.getTemperatureProgress(realY);
                 if (tempProgress > 0) {
                     tickFreezing(player, tempProgress, protection);
+                } else {
+                    clearFreezing(player);
                 }
+            } else {
+                clearFreezing(player);
             }
+        } else {
+            clearFreezing(player);
         }
 
         if (Config.COMMON.enableOxygen.get()) {
@@ -84,7 +93,10 @@ public class EnvironmentHandler {
 
     private static void tickFreezing(Player player, double progress, double protection) {
         double effectiveProgress = progress * (1.0 - protection);
-        if (effectiveProgress <= 0) return;
+        if (effectiveProgress <= 0) {
+            clearFreezing(player);
+            return;
+        }
 
         int interval = (int) Math.round(Config.COMMON.temperatureFreezeInterval.get() / Math.max(0.01, effectiveProgress));
         if (interval < 1) interval = 1;
@@ -92,14 +104,18 @@ public class EnvironmentHandler {
         if (player.tickCount % interval == 0) {
             int required = player.getTicksRequiredToFreeze();
             player.setTicksFrozen(required + 5);
-        }
 
-        int frozen = player.getTicksFrozen();
-        int required = player.getTicksRequiredToFreeze();
-        if (frozen > required) {
-            player.hurt(player.damageSources().freeze(), 1.0F);
-            player.setTicksFrozen(Math.round(required / 2.0F));
+            // Hypothermia scales with altitude and the time spent exposed: the longer you
+            // stay up there, the harder every frost burst hits. Only the Stellar Suit stops it.
+            int start = freezeStartTicks.computeIfAbsent(player.getUUID(), id -> player.tickCount);
+            double exposureSeconds = (player.tickCount - start) / 20.0;
+            float damage = (float) (1.0 + (6.0 + 0.4 * exposureSeconds) * effectiveProgress);
+            player.hurt(player.damageSources().freeze(), damage);
         }
+    }
+
+    private static void clearFreezing(Player player) {
+        freezeStartTicks.remove(player.getUUID());
     }
 
     private static void tickOxygen(Player player, double realY) {
