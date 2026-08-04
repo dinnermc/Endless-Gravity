@@ -123,7 +123,7 @@ public class EndlessGravityConfigScreen {
             addToggle(atmosphere, entry, "endless_gravity.config.enableAtmosphere", Config.COMMON.enableAtmosphere, true);
             addToggle(atmosphere, entry, "endless_gravity.config.overworldEntityGravity", Config.COMMON.overworldEntityGravity, true);
             addDouble(atmosphere, entry, "endless_gravity.config.atmosphereGravityMax", Config.COMMON.atmosphereGravityMax,
-                    0.0, 0.1, 0.08, TEXT_WHITE);
+                    0.0, 0.1, 0.075, TEXT_WHITE);
             addDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGain", Config.COMMON.atmosphereMuffleGain,
                     0.0, 1.0, 0.01, TEXT_WHITE);
             addDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGainHF", Config.COMMON.atmosphereMuffleGainHF,

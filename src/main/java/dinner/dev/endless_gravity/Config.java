@@ -194,8 +194,8 @@ public class Config {
                     .comment("Master toggle: completely disable entity gravity reduction in the Overworld atmosphere (default: true). When disabled, entities keep full gravity at any altitude.")
                     .define("overworldEntityGravity", true);
             atmosphereGravityMax = builder
-                    .comment("Maximum upward force per tick at deep space (default: 0.08). Interpolated from 0.0 at BASE Y=64. Higher = less gravity. 0.08 fully cancels vanilla player gravity for zero-G in deep space.")
-                    .defineInRange("atmosphereGravityMax", 0.08, 0.0, 0.1);
+                    .comment("Maximum upward force per tick at deep space (default: 0.075). Interpolated from 0.0 at BASE Y=64. Higher = less gravity. Keep slightly below vanilla 0.08 so a tiny residual pull remains instead of perfect zero-G.")
+                    .defineInRange("atmosphereGravityMax", 0.075, 0.0, 0.1);
             atmosphereMuffleGain = builder
                     .comment("Low-pass filter gain at deep space Y=3500 (default: 0.01). Lower = more muffled. Interpolated from 1.0 at BASE.")
                     .defineInRange("atmosphereMuffleGain", 0.01, 0.0, 1.0);
