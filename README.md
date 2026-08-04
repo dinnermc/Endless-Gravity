@@ -7,7 +7,6 @@ Low gravity for **The End** and layered atmosphere physics for the **Overworld**
 - **The End** — reduced gravity for players, items, arrows, thrown projectiles, and falling blocks, fully configurable per entity type
 - **Overworld atmosphere** — a continuous pressure curve (8 configurable layers) drives gravity, audio muffling, temperature, and oxygen above Y 64, up to full vacuum at Y 3500
 - **Fall damage** — three modes: normal, disabled, or velocity-based with configurable scale and minimum velocity
-- **Starship** — build a two-block rocket (Super Heavy booster + Starship upper stage), launch it into a Sable sub-level, separate in space, drift, and land with full engine audio
 - **Stellar Suit** — full armor set; the chestplate carries an oxygen tank with an inventory durability bar, and helmet + chestplate let you breathe in thin air
 - **Sable integration** — optional physics datapack (gravity, pressure, drag) auto-generated for The End and the Overworld with configurable priorities
 - **Modded config screen** — Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs, color-coded entries, and per-entry reset
@@ -16,7 +15,7 @@ Low gravity for **The End** and layered atmosphere physics for the **Overworld**
 
 ## Configuration
 
-Open the mod settings from the NeoForge mod list (or *Mods → Endless Gravity → Config*). Changes apply live where possible; the audio filter and Sable datapack need a restart (marked in amber).
+Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity*). Changes apply live where possible; the audio filter and Sable datapack need a restart (marked in amber).
 
 ### The End
 
