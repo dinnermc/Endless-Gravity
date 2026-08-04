@@ -8,6 +8,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 import java.util.HashMap;
@@ -17,7 +19,28 @@ import java.util.UUID;
 @EventBusSubscriber(modid = EndlessGravity.MODID)
 public class EnvironmentHandler {
 
+    /**
+     * Minimum atmosphere progress at which oxygen depletion/suffocation kicks in.
+     * With default layers (progress 0.5 at Y 400, 1.0 at Y 3500) this keeps the
+     * troposphere breathable so elevated spawns never loop-die.
+     */
+    public static final double SUFFOCATION_PROGRESS_THRESHOLD = 0.5;
+
     private static final Map<UUID, Integer> suffocationStartTicks = new HashMap<>();
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        // A fresh respawn must never inherit a stale suffocation timer, otherwise the
+        // player can be killed the same tick they reappear (infinite death loop).
+        suffocationStartTicks.remove(event.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
+    public static void onLivingDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            suffocationStartTicks.remove(player.getUUID());
+        }
+    }
 
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
@@ -87,9 +110,9 @@ public class EnvironmentHandler {
             // Helmet + chestplate: breathe from the tank in the chestplate
             tickSuitTank(player, chestplate, realY);
         } else {
-            // Missing helmet or chestplate: no oxygen supply, suffocate
+            // Missing helmet or chestplate: no oxygen supply, suffocate in thin air
             double oxyProgress = EndlessGravityAPI.getOxygenProgress(realY);
-            if (oxyProgress > 0) {
+            if (oxyProgress >= SUFFOCATION_PROGRESS_THRESHOLD) {
                 tickSuffocation(player);
             } else {
                 clearSuffocation(player);
@@ -129,12 +152,9 @@ public class EnvironmentHandler {
         if (StellarChestplateItem.getTank(chestplate) != tank) {
             StellarChestplateItem.setTank(chestplate, tank);
         }
-
-        player.setAirSupply(Math.min(player.getMaxAirSupply(), tank));
     }
 
     private static void tickSuffocation(Player player) {
-        player.setAirSupply(0);
         if (!player.isAlive()) return;
 
         int fadeTicks = Config.COMMON.oxygenSuffocationFadeTicks.get();

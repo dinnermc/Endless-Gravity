@@ -96,11 +96,16 @@ public class ClientGuiHandler {
     }
 
     private static boolean isSuffocating(Player player) {
+        double realY = EndlessGravityAPI.getRealY(player);
         boolean helmet = player.getItemBySlot(EquipmentSlot.HEAD).getItem() == ModItems.STELLAR_HELMET.get();
         boolean chestplate = player.getItemBySlot(EquipmentSlot.CHEST).getItem() == ModItems.STELLAR_CHESTPLATE.get();
-        double oxyProgress = EndlessGravityAPI.getOxygenProgress(EndlessGravityAPI.getRealY(player));
-        if (oxyProgress <= 0) return false;
-        return !helmet || !chestplate || player.getAirSupply() <= 0;
+        if (helmet && chestplate) {
+            // Breathing from the tank: only suffocating when the tank runs out in thin air
+            double pressure = AtmosphereLayers.getPressure(realY);
+            if (pressure >= 1.0) return false;
+            return StellarChestplateItem.getTank(player.getItemBySlot(EquipmentSlot.CHEST)) <= 0;
+        }
+        return EndlessGravityAPI.getOxygenProgress(realY) >= EnvironmentHandler.SUFFOCATION_PROGRESS_THRESHOLD;
     }
 
     private static void drawSuffocationOverlay(GuiGraphics gui) {
