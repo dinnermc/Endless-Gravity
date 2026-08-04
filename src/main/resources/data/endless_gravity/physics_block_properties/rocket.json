@@ -1,0 +1,7 @@
+{
+  "selector": "#endless_gravity:rocket",
+
+  "properties": {
+    "sable:mass": 5.0
+  }
+}

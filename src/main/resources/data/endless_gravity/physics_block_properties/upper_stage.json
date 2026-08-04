@@ -1,0 +1,7 @@
+{
+  "selector": "#endless_gravity:upper_stage",
+
+  "properties": {
+    "sable:mass": 2.0
+  }
+}

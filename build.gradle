@@ -11,6 +11,12 @@ group = mod_group_id
 
 repositories {
     mavenLocal()
+    maven { url = "https://maven.neoforged.net/releases" }
+    maven { url = "https://maven.ryanhcode.dev/releases" }
+    maven { url = "https://maven.blamejared.com" }
+    maven { url = "https://maven.createmod.net" }
+    maven { url = "https://maven.ithundxr.dev/snapshots" }
+    maven { url = "https://maven.shedaniel.me" }
     exclusiveContent {
         forRepository {
             maven {
@@ -20,6 +26,7 @@ repositories {
         }
         filter {
             includeGroup("dev.ryanhcode.sable-companion")
+            includeGroup("dev.ryanhcode.sable")
         }
     }
 }
@@ -86,10 +93,17 @@ sourceSets.client.runtimeClasspath += sourceSets.main.output
 sourceSets.client.runtimeClasspath += sourceSets.main.runtimeClasspath
 
 dependencies {
+    compileOnly "dev.ryanhcode.sable:sable-neoforge-${minecraft_version}:${sable_version}"
     jarJar(api("dev.ryanhcode.sable-companion:sable-companion-common-${minecraft_version}:${sable_companion_version}")) {
         version {
             strictly "[${sable_companion_version},)"
             prefer sable_companion_version
+        }
+    }
+    jarJar(api("me.shedaniel.cloth:cloth-config-neoforge:${cloth_config_version}")) {
+        version {
+            strictly "[${cloth_config_version},)"
+            prefer cloth_config_version
         }
     }
 }
@@ -113,7 +127,8 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
                              mod_license            : mod_license,
                              mod_version            : mod_version,
                              mod_authors            : mod_authors,
-                             mod_description        : mod_description]
+                             mod_description        : mod_description,
+                             cloth_config_version   : cloth_config_version]
     inputs.properties replaceProperties
     expand replaceProperties
     from "src/main/templates"
@@ -139,7 +154,8 @@ modrinth {
     uploadFile = jar
     gameVersions = ["1.21.1"]
     loaders = ["neoforge"]
-    changelog = "See https://github.com/dinnermc/Endless-Gravity/releases/tag/v${mod_version}"
+    def changelogText = rootProject.file("CHANGELOG.md").text
+    changelog = changelogText.substring(0, changelogText.indexOf("\n## ", 3)).trim()
     syncBodyFrom = rootProject.file("README.md").text
 }
 

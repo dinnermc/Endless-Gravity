@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "endless_gravity",
+  "pattern": [
+    "S S",
+    "L L"
+  ],
+  "key": {
+    "S": {
+      "item": "create:sturdy_sheet"
+    },
+    "L": {
+      "item": "aeronautics:levitite"
+    }
+  },
+  "result": {
+    "id": "endless_gravity:stellar_boots",
+    "count": 1
+  }
+}

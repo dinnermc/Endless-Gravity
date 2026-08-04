@@ -1,35 +1,23 @@
 package dinner.dev.endless_gravity;
 
-import dinner.dev.endless_gravity.event.FallDamageCalculationEvent;
-import dinner.dev.endless_gravity.event.GravityApplicationEvent;
-import dinner.dev.endless_gravity.event.GravityAppliedEvent;
-import dinner.dev.endless_gravity.event.GravityImmunityEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import org.slf4j.Logger;
-import com.mojang.logging.LogUtils;
-
-
 
 @EventBusSubscriber(modid = EndlessGravity.MODID)
 public class GravityHandler {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
     private static final double VEL_THRESHOLD = 0.005;
 
     @SubscribeEvent
@@ -40,10 +28,7 @@ public class GravityHandler {
         if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
         if (player.getAbilities().flying) return;
 
-        GravityImmunityEvent immunityEvent = new GravityImmunityEvent(player, EndlessGravityAPI.isGravityImmune(player));
-        NeoForge.EVENT_BUS.post(immunityEvent);
-        if (immunityEvent.isCanceled()) return;
-        if (immunityEvent.isImmune()) return;
+        if (EndlessGravityAPI.isGravityImmune(player)) return;
 
         if (applyAtmosphereEffects(level, player)) return;
 
@@ -51,6 +36,7 @@ public class GravityHandler {
         if (EndlessGravityAPI.isSableManaged(level)) return;
 
         if (!isEndOrSable(level)) return;
+        if (!Config.COMMON.endEntityGravity.get()) return;
         if (!Config.COMMON.enablePlayerGravity.get()) return;
 
         double offset = Config.COMMON.playerGravityOffset.get();
@@ -66,13 +52,10 @@ public class GravityHandler {
         Level level = entity.level();
         if (entity.onGround() || entity.isInWater()) return;
 
-        GravityImmunityEvent immunityEvent = new GravityImmunityEvent(entity, EndlessGravityAPI.isGravityImmune(entity));
-        NeoForge.EVENT_BUS.post(immunityEvent);
-        if (immunityEvent.isCanceled()) return;
-        if (immunityEvent.isImmune()) return;
+        if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
-        // Apply atmosphere effects (drag+gravity) BEFORE velocity threshold check,
-        // so entities with purely horizontal motion still get drag compensation.
+        // Apply atmosphere gravity BEFORE velocity threshold check,
+        // so entities with purely horizontal motion still get reduced gravity.
         if (applyAtmosphereEffects(level, entity)) return;
 
         // When Sable manages this dimension, its physics engine handles gravity
@@ -82,6 +65,7 @@ public class GravityHandler {
         if (Math.abs(velY) < VEL_THRESHOLD) return;
 
         if (!isEndOrSable(level)) return;
+        if (!Config.COMMON.endEntityGravity.get()) return;
 
         double offset;
         if (entity instanceof ItemEntity) {
@@ -111,22 +95,31 @@ public class GravityHandler {
      */
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
         if (!EndlessGravityAPI.isOverworldOrSable(level)) {
-            LOGGER.debug("Skipping atmosphere: not Overworld/Sable (dim={})", level.dimension().location());
+            return false;
+        }
+        if (!Config.COMMON.overworldEntityGravity.get()) {
             return false;
         }
         if (!Config.COMMON.enableAtmosphere.get()) {
-            LOGGER.debug("Skipping atmosphere: disabled in config");
+            return false;
+        }
+
+        // For Sable sub-levels, gravity reduction is handled by the ForceGroup in ServerSubLevelMixin.
+        // Don't apply additional upward force here to avoid double-applying.
+        if (EndlessGravityAPI.isSableManaged(level)) {
             return false;
         }
 
         double realY = EndlessGravityAPI.getRealY(entity);
-        if (realY <= EndlessGravityAPI.BASE) return false;
+        if (realY <= EndlessGravityAPI.BASE) {
+            return false;
+        }
 
         double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
-        if (offset <= 0) return false;
+        if (offset <= 0) {
+            return false;
+        }
 
-        LOGGER.debug("Applying atmosphere: entity={}, dim={}, rawY={}, realY={}, offset={}",
-                entity, level.dimension().location(), entity.getY(), realY, offset);
         applyGravity(entity, offset);
         return true;
     }
@@ -136,28 +129,8 @@ public class GravityHandler {
         return level.dimension().location().getNamespace().equals("sable");
     }
 
-    private static boolean entityTypeEnabled(Entity entity) {
-        if (entity instanceof ItemEntity) return Config.COMMON.enableItemGravity.get();
-        if (entity instanceof AbstractArrow) return Config.COMMON.enableArrowGravity.get();
-        if (entity instanceof Projectile) return Config.COMMON.enableThrownGravity.get();
-        if (entity instanceof FallingBlockEntity) return Config.COMMON.enableBlockGravity.get();
-        return false;
-    }
-
     private static void applyGravity(Entity entity, double offset) {
-        GravityApplicationEvent gravityEvent = new GravityApplicationEvent(entity, offset);
-        NeoForge.EVENT_BUS.post(gravityEvent);
-        if (gravityEvent.isCanceled()) return;
-
-        offset = gravityEvent.getOffset();
-        Vec3 before = entity.getDeltaMovement();
-        entity.setDeltaMovement(before.add(0, offset, 0));
-        Vec3 after = entity.getDeltaMovement();
-
-        LOGGER.debug("applyGravity: entity={}, dim={}, before={}, offset={}, after={}",
-                entity, entity.level().dimension().location(), before, offset, after);
-
-        NeoForge.EVENT_BUS.post(new GravityAppliedEvent(entity, offset));
+        entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -171,17 +144,17 @@ public class GravityHandler {
             if (realY > EndlessGravityAPI.BASE) {
                 double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
                 if (offset > 0) {
-                    handleFallDamage(event, player, offset);
+                    handleFallDamage(event, player);
                     return;
                 }
             }
         }
 
         if (!isEndOrSable(level)) return;
-        handleFallDamage(event, player, null);
+        handleFallDamage(event, player);
     }
 
-    private static void handleFallDamage(LivingFallEvent event, ServerPlayer player, Double layerOffset) {
+    private static void handleFallDamage(LivingFallEvent event, ServerPlayer player) {
         int mode = Config.COMMON.fallDamageMode.get();
 
         if (mode == 1) {
@@ -197,15 +170,8 @@ public class GravityHandler {
             double scale = Config.COMMON.fallDamageVelocityScale.get();
             float velocityDamage = (float) (velY * scale);
 
-            FallDamageCalculationEvent damageEvent = new FallDamageCalculationEvent(player, 1.0F, velocityDamage + 3.0F);
-            NeoForge.EVENT_BUS.post(damageEvent);
-            if (damageEvent.isCanceled()) {
-                event.setCanceled(true);
-                return;
-            }
-
-            event.setDamageMultiplier(damageEvent.getDamageMultiplier());
-            event.setDistance(damageEvent.getDistance());
+            event.setDamageMultiplier(1.0F);
+            event.setDistance(velocityDamage + 3.0F);
         }
     }
 }

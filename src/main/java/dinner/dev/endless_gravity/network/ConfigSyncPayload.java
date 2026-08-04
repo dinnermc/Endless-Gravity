@@ -2,10 +2,14 @@ package dinner.dev.endless_gravity.network;
 
 import dinner.dev.endless_gravity.Config;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public record ConfigSyncPayload(
         boolean enablePlayerGravity, double playerGravityOffset,
@@ -15,8 +19,10 @@ public record ConfigSyncPayload(
         int fallDamageMode, double fallDamageVelocityScale, double fallDamageMinVelocity,
         boolean enableBlockGravity, double blockGravityOffset,
         boolean enableAtmosphere, double atmosphereGravityMax,
+        double atmosphereMuffleGain, double atmosphereMuffleGainHF,
+        List<String> atmosphereLayers,
         boolean enableTemperature, int temperatureFreezeInterval,
-        boolean enableOxygen, int oxygenRate
+        boolean enableOxygen, int oxygenRate, int oxygenTankCapacity, int oxygenSuffocationFadeTicks
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<ConfigSyncPayload> ID =
@@ -40,24 +46,62 @@ public record ConfigSyncPayload(
             buf.writeDouble(p.blockGravityOffset());
             buf.writeBoolean(p.enableAtmosphere());
             buf.writeDouble(p.atmosphereGravityMax());
+            buf.writeDouble(p.atmosphereMuffleGain());
+            buf.writeDouble(p.atmosphereMuffleGainHF());
+            buf.writeInt(p.atmosphereLayers().size());
+            for (String layer : p.atmosphereLayers()) {
+                ByteBufCodecs.STRING_UTF8.encode(buf, layer);
+            }
             buf.writeBoolean(p.enableTemperature());
             buf.writeInt(p.temperatureFreezeInterval());
             buf.writeBoolean(p.enableOxygen());
             buf.writeInt(p.oxygenRate());
+            buf.writeInt(p.oxygenTankCapacity());
+            buf.writeInt(p.oxygenSuffocationFadeTicks());
         }
 
         @Override
         public ConfigSyncPayload decode(ByteBuf buf) {
+            boolean enablePlayerGravity = buf.readBoolean();
+            double playerGravityOffset = buf.readDouble();
+            boolean enableItemGravity = buf.readBoolean();
+            double itemGravityOffset = buf.readDouble();
+            boolean enableArrowGravity = buf.readBoolean();
+            double arrowGravityOffset = buf.readDouble();
+            boolean enableThrownGravity = buf.readBoolean();
+            double thrownGravityOffset = buf.readDouble();
+            int fallDamageMode = buf.readInt();
+            double fallDamageVelocityScale = buf.readDouble();
+            double fallDamageMinVelocity = buf.readDouble();
+            boolean enableBlockGravity = buf.readBoolean();
+            double blockGravityOffset = buf.readDouble();
+            boolean enableAtmosphere = buf.readBoolean();
+            double atmosphereGravityMax = buf.readDouble();
+            double atmosphereMuffleGain = buf.readDouble();
+            double atmosphereMuffleGainHF = buf.readDouble();
+            int layerCount = buf.readInt();
+            List<String> atmosphereLayers = new ArrayList<>(layerCount);
+            for (int i = 0; i < layerCount; i++) {
+                atmosphereLayers.add(ByteBufCodecs.STRING_UTF8.decode(buf));
+            }
+            boolean enableTemperature = buf.readBoolean();
+            int temperatureFreezeInterval = buf.readInt();
+            boolean enableOxygen = buf.readBoolean();
+            int oxygenRate = buf.readInt();
+            int oxygenTankCapacity = buf.readInt();
+            int oxygenSuffocationFadeTicks = buf.readInt();
             return new ConfigSyncPayload(
-                    buf.readBoolean(), buf.readDouble(),
-                    buf.readBoolean(), buf.readDouble(),
-                    buf.readBoolean(), buf.readDouble(),
-                    buf.readBoolean(), buf.readDouble(),
-                    buf.readInt(), buf.readDouble(), buf.readDouble(),
-                    buf.readBoolean(), buf.readDouble(),
-                    buf.readBoolean(), buf.readDouble(),
-                    buf.readBoolean(), buf.readInt(),
-                    buf.readBoolean(), buf.readInt()
+                    enablePlayerGravity, playerGravityOffset,
+                    enableItemGravity, itemGravityOffset,
+                    enableArrowGravity, arrowGravityOffset,
+                    enableThrownGravity, thrownGravityOffset,
+                    fallDamageMode, fallDamageVelocityScale, fallDamageMinVelocity,
+                    enableBlockGravity, blockGravityOffset,
+                    enableAtmosphere, atmosphereGravityMax,
+                    atmosphereMuffleGain, atmosphereMuffleGainHF,
+                    atmosphereLayers,
+                    enableTemperature, temperatureFreezeInterval,
+                    enableOxygen, oxygenRate, oxygenTankCapacity, oxygenSuffocationFadeTicks
             );
         }
     };
@@ -76,8 +120,11 @@ public record ConfigSyncPayload(
                 Config.COMMON.fallDamageMode.get(), Config.COMMON.fallDamageVelocityScale.get(), Config.COMMON.fallDamageMinVelocity.get(),
                 Config.COMMON.enableBlockGravity.get(), Config.COMMON.blockGravityOffset.get(),
                 Config.COMMON.enableAtmosphere.get(), Config.COMMON.atmosphereGravityMax.get(),
+                Config.COMMON.atmosphereMuffleGain.get(), Config.COMMON.atmosphereMuffleGainHF.get(),
+                List.copyOf(Config.COMMON.atmosphereLayers.get()),
                 Config.COMMON.enableTemperature.get(), Config.COMMON.temperatureFreezeInterval.get(),
-                Config.COMMON.enableOxygen.get(), Config.COMMON.oxygenRate.get()
+                Config.COMMON.enableOxygen.get(), Config.COMMON.oxygenRate.get(),
+                Config.COMMON.oxygenTankCapacity.get(), Config.COMMON.oxygenSuffocationFadeTicks.get()
         );
     }
 
@@ -97,10 +144,15 @@ public record ConfigSyncPayload(
         Config.COMMON.blockGravityOffset.set(blockGravityOffset);
         Config.COMMON.enableAtmosphere.set(enableAtmosphere);
         Config.COMMON.atmosphereGravityMax.set(atmosphereGravityMax);
+        Config.COMMON.atmosphereMuffleGain.set(atmosphereMuffleGain);
+        Config.COMMON.atmosphereMuffleGainHF.set(atmosphereMuffleGainHF);
+        Config.COMMON.atmosphereLayers.set(atmosphereLayers);
         Config.COMMON.enableTemperature.set(enableTemperature);
         Config.COMMON.temperatureFreezeInterval.set(temperatureFreezeInterval);
         Config.COMMON.enableOxygen.set(enableOxygen);
         Config.COMMON.oxygenRate.set(oxygenRate);
+        Config.COMMON.oxygenTankCapacity.set(oxygenTankCapacity);
+        Config.COMMON.oxygenSuffocationFadeTicks.set(oxygenSuffocationFadeTicks);
     }
 
     public static void handle(ConfigSyncPayload payload, IPayloadContext ctx) {

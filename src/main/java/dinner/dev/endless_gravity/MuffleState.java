@@ -28,13 +28,4 @@ public class MuffleState {
     public static boolean isActive() {
         return currentGain < 1.0f || currentGainHF < 1.0f;
     }
-
-    public static void cleanup() {
-        if (filterId != -1) {
-            alDeleteFilters(filterId);
-            filterId = -1;
-            currentGain = 1.0f;
-            currentGainHF = 1.0f;
-        }
-    }
 }

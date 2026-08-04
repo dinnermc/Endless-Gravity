@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "group": "endless_gravity",
+  "pattern": [
+    "SPS",
+    "SAS",
+    "SLS"
+  ],
+  "key": {
+    "S": {
+      "item": "create:sturdy_sheet"
+    },
+    "P": {
+      "item": "create:propeller"
+    },
+    "A": {
+      "item": "create:andesite_alloy"
+    },
+    "L": {
+      "item": "aeronautics:levitite"
+    }
+  },
+  "result": {
+    "id": "endless_gravity:super_heavy",
+    "count": 1
+  }
+}
