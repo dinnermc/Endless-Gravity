@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "endless_gravity",
+  "pattern": [
+    " S ",
+    "STS",
+    " S "
+  ],
+  "key": {
+    "S": {
+      "item": "create:sturdy_sheet"
+    },
+    "T": {
+      "item": "endless_gravity:oxygen_tank"
+    }
+  },
+  "result": {
+    "id": "endless_gravity:large_oxygen_tank",
+    "count": 1
+  }
+}

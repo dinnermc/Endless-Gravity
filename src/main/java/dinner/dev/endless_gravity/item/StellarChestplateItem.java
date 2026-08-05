@@ -40,6 +40,7 @@ public class StellarChestplateItem extends ArmorItem {
         tooltipComponents.add(Component.translatable("item.endless_gravity.stellar_chestplate.tooltip.1").withStyle(ChatFormatting.GRAY));
         tooltipComponents.add(Component.translatable("item.endless_gravity.stellar_chestplate.tooltip.2").withStyle(ChatFormatting.GRAY));
         tooltipComponents.add(Component.translatable("item.endless_gravity.stellar_chestplate.tooltip.3").withStyle(ChatFormatting.GRAY));
+        tooltipComponents.add(Component.literal("O\u2082: " + getTank(stack) + " / " + Config.COMMON.oxygenTankCapacity.get()).withStyle(ChatFormatting.AQUA));
         super.appendHoverText(stack, context, tooltipComponents, flag);
     }
 
