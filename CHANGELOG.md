@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.4
+
+- The End is now a full vacuum: freezing and suffocation apply at every altitude (no height curve) — wear the Stellar Suit or die; the oxygen tank drains in The End and never recharges
+- Freezing now only starts above Y 400 (atmosphere progress 0.5): the frost curve is remapped to 0 at Y 400 and ramps to max at deep space, so low-altitude builds never get random cold spikes
+
 ## 1.1.3
 
 - Freezing is now deadly in space — frost damage scales with altitude and the time spent exposed (a single burst gone in seconds at deep space). Only the Stellar Suit can stop it

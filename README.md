@@ -34,6 +34,8 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 | Audio Filter Gain | 0.1 | Low-pass filter volume in The End (lower = more muffled) |
 | Audio Filter Gain HF | 0.05 | Low-pass filter high-frequency volume |
 
+The End is **full vacuum everywhere**: temperature and oxygen effects apply at every altitude (no height curve) — players freeze and suffocate unless wearing the Stellar Suit, and the tank drains without ever recharging there.
+
 ### Overworld
 
 | Setting | Default | Description |
@@ -44,7 +46,7 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 | Muffle Gain | 0.01 | Low-pass gain at full vacuum (interpolated from 1.0 at ground) |
 | Muffle Gain HF | 0.005 | Low-pass high-frequency gain at full vacuum |
 | Atmosphere Layers | 8 layers | Altitude → pressure pairs: `-64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0` |
-| Enable Temperature | ON | Freeze (ice overlay) when pressure drops in space |
+| Enable Temperature | ON | Freeze (ice overlay) when pressure drops — starts above Y ~400, zero before that |
 | Freeze Interval | 20 | Ticks between freeze damage applications |
 | Enable Oxygen | ON | Suffocation in thin air without a Stellar Suit |
 | Oxygen Rate | 8 | Air units consumed per second at altitude |
@@ -78,7 +80,8 @@ All gameplay-affecting config values are synced from server to client on login v
 - Minecraft 1.21.1
 - NeoForge 21.1+
 - Cloth Config — bundled (via Jar-in-Jar), no manual install
-- Sable (optional; required for the starship)
+- Sable (required)
+- Create: Aeronautics (required)
 
 ## License
 
