@@ -175,6 +175,13 @@ public final class EndlessGravityAPI {
     }
 
     /**
+     * Returns {@code true} if the given level is The End.
+     */
+    public static boolean isEnd(Level level) {
+        return level.dimension() == Level.END;
+    }
+
+    /**
      * Returns {@code true} if the given level is the Overworld or a Sable sub-level.
      */
     public static boolean isOverworldOrSable(Level level) {

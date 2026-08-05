@@ -96,6 +96,15 @@ public class ClientGuiHandler {
     }
 
     private static boolean isSuffocating(Player player) {
+        if (EndlessGravityAPI.isEnd(player.level())) {
+            // The End is a full vacuum: no atmosphere anywhere.
+            boolean helmet = player.getItemBySlot(EquipmentSlot.HEAD).getItem() == ModItems.STELLAR_HELMET.get();
+            boolean chestplate = player.getItemBySlot(EquipmentSlot.CHEST).getItem() == ModItems.STELLAR_CHESTPLATE.get();
+            if (helmet && chestplate) {
+                return StellarChestplateItem.getTank(player.getItemBySlot(EquipmentSlot.CHEST)) <= 0;
+            }
+            return true;
+        }
         double realY = EndlessGravityAPI.getRealY(player);
         boolean helmet = player.getItemBySlot(EquipmentSlot.HEAD).getItem() == ModItems.STELLAR_HELMET.get();
         boolean chestplate = player.getItemBySlot(EquipmentSlot.CHEST).getItem() == ModItems.STELLAR_CHESTPLATE.get();
