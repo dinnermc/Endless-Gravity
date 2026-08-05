@@ -26,6 +26,14 @@ public class EnvironmentHandler {
      */
     public static final double SUFFOCATION_PROGRESS_THRESHOLD = 0.5;
 
+    /**
+     * Minimum atmosphere progress at which freezing kicks in. Mirrors the
+     * suffocation threshold on the same curve: 0.0 below Y 400 (troposphere,
+     * no frost), ramping from 0.5 at Y 400 to 1.0 at Y 3500. Keeps low-altitude
+     * builds and valleys free of random cold spikes.
+     */
+    public static final double FREEZE_PROGRESS_THRESHOLD = 0.5;
+
     private static final Map<UUID, Integer> suffocationStartTicks = new HashMap<>();
     private static final Map<UUID, Integer> freezeStartTicks = new HashMap<>();
 
@@ -51,18 +59,38 @@ public class EnvironmentHandler {
         if (player.isCreative() || player.isSpectator()) return;
         Level level = player.level();
         if (level.isClientSide) return;
-        if (!EndlessGravityAPI.isOverworldOrSable(level)) return;
+
+        boolean isEnd = EndlessGravityAPI.isEnd(level);
+        if (!EndlessGravityAPI.isOverworldOrSable(level) && !isEnd) return;
+
+        double protection = getSpaceArmorProtection(player);
+
+        if (isEnd) {
+            // The End is a full vacuum at every altitude: freezing and suffocation
+            // apply everywhere, and the tank can never recharge.
+            if (Config.COMMON.enableTemperature.get()) {
+                tickFreezing(player, 1.0, protection);
+            } else {
+                clearFreezing(player);
+            }
+            if (Config.COMMON.enableOxygen.get()) {
+                tickOxygen(player, 1.0, 0.0);
+            }
+            return;
+        }
+
         if (!Config.COMMON.enableAtmosphere.get()) return;
 
         double realY = EndlessGravityAPI.getRealY(player);
 
-        double protection = getSpaceArmorProtection(player);
-
         if (realY > EndlessGravityAPI.BASE) {
             if (Config.COMMON.enableTemperature.get()) {
                 double tempProgress = EndlessGravityAPI.getTemperatureProgress(realY);
-                if (tempProgress > 0) {
-                    tickFreezing(player, tempProgress, protection);
+                if (tempProgress >= FREEZE_PROGRESS_THRESHOLD) {
+                    // Remap so freezing starts at 0 exactly above Y 400 (progress 0.5)
+                    // and ramps to 1.0 at deep space (progress 1.0).
+                    double freezeProgress = (tempProgress - FREEZE_PROGRESS_THRESHOLD) / (1.0 - FREEZE_PROGRESS_THRESHOLD);
+                    tickFreezing(player, freezeProgress, protection);
                 } else {
                     clearFreezing(player);
                 }
@@ -74,7 +102,7 @@ public class EnvironmentHandler {
         }
 
         if (Config.COMMON.enableOxygen.get()) {
-            tickOxygen(player, realY);
+            tickOxygen(player, EndlessGravityAPI.getOxygenProgress(realY), EndlessGravityAPI.getPressure(realY));
         }
     }
 
@@ -118,16 +146,15 @@ public class EnvironmentHandler {
         freezeStartTicks.remove(player.getUUID());
     }
 
-    private static void tickOxygen(Player player, double realY) {
+    private static void tickOxygen(Player player, double oxyProgress, double pressure) {
         ItemStack helmet = player.getItemBySlot(EquipmentSlot.HEAD);
         ItemStack chestplate = player.getItemBySlot(EquipmentSlot.CHEST);
         if (helmet.getItem() == ModItems.STELLAR_HELMET.get()
                 && chestplate.getItem() == ModItems.STELLAR_CHESTPLATE.get()) {
             // Helmet + chestplate: breathe from the tank in the chestplate
-            tickSuitTank(player, chestplate, realY);
+            tickSuitTank(player, chestplate, oxyProgress, pressure);
         } else {
             // Missing helmet or chestplate: no oxygen supply, suffocate in thin air
-            double oxyProgress = EndlessGravityAPI.getOxygenProgress(realY);
             if (oxyProgress >= SUFFOCATION_PROGRESS_THRESHOLD) {
                 tickSuffocation(player);
             } else {
@@ -136,7 +163,7 @@ public class EnvironmentHandler {
         }
     }
 
-    private static void tickSuitTank(Player player, ItemStack chestplate, double realY) {
+    private static void tickSuitTank(Player player, ItemStack chestplate, double oxyProgress, double pressure) {
         int tank = StellarChestplateItem.getTank(chestplate);
         int capacity = Config.COMMON.oxygenTankCapacity.get();
 
@@ -144,9 +171,8 @@ public class EnvironmentHandler {
             clearSuffocation(player);
         }
 
-        if (AtmosphereLayers.getPressure(realY) < 1.0) {
+        if (pressure < 1.0) {
             // Atmosphere thinner than full pressure: consume oxygen, faster with altitude
-            double oxyProgress = EndlessGravityAPI.getOxygenProgress(realY);
             int rate = (int) Math.round(Config.COMMON.oxygenRate.get() / Math.max(0.01, oxyProgress));
             if (rate < 1) rate = 1;
 
