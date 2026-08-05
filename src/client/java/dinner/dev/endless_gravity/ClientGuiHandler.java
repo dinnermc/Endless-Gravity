@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity;
 
 import dinner.dev.endless_gravity.item.ModItems;
+import dinner.dev.endless_gravity.item.OxygenTankItem;
 import dinner.dev.endless_gravity.item.StellarChestplateItem;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -101,7 +102,8 @@ public class ClientGuiHandler {
             boolean helmet = player.getItemBySlot(EquipmentSlot.HEAD).getItem() == ModItems.STELLAR_HELMET.get();
             boolean chestplate = player.getItemBySlot(EquipmentSlot.CHEST).getItem() == ModItems.STELLAR_CHESTPLATE.get();
             if (helmet && chestplate) {
-                return StellarChestplateItem.getTank(player.getItemBySlot(EquipmentSlot.CHEST)) <= 0;
+                ItemStack chest = player.getItemBySlot(EquipmentSlot.CHEST);
+                return StellarChestplateItem.getTank(chest) <= 0 && OxygenTankItem.getInventoryOxygen(player) <= 0;
             }
             return true;
         }
@@ -112,7 +114,8 @@ public class ClientGuiHandler {
             // Breathing from the tank: only suffocating when the tank runs out in thin air
             double pressure = AtmosphereLayers.getPressure(realY);
             if (pressure >= 1.0) return false;
-            return StellarChestplateItem.getTank(player.getItemBySlot(EquipmentSlot.CHEST)) <= 0;
+            return StellarChestplateItem.getTank(player.getItemBySlot(EquipmentSlot.CHEST)) <= 0
+                    && OxygenTankItem.getInventoryOxygen(player) <= 0;
         }
         return EndlessGravityAPI.getOxygenProgress(realY) >= EnvironmentHandler.SUFFOCATION_PROGRESS_THRESHOLD;
     }

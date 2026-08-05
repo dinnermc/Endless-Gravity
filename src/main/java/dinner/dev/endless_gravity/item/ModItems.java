@@ -78,6 +78,18 @@ public class ModItems {
                     new Item.Properties().durability(ArmorItem.Type.BOOTS.getDurability(24))
             ));
 
+    public static final DeferredHolder<Item, OxygenTankItem> OXYGEN_TANK =
+            ITEMS.register("oxygen_tank", () -> new OxygenTankItem(
+                    new Item.Properties().stacksTo(1).durability(250).setNoRepair(),
+                    250
+            ));
+
+    public static final DeferredHolder<Item, OxygenTankItem> LARGE_OXYGEN_TANK =
+            ITEMS.register("large_oxygen_tank", () -> new OxygenTankItem(
+                    new Item.Properties().stacksTo(1).durability(1000).setNoRepair(),
+                    1000
+            ));
+
     public static final DeferredHolder<Item, BlockItem> DINNER_PLUSH_ITEM =
             ITEMS.register("dinner_plush", () -> new BlockItem(
                     ModBlocks.DINNER_PLUSH.get(),
@@ -116,6 +128,8 @@ public class ModItems {
                                 output.accept(STELLAR_CHESTPLATE.get());
                                 output.accept(STELLAR_LEGGINGS.get());
                                 output.accept(STELLAR_BOOTS.get());
+                                output.accept(OXYGEN_TANK.get());
+                                output.accept(LARGE_OXYGEN_TANK.get());
                             })
                             .build());
 
