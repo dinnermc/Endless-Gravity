@@ -120,6 +120,17 @@ public class GravityHandler {
             return false;
         }
 
+        // Light entities (items, projectiles) have weaker gravity than players:
+        // cap the upward force at their own gravity so thin air makes them
+        // weightless instead of accelerating them upward.
+        double entityGravity = entity.getGravity();
+        if (offset > entityGravity) {
+            offset = entityGravity;
+        }
+        if (offset <= 0) {
+            return false;
+        }
+
         applyGravity(entity, offset);
         return true;
     }

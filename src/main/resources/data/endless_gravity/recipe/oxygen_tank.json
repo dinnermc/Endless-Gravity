@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "group": "endless_gravity",
+  "pattern": [
+    " I ",
+    "IPI",
+    "III"
+  ],
+  "key": {
+    "I": {
+      "item": "create:sturdy_sheet"
+    },
+    "P": {
+      "item": "minecraft:glass_pane"
+    }
+  },
+  "result": {
+    "id": "endless_gravity:oxygen_tank",
+    "count": 1
+  }
+}

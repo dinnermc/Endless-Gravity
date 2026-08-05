@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity;
 
 import dinner.dev.endless_gravity.item.ModItems;
+import dinner.dev.endless_gravity.item.OxygenTankItem;
 import dinner.dev.endless_gravity.item.StellarChestplateItem;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
@@ -167,7 +168,9 @@ public class EnvironmentHandler {
         int tank = StellarChestplateItem.getTank(chestplate);
         int capacity = Config.COMMON.oxygenTankCapacity.get();
 
-        if (tank > 0) {
+        // Breathing is possible from the suit tank or from portable tanks carried
+        // in the inventory, so clear suffocation while either has oxygen.
+        if (tank > 0 || OxygenTankItem.getInventoryOxygen(player) > 0) {
             clearSuffocation(player);
         }
 
@@ -177,17 +180,28 @@ public class EnvironmentHandler {
             if (rate < 1) rate = 1;
 
             if (player.tickCount % rate == 0) {
-                tank = Math.max(0, tank - 1);
-                if (tank <= 0) {
+                // Breathe from carried canisters first and pour what they give
+                // into the suit tank, so it stays topped up until they run dry.
+                int drained = OxygenTankItem.drainFromInventory(player, 1);
+                if (drained > 0) {
+                    if (tank < capacity) {
+                        tank = Math.min(capacity, tank + drained);
+                    }
+                } else if (tank > 0) {
+                    tank = Math.max(0, tank - 1);
+                } else {
                     tickSuffocation(player);
                 }
             }
-        } else if (tank < capacity) {
-            // Full atmosphere pressure: recharge the tank
+        } else if (tank < capacity || OxygenTankItem.hasTankToRecharge(player)) {
+            // Full atmosphere pressure: recharge the tank and any carried canisters
             clearSuffocation(player);
             int rechargeRate = Config.COMMON.oxygenRechargeRate.get();
             if (player.tickCount % rechargeRate == 0) {
-                tank = Math.min(capacity, tank + 1);
+                if (tank < capacity) {
+                    tank = Math.min(capacity, tank + 1);
+                }
+                OxygenTankItem.rechargeInventory(player, 1);
             }
         }
 

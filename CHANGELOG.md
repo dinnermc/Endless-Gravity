@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.5
+
+- **Portable oxygen tanks** — carry an `Oxygen Tank` (250 O₂) or `Large Oxygen Tank` (1000 O₂) in your inventory: the Stellar Suit breathes from them first and keeps its chestplate tank topped up even when it isn't empty, then falls back to the suit reserve once they run dry. Both recharge for free at full atmosphere pressure and never break
+- Oxygen tanks and the Stellar Chestplate now show a custom cyan O₂ bar (red when low) plus a numeric `O₂: X / Y` tooltip
+- Fix items and projectiles flying upward in thin Overworld air — the atmosphere upward force is now capped at each entity's own gravity, so high-altitude items and arrows become weightless instead of accelerating upward
+
 ## 1.1.4
 
 - The End is now a full vacuum: freezing and suffocation apply at every altitude (no height curve) — wear the Stellar Suit or die; the oxygen tank drains in The End and never recharges
