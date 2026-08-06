@@ -52,6 +52,9 @@ public abstract class ServerSubLevelMixin {
     private void eg$applySpaceGravityReduction(SubLevelPhysicsSystem physicsSystem, RigidBodyHandle handle, double timeStep, CallbackInfo ci) {
         if (!Config.COMMON.enableAtmosphere.get()) return;
         if (!Config.COMMON.overworldSableGravity.get()) return;
+        // Create: Cosmonautics manages gravity in its own sub-levels; don't
+        // add the atmosphere levitation force on top of it.
+        if (EndlessGravityAPI.isCosmonauticsInstalled()) return;
 
         initReflection(this.getClass());
         if (reflectionFailed) return;

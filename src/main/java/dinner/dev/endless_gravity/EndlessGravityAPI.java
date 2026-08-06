@@ -160,6 +160,24 @@ public final class EndlessGravityAPI {
         return sableLoaded;
     }
 
+    private static Boolean cosmonauticsLoaded;
+
+    /**
+     * Returns {@code true} if Create: Cosmonautics ({@code rocketnautics}) is installed.
+     * When it is, the Overworld atmosphere gravity system is disabled so Cosmonautics
+     * (and Create Aeronautics) owns gravity for the Overworld, its entities and sub-levels.
+     */
+    public static boolean isCosmonauticsInstalled() {
+        if (cosmonauticsLoaded == null) {
+            try {
+                cosmonauticsLoaded = net.neoforged.fml.ModList.get().isLoaded("rocketnautics");
+            } catch (Exception e) {
+                cosmonauticsLoaded = false;
+            }
+        }
+        return cosmonauticsLoaded;
+    }
+
     /**
      * Returns {@code true} if Sable manages physics for this dimension.
      * When this returns true, Endless Gravity's gravity and drag handlers
@@ -168,10 +186,10 @@ public final class EndlessGravityAPI {
     public static boolean isSableManaged(Level level) {
         if (!isSableLoaded()) return false;
         ResourceKey<Level> dim = level.dimension();
-        // Sable-owned dimensions (sable:overworld, sable:the_end, sable:nether)
-        if (dim.location().getNamespace().equals("sable")) return true;
-        // The End: we generate a Sable datapack for it, so Sable controls it
-        return dim == Level.END;
+        // Only Sable-owned dimensions (sable:overworld, sable:the_end, sable:nether).
+        // The vanilla End stays managed by Endless Gravity itself: Sable's
+        // dimension_physics base_gravity does not apply float behavior there.
+        return dim.location().getNamespace().equals("sable");
     }
 
     /**

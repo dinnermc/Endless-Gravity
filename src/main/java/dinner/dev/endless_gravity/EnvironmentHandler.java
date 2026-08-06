@@ -65,6 +65,14 @@ public class EnvironmentHandler {
         boolean isEnd = EndlessGravityAPI.isEnd(level);
         if (!EndlessGravityAPI.isOverworldOrSable(level) && !isEnd) return;
 
+        // Create: Cosmonautics owns cold and oxygen in the Overworld and its
+        // sub-levels; The End keeps Endless Gravity's full vacuum behavior.
+        if (EndlessGravityAPI.isCosmonauticsInstalled() && !isEnd) {
+            clearFreezing(player);
+            clearSuffocation(player);
+            return;
+        }
+
         double protection = getSpaceArmorProtection(player);
 
         if (isEnd) {

@@ -94,6 +94,11 @@ public class GravityHandler {
      * Returns true if effects were applied.
      */
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
+        // Create: Cosmonautics owns gravity for the Overworld and its sub-levels;
+        // skip the atmosphere gravity system entirely so nothing double-applies.
+        if (EndlessGravityAPI.isCosmonauticsInstalled()) {
+            return false;
+        }
         if (!EndlessGravityAPI.isOverworldOrSable(level)) {
             return false;
         }
@@ -149,6 +154,18 @@ public class GravityHandler {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
 
         Level level = player.level();
+
+        // High Overworld layers (above the atmosphere base) negate fall damage:
+        // thin air makes impacts negligible. When Cosmonautics is installed it
+        // owns that region, so we back off entirely.
+        if (!EndlessGravityAPI.isCosmonauticsInstalled()
+                && Config.COMMON.enableAtmosphere.get()
+                && EndlessGravityAPI.isOverworldOrSable(level)
+                && EndlessGravityAPI.getRealY(player) > EndlessGravityAPI.BASE) {
+            event.setDamageMultiplier(0.0F);
+            event.setDistance(0.0F);
+            return;
+        }
 
         // The Overworld keeps vanilla fall damage; only The End and Sable
         // sub-levels are gravity-managed with configurable fall damage.
