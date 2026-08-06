@@ -1,7 +1,9 @@
 package dinner.dev.endless_gravity;
 
 import dinner.dev.endless_gravity.client.model.StellarSuitModel;
+import dinner.dev.endless_gravity.client.sound.StarshipEngineSoundController;
 import dinner.dev.endless_gravity.item.ModItems;
+import dinner.dev.endless_gravity.network.RocketSoundPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.Model;
@@ -23,6 +25,7 @@ public class EndlessGravityClient {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
+        RocketSoundPayload.setClientHandler(StarshipEngineSoundController::handlePacket);
         net.neoforged.fml.ModLoadingContext.get().getActiveContainer()
                 .registerExtensionPoint(
                         IConfigScreenFactory.class,

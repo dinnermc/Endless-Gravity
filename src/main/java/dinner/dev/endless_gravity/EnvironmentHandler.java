@@ -3,6 +3,7 @@ package dinner.dev.endless_gravity;
 import dinner.dev.endless_gravity.item.ModItems;
 import dinner.dev.endless_gravity.item.OxygenTankItem;
 import dinner.dev.endless_gravity.item.StellarChestplateItem;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -157,7 +158,7 @@ public class EnvironmentHandler {
         } else {
             // Missing helmet or chestplate: no oxygen supply, suffocate in thin air
             if (oxyProgress >= SUFFOCATION_PROGRESS_THRESHOLD) {
-                tickSuffocation(player);
+                tickSuffocation(player, oxyProgress);
             } else {
                 clearSuffocation(player);
             }
@@ -190,7 +191,7 @@ public class EnvironmentHandler {
                 } else if (tank > 0) {
                     tank = Math.max(0, tank - 1);
                 } else {
-                    tickSuffocation(player);
+                    tickSuffocation(player, oxyProgress);
                 }
             }
         } else if (tank < capacity || OxygenTankItem.hasTankToRecharge(player)) {
@@ -210,11 +211,23 @@ public class EnvironmentHandler {
         }
     }
 
-    private static void tickSuffocation(Player player) {
+    /**
+     * Fade ticks until suffocation kills. Scaled by oxygen progress so thin air
+     * near the threshold (Y ~400) gives the most time to descend, while deep
+     * space kills at the base speed. Never shorter than 30 seconds.
+     */
+    public static int computeSuffocationFadeTicks(double oxyProgress) {
+        int baseFade = Config.COMMON.oxygenSuffocationFadeTicks.get();
+        if (baseFade < 600) baseFade = 600;
+        double start = SUFFOCATION_PROGRESS_THRESHOLD;
+        double frac = Mth.clamp((oxyProgress - start) / (1.0 - start), 0.0, 1.0);
+        return (int) Math.round(baseFade * (1.0 + 4.0 * (1.0 - frac)));
+    }
+
+    private static void tickSuffocation(Player player, double oxyProgress) {
         if (!player.isAlive()) return;
 
-        int fadeTicks = Config.COMMON.oxygenSuffocationFadeTicks.get();
-        if (fadeTicks < 1) fadeTicks = 1;
+        int fadeTicks = computeSuffocationFadeTicks(oxyProgress);
 
         Integer start = suffocationStartTicks.get(player.getUUID());
         if (start == null) {

@@ -5,6 +5,7 @@ import dinner.dev.endless_gravity.block.StarshipBlock;
 import dinner.dev.endless_gravity.compat.sable.AtmosphereForceGroups;
 import dinner.dev.endless_gravity.item.ModItems;
 import dinner.dev.endless_gravity.network.ConfigSyncPayload;
+import dinner.dev.endless_gravity.network.RocketSoundPayload;
 import dinner.dev.endless_gravity.particle.ModParticles;
 import dinner.dev.endless_gravity.sound.ModSounds;
 import net.neoforged.bus.api.IEventBus;
@@ -39,6 +40,11 @@ public class EndlessGravity {
                     ConfigSyncPayload.ID,
                     ConfigSyncPayload.STREAM_CODEC,
                     ConfigSyncPayload::handle
+            );
+            registrar.playToClient(
+                    RocketSoundPayload.ID,
+                    RocketSoundPayload.STREAM_CODEC,
+                    RocketSoundPayload::handle
             );
         });
 

@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity.client.sound;
 
 import dev.ryanhcode.sable.Sable;
+import dinner.dev.endless_gravity.network.RocketSoundPayload;
 import dinner.dev.endless_gravity.sound.ModSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractSoundInstance;
@@ -8,7 +9,7 @@ import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
@@ -29,10 +30,15 @@ public final class StarshipEngineSoundController {
 
     private StarshipEngineSoundController() {}
 
-    public static void tick(BlockPos padPos, ResourceKey<Level> dimension, Vec3 logicalPos, boolean engineRunning, float thrustPower) {
+    /** Entry point called from the {@link RocketSoundPayload} client handler. */
+    public static void handlePacket(RocketSoundPayload payload) {
+        tick(payload.padPos(), payload.dimension(), payload.soundPos(), payload.engineRunning(), payload.thrustPower());
+    }
+
+    public static void tick(BlockPos padPos, ResourceLocation dimension, Vec3 logicalPos, boolean engineRunning, float thrustPower) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.getSoundManager() == null) return;
-        if (mc.level == null || !mc.level.dimension().equals(dimension)) return;
+        if (mc.level == null || !mc.level.dimension().location().equals(dimension)) return;
 
         String key = soundKey(padPos, dimension);
         EngineSound sound = ACTIVE.get(key);
@@ -51,17 +57,17 @@ public final class StarshipEngineSoundController {
         }
     }
 
-    private static String soundKey(BlockPos padPos, ResourceKey<Level> dimension) {
-        return dimension.location() + "|" + padPos.asLong();
+    private static String soundKey(BlockPos padPos, ResourceLocation dimension) {
+        return dimension + "|" + padPos.asLong();
     }
 
     private static final class EngineSound {
-        private final ResourceKey<Level> dimension;
+        private final ResourceLocation dimension;
         private Vec3 logicalPos;
         private float thrustPower;
         private MovingEngineLoop loop;
 
-        private EngineSound(ResourceKey<Level> dimension, Vec3 logicalPos, float thrustPower) {
+        private EngineSound(ResourceLocation dimension, Vec3 logicalPos, float thrustPower) {
             this.dimension = dimension;
             this.logicalPos = logicalPos;
             this.thrustPower = thrustPower;
@@ -95,13 +101,13 @@ public final class StarshipEngineSoundController {
         }
     }
 
-    private static void playOneShot(SoundManager manager, ResourceKey<Level> dimension, Vec3 logicalPos, SoundEvent event) {
+    private static void playOneShot(SoundManager manager, ResourceLocation dimension, Vec3 logicalPos, SoundEvent event) {
         if (event == null) return;
         manager.play(new OneShotSound(event, dimension, logicalPos));
     }
 
     private static final class OneShotSound extends AbstractSoundInstance {
-        private OneShotSound(SoundEvent event, ResourceKey<Level> dimension, Vec3 logicalPos) {
+        private OneShotSound(SoundEvent event, ResourceLocation dimension, Vec3 logicalPos) {
             super(event, SoundSource.BLOCKS, RandomSource.create());
             this.volume = 1.0f;
             this.pitch = 1.0f;
@@ -109,7 +115,7 @@ public final class StarshipEngineSoundController {
             this.delay = 0;
             this.attenuation = Attenuation.LINEAR;
             Minecraft mc = Minecraft.getInstance();
-            if (mc != null && mc.level != null && mc.level.dimension().equals(dimension)) {
+            if (mc != null && mc.level != null && mc.level.dimension().location().equals(dimension)) {
                 Vec3 projected = Sable.HELPER.projectOutOfSubLevel(mc.level, logicalPos);
                 this.x = projected.x;
                 this.y = projected.y;
@@ -119,13 +125,13 @@ public final class StarshipEngineSoundController {
     }
 
     private static final class MovingEngineLoop extends AbstractTickableSoundInstance {
-        private final ResourceKey<Level> dimension;
+        private final ResourceLocation dimension;
         private Vec3 logicalPos;
         private float thrustPower;
         private int age;
         private int fadeOutRemaining;
 
-        private MovingEngineLoop(ResourceKey<Level> dimension, Vec3 logicalPos, float thrustPower) {
+        private MovingEngineLoop(ResourceLocation dimension, Vec3 logicalPos, float thrustPower) {
             super(ModSounds.STARSHIP_LOOP.get(), SoundSource.BLOCKS, RandomSource.create());
             this.dimension = dimension;
             this.logicalPos = logicalPos;
@@ -159,7 +165,7 @@ public final class StarshipEngineSoundController {
 
         private void updateFromPad() {
             Minecraft mc = Minecraft.getInstance();
-            if (mc == null || mc.level == null || !mc.level.dimension().equals(dimension)) {
+            if (mc == null || mc.level == null || !mc.level.dimension().location().equals(dimension)) {
                 stop();
                 return;
             }

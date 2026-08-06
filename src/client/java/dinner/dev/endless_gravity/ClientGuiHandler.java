@@ -80,7 +80,7 @@ public class ClientGuiHandler {
     }
 
     private static void tickSuffocationOverlay(GuiGraphics gui, Player player) {
-        int fadeTicks = Config.COMMON.oxygenSuffocationFadeTicks.get();
+        int fadeTicks = EnvironmentHandler.computeSuffocationFadeTicks(suffocationProgress(player));
         if (fadeTicks < 1) fadeTicks = 1;
 
         if (isSuffocating(player)) {
@@ -94,6 +94,11 @@ public class ClientGuiHandler {
         }
 
         drawSuffocationOverlay(gui);
+    }
+
+    private static double suffocationProgress(Player player) {
+        if (EndlessGravityAPI.isEnd(player.level())) return 1.0;
+        return EndlessGravityAPI.getOxygenProgress(EndlessGravityAPI.getRealY(player));
     }
 
     private static boolean isSuffocating(Player player) {
