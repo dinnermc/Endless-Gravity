@@ -102,6 +102,7 @@ public class ClientGuiHandler {
     }
 
     private static boolean isSuffocating(Player player) {
+        if (EndlessGravityAPI.isCosmonauticsInstalled() && !EndlessGravityAPI.isEnd(player.level())) return false;
         if (EndlessGravityAPI.isEnd(player.level())) {
             // The End is a full vacuum: no atmosphere anywhere.
             boolean helmet = player.getItemBySlot(EquipmentSlot.HEAD).getItem() == ModItems.STELLAR_HELMET.get();

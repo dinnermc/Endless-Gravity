@@ -1,0 +1,26 @@
+{
+  "pools": [
+    {
+      "rolls": 1,
+      "bonus_rolls": 0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "endless_gravity:large_oxygen_tank",
+          "weight": 80
+        },
+        {
+          "type": "minecraft:item",
+          "name": "endless_gravity:oxygen_tank",
+          "weight": 20
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.55
+        }
+      ]
+    }
+  ]
+}

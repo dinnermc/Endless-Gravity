@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.7
+
+- **Oxygen tanks in End citadel chests** - the End city treasure chests (towers and ships) now have a chance to spawn a portable oxygen tank: the Large (1000 O₂) is the common find, the regular tank (250 O₂) is much rarer
+- **No fall damage in the high Overworld** - above the atmosphere base (Y 64) fall damage is negated: thin air makes impacts negligible; the low altitudes keep vanilla damage. Skipped entirely when Create: Cosmonautics is installed
+- **Create: Cosmonautics integration** - when `rocketnautics` is present, Endless Gravity backs off the Overworld: no atmosphere gravity on players/entities, no sub-level levitation, the Sable Overworld datapack is removed and cold/oxygen are left to Cosmonautics. The End stays fully managed by Endless Gravity (vacuum, freezing, suffocation untouched)
+- **Fix: no gravity in the End with Sable installed** - the vanilla End is managed by Endless Gravity's own reduced-gravity systems again (0.055 player / 0.025 item offsets); Sable's dimension_physics only drove the sub-levels, leaving the End entities falling at vanilla speed
+- **Softer audio muffling in the End** - low-pass gain raised to 0.35 / 0.25, the dampened effect is subtler
+
 ## 1.1.6
 
 - **Scaled suffocation** — without the Stellar Suit (or with it once the oxygen runs dry) the time before dying now scales with altitude: ~150s at Y 400, 90s at mid-altitude, down to a hard minimum of 30 seconds at deep space/The End. The screen-fade overlay matches the real timer
