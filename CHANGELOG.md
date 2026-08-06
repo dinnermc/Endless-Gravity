@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.6
+
+- **Scaled suffocation** — without the Stellar Suit (or with it once the oxygen runs dry) the time before dying now scales with altitude: ~150s at Y 400, 90s at mid-altitude, down to a hard minimum of 30 seconds at deep space/The End. The screen-fade overlay matches the real timer
+- **Vanilla fall damage in the Overworld** — fall damage is no longer intercepted above the atmosphere; only The End and Sable sub-levels use the configurable modes
+- **Fix dedicated-server crash while a starship is flying** — the engine sound controller (a client-only class) was called from the server tick. It now lives entirely in the client source set and the server streams engine state through a `rocket_sound` packet to nearby players
+
 ## 1.1.5
 
 - **Portable oxygen tanks** — carry an `Oxygen Tank` (250 O₂) or `Large Oxygen Tank` (1000 O₂) in your inventory: the Stellar Suit breathes from them first and keeps its chestplate tank topped up even when it isn't empty, then falls back to the suit reserve once they run dry. Both recharge for free at full atmosphere pressure and never break
