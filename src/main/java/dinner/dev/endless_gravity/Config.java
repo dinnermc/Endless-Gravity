@@ -234,8 +234,8 @@ public class Config {
                     .defineInRange("oxygenRechargeRate", 5, 1, 200);
 
             oxygenSuffocationFadeTicks = builder
-                    .comment("Ticks without oxygen until the screen goes fully dark and the player dies (default: 100 = 5 seconds). The client fades the screen to black during this time.")
-                    .defineInRange("oxygenSuffocationFadeTicks", 100, 20, 600);
+                    .comment("Base ticks before suffocation kills at deep space (default: 600 = 30 seconds, minimum enforced 600). Closer to the breathable threshold the fade scales up to 5x, giving more time to descend. The client fades the screen to black during this time.")
+                    .defineInRange("oxygenSuffocationFadeTicks", 600, 600, 3600);
 
             builder.pop();
         }

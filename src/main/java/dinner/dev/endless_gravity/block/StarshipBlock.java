@@ -10,7 +10,7 @@ import dev.ryanhcode.sable.companion.math.Pose3d;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.sublevel.plot.LevelPlot;
-import dinner.dev.endless_gravity.client.sound.StarshipEngineSoundController;
+import dinner.dev.endless_gravity.network.RocketSoundPayload;
 import dinner.dev.endless_gravity.particle.ModParticles;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 
@@ -233,7 +234,7 @@ public class StarshipBlock extends HorizontalFacingBlock {
                     engineFiring = true;
                     thrustPower = (float) Math.min(1.0, thrustG / maxThrustG());
                 }
-                StarshipEngineSoundController.tick(state.padPos, state.dimension, soundPos, engineFiring, thrustPower);
+                broadcastEngineSound(level, state.padPos, state.dimension, soundPos, engineFiring, thrustPower);
 
                 if (y >= detachY() || elapsed > maxAscentTicks()) {
                     ServerSubLevel booster = detach(subLevel, state);
@@ -249,7 +250,7 @@ public class StarshipBlock extends HorizontalFacingBlock {
                 } else {
                     state.shutdown = true;
                 }
-                StarshipEngineSoundController.tick(state.padPos, state.dimension, soundPos, engineFiring, thrustPower);
+                broadcastEngineSound(level, state.padPos, state.dimension, soundPos, engineFiring, thrustPower);
             } else {
                 Vector3d velocity = handle.getLinearVelocity(new Vector3d());
                 double groundY = groundY(level, pose.position());
@@ -261,7 +262,7 @@ public class StarshipBlock extends HorizontalFacingBlock {
                 if (velocity.y < -0.3) {
                     if (distance < settleDistance()) {
                         settle(subLevel, handle, groundY);
-                        StarshipEngineSoundController.tick(state.padPos, state.dimension, soundPos, false, 0.0f);
+                        broadcastEngineSound(level, state.padPos, state.dimension, soundPos, false, 0.0f);
                         iterator.remove();
                         continue;
                     }
@@ -309,10 +310,10 @@ public class StarshipBlock extends HorizontalFacingBlock {
                     thrustPower = 0.8f;
                 }
 
-                StarshipEngineSoundController.tick(state.padPos, state.dimension, soundPos, engineFiring, thrustPower);
+                broadcastEngineSound(level, state.padPos, state.dimension, soundPos, engineFiring, thrustPower);
 
                 if (elapsed > landingTimeoutTicks()) {
-                    StarshipEngineSoundController.tick(state.padPos, state.dimension, soundPos, false, 0.0f);
+                    broadcastEngineSound(level, state.padPos, state.dimension, soundPos, false, 0.0f);
                     iterator.remove();
                 }
             }
@@ -326,8 +327,19 @@ public class StarshipBlock extends HorizontalFacingBlock {
         }
     }
 
-    private static double thrustProfile(long elapsed) {
-        if (elapsed < liftoffTicks()) {
+    private static void broadcastEngineSound(ServerLevel level, BlockPos padPos, ResourceKey<Level> dimension, Vec3 soundPos, boolean engineRunning, float thrustPower) {
+        PacketDistributor.sendToPlayersNear(
+                level,
+                null,
+                soundPos.x,
+                soundPos.y,
+                soundPos.z,
+                256.0,
+                new RocketSoundPayload(padPos, dimension.location(), soundPos, engineRunning, thrustPower)
+        );
+    }
+
+    private static double thrustProfile(long elapsed) {        if (elapsed < liftoffTicks()) {
             return liftoffThrustG();
         }
         if (elapsed < rampEndTicks()) {

@@ -150,17 +150,8 @@ public class GravityHandler {
 
         Level level = player.level();
 
-        if (EndlessGravityAPI.isOverworldOrSable(level) && Config.COMMON.enableAtmosphere.get()) {
-            double realY = EndlessGravityAPI.getRealY(player);
-            if (realY > EndlessGravityAPI.BASE) {
-                double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
-                if (offset > 0) {
-                    handleFallDamage(event, player);
-                    return;
-                }
-            }
-        }
-
+        // The Overworld keeps vanilla fall damage; only The End and Sable
+        // sub-levels are gravity-managed with configurable fall damage.
         if (!isEndOrSable(level)) return;
         handleFallDamage(event, player);
     }
