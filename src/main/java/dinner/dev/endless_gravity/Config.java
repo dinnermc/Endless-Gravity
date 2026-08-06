@@ -123,11 +123,11 @@ public class Config {
                     .comment("Enable low-pass audio filter in The End (default: true). Creates a muffled underwater-like sound.")
                     .define("enableLowPassFilter", true);
             lowPassGain = builder
-                    .comment("Low-pass filter volume (default: 0.1). Lower = more muffled.")
-                    .defineInRange("lowPassGain", 0.1, 0.0, 1.0);
+                    .comment("Low-pass filter volume (default: 0.35). Lower = more muffled.")
+                    .defineInRange("lowPassGain", 0.35, 0.0, 1.0);
             lowPassGainHF = builder
-                    .comment("Low-pass filter high-frequency volume (default: 0.05). Lower = less high-frequency sound.")
-                    .defineInRange("lowPassGainHF", 0.05, 0.0, 1.0);
+                    .comment("Low-pass filter high-frequency volume (default: 0.25). Lower = less high-frequency sound.")
+                    .defineInRange("lowPassGainHF", 0.25, 0.0, 1.0);
 
             builder.pop();
 
