@@ -30,11 +30,9 @@ public class Config {
         public final ModConfigSpec.DoubleValue thrownGravityOffset;
 
         // Effects toggles
-        public final ModConfigSpec.BooleanValue enableParticles;
         public final ModConfigSpec.BooleanValue enableLowPassFilter;
 
         // Effects values
-        public final ModConfigSpec.DoubleValue particleGravityMultiplier;
         public final ModConfigSpec.DoubleValue lowPassGain;
         public final ModConfigSpec.DoubleValue lowPassGainHF;
 
@@ -63,15 +61,6 @@ public class Config {
         public final ModConfigSpec.DoubleValue atmosphereMuffleGain;
         public final ModConfigSpec.DoubleValue atmosphereMuffleGainHF;
         public final ModConfigSpec.ConfigValue<List<? extends String>> atmosphereLayers;
-
-        // Atmosphere environment
-        public final ModConfigSpec.BooleanValue enableTemperature;
-        public final ModConfigSpec.IntValue temperatureFreezeInterval;
-        public final ModConfigSpec.BooleanValue enableOxygen;
-        public final ModConfigSpec.IntValue oxygenRate;
-        public final ModConfigSpec.IntValue oxygenTankCapacity;
-        public final ModConfigSpec.IntValue oxygenRechargeRate;
-        public final ModConfigSpec.IntValue oxygenSuffocationFadeTicks;
 
         public Common(ModConfigSpec.Builder builder) {
             builder.push("gravity");
@@ -111,13 +100,6 @@ public class Config {
             builder.pop();
 
             builder.push("effects");
-
-            enableParticles = builder
-                    .comment("Enable particle gravity reduction (default: true). Particles fall slower in The End and, scaled by the atmosphere layers, at high altitude in the Overworld and Sable sub-levels.")
-                    .define("enableParticles", true);
-            particleGravityMultiplier = builder
-                    .comment("Particle gravity multiplier (default: 0.3). Applied in The End and at vacuum altitude in the Overworld; interpolates back to 1.0 (vanilla) as atmosphere pressure increases. 0 = no gravity, 1 = vanilla.")
-                    .defineInRange("particleGravityMultiplier", 0.3, 0.0, 1.0);
 
             enableLowPassFilter = builder
                     .comment("Enable low-pass audio filter in The End (default: true). Creates a muffled underwater-like sound.")
@@ -188,7 +170,7 @@ public class Config {
             builder.push("atmosphere");
 
             enableAtmosphere = builder
-                    .comment("Enable atmospheric gravity in the Overworld (default: true). Gravity, muffled audio, drag, temperature and oxygen scale with real atmospheric layers from Y=64 (BASE) to Y=3500 (deep space). Also affects Sable sub-levels.")
+                    .comment("Enable atmospheric gravity in the Overworld (default: true). Gravity, muffled audio and drag scale with real atmospheric layers from Y=64 (BASE) to Y=3500 (deep space). Also affects Sable sub-levels.")
                     .define("enableAtmosphere", true);
             overworldEntityGravity = builder
                     .comment("Master toggle: completely disable entity gravity reduction in the Overworld atmosphere (default: true). When disabled, entities keep full gravity at any altitude.")
@@ -203,39 +185,10 @@ public class Config {
                     .comment("Low-pass filter high-frequency gain at deep space (default: 0.005). Lower = less high-frequency sound.")
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
             atmosphereLayers = builder
-                    .comment("Atmospheric layers as \"altitude:pressure\" pairs - the universal atmosphere controller. The pressure curve drives EVERYTHING: custom gravity and levitation (progress = 1 - pressure), muffled audio, freezing, oxygen depletion, oxygen tank recharging (full atmosphere = pressure >= 1.0), suffocation and the Sable Overworld datapack pressure_function. Pressure 1.0 at base = full atmosphere, 0.0 at deep space = vacuum. Default: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
+                    .comment("Atmospheric layers as \"altitude:pressure\" pairs - the universal atmosphere controller. The pressure curve drives custom gravity and levitation (progress = 1 - pressure), muffled audio and the Sable Overworld datapack pressure_function. Pressure 1.0 at base = full atmosphere, 0.0 at deep space = vacuum. Default: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
                     .defineList("atmosphereLayers",
                             List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0"),
                             obj -> obj instanceof String);
-
-            builder.pop();
-
-            builder.push("environment");
-
-            enableTemperature = builder
-                    .comment("Enable freezing damage at high altitude in the Overworld (default: true). Survival players freeze like in powder snow.")
-                    .define("enableTemperature", true);
-            temperatureFreezeInterval = builder
-                    .comment("Ticks between freezing damage ticks at max altitude (default: 20). Higher = slower freezing. Scales with atmosphere progress.")
-                    .defineInRange("temperatureFreezeInterval", 20, 1, 200);
-
-            enableOxygen = builder
-                    .comment("Enable oxygen depletion at high altitude in the Overworld (default: true). Survival players suffocate above the layers.")
-                    .define("enableOxygen", true);
-            oxygenRate = builder
-                    .comment("Ticks per air point lost at max altitude (default: 8). Higher = slower depletion. Scales with atmosphere progress.")
-                    .defineInRange("oxygenRate", 8, 1, 100);
-
-            oxygenTankCapacity = builder
-                    .comment("Oxygen tank capacity of the stellar chestplate (default: 1000). Points of oxygen stored in the chestplate; the custom HUD shows the tank level. Breathing requires the stellar helmet AND chestplate.")
-                    .defineInRange("oxygenTankCapacity", 1000, 50, 5000);
-            oxygenRechargeRate = builder
-                    .comment("Ticks per oxygen point recharged while in the troposphere or below (Y <= 400) (default: 5). Lower = faster recharge.")
-                    .defineInRange("oxygenRechargeRate", 5, 1, 200);
-
-            oxygenSuffocationFadeTicks = builder
-                    .comment("Base ticks before suffocation kills at deep space (default: 600 = 30 seconds, minimum enforced 600). Closer to the breathable threshold the fade scales up to 5x, giving more time to descend. The client fades the screen to black during this time.")
-                    .defineInRange("oxygenSuffocationFadeTicks", 600, 600, 3600);
 
             builder.pop();
         }

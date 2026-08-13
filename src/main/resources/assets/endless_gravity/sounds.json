@@ -3,29 +3,5 @@
     "sounds": [
       "endless_gravity:toy"
     ]
-  },
-  "starship_startup": {
-    "sounds": [
-      {
-        "name": "endless_gravity:starship_startup",
-        "stream": true
-      }
-    ]
-  },
-  "starship_loop": {
-    "sounds": [
-      {
-        "name": "endless_gravity:starship_loop",
-        "stream": true
-      }
-    ]
-  },
-  "starship_shutdown": {
-    "sounds": [
-      {
-        "name": "endless_gravity:starship_shutdown",
-        "stream": true
-      }
-    ]
   }
 }

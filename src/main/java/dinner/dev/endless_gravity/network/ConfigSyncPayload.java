@@ -20,9 +20,7 @@ public record ConfigSyncPayload(
         boolean enableBlockGravity, double blockGravityOffset,
         boolean enableAtmosphere, double atmosphereGravityMax,
         double atmosphereMuffleGain, double atmosphereMuffleGainHF,
-        List<String> atmosphereLayers,
-        boolean enableTemperature, int temperatureFreezeInterval,
-        boolean enableOxygen, int oxygenRate, int oxygenTankCapacity, int oxygenSuffocationFadeTicks
+        List<String> atmosphereLayers
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<ConfigSyncPayload> ID =
@@ -52,12 +50,6 @@ public record ConfigSyncPayload(
             for (String layer : p.atmosphereLayers()) {
                 ByteBufCodecs.STRING_UTF8.encode(buf, layer);
             }
-            buf.writeBoolean(p.enableTemperature());
-            buf.writeInt(p.temperatureFreezeInterval());
-            buf.writeBoolean(p.enableOxygen());
-            buf.writeInt(p.oxygenRate());
-            buf.writeInt(p.oxygenTankCapacity());
-            buf.writeInt(p.oxygenSuffocationFadeTicks());
         }
 
         @Override
@@ -84,12 +76,6 @@ public record ConfigSyncPayload(
             for (int i = 0; i < layerCount; i++) {
                 atmosphereLayers.add(ByteBufCodecs.STRING_UTF8.decode(buf));
             }
-            boolean enableTemperature = buf.readBoolean();
-            int temperatureFreezeInterval = buf.readInt();
-            boolean enableOxygen = buf.readBoolean();
-            int oxygenRate = buf.readInt();
-            int oxygenTankCapacity = buf.readInt();
-            int oxygenSuffocationFadeTicks = buf.readInt();
             return new ConfigSyncPayload(
                     enablePlayerGravity, playerGravityOffset,
                     enableItemGravity, itemGravityOffset,
@@ -99,9 +85,7 @@ public record ConfigSyncPayload(
                     enableBlockGravity, blockGravityOffset,
                     enableAtmosphere, atmosphereGravityMax,
                     atmosphereMuffleGain, atmosphereMuffleGainHF,
-                    atmosphereLayers,
-                    enableTemperature, temperatureFreezeInterval,
-                    enableOxygen, oxygenRate, oxygenTankCapacity, oxygenSuffocationFadeTicks
+                    atmosphereLayers
             );
         }
     };
@@ -121,10 +105,7 @@ public record ConfigSyncPayload(
                 Config.COMMON.enableBlockGravity.get(), Config.COMMON.blockGravityOffset.get(),
                 Config.COMMON.enableAtmosphere.get(), Config.COMMON.atmosphereGravityMax.get(),
                 Config.COMMON.atmosphereMuffleGain.get(), Config.COMMON.atmosphereMuffleGainHF.get(),
-                List.copyOf(Config.COMMON.atmosphereLayers.get()),
-                Config.COMMON.enableTemperature.get(), Config.COMMON.temperatureFreezeInterval.get(),
-                Config.COMMON.enableOxygen.get(), Config.COMMON.oxygenRate.get(),
-                Config.COMMON.oxygenTankCapacity.get(), Config.COMMON.oxygenSuffocationFadeTicks.get()
+                List.copyOf(Config.COMMON.atmosphereLayers.get())
         );
     }
 
@@ -147,12 +128,6 @@ public record ConfigSyncPayload(
         Config.COMMON.atmosphereMuffleGain.set(atmosphereMuffleGain);
         Config.COMMON.atmosphereMuffleGainHF.set(atmosphereMuffleGainHF);
         Config.COMMON.atmosphereLayers.set(atmosphereLayers);
-        Config.COMMON.enableTemperature.set(enableTemperature);
-        Config.COMMON.temperatureFreezeInterval.set(temperatureFreezeInterval);
-        Config.COMMON.enableOxygen.set(enableOxygen);
-        Config.COMMON.oxygenRate.set(oxygenRate);
-        Config.COMMON.oxygenTankCapacity.set(oxygenTankCapacity);
-        Config.COMMON.oxygenSuffocationFadeTicks.set(oxygenSuffocationFadeTicks);
     }
 
     public static void handle(ConfigSyncPayload payload, IPayloadContext ctx) {

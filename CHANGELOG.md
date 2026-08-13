@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.8
+
+- **Removed the environment systems** — temperature (freezing) and oxygen (depletion, suffocation, tank recharge) are gone, together with their config options and the O₂ HUD / suffocation overlay
+- **Removed the Stellar Suit and oxygen tanks** — the four armor pieces and their custom model, the portable oxygen tanks, the End city tank loot, and all related recipes are gone
+- **Removed the custom creative tab** — the starship blocks and Dinner Plush now live in the vanilla *Functional Blocks* tab
+
 ## 1.1.7
 
 - **Oxygen tanks in End citadel chests** - the End city treasure chests (towers and ships) now have a chance to spawn a portable oxygen tank: the Large (1000 O₂) is the common find, the regular tank (250 O₂) is much rarer

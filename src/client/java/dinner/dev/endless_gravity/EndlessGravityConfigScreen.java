@@ -156,26 +156,6 @@ public class EndlessGravityConfigScreen {
             cat.addEntry(layersSub.build());
             allOverworld.add(layersSub.build());
 
-            SubCategoryBuilder temperature = group(entry, "endless_gravity.config.group.temperature");
-            addToggle(temperature, entry, "endless_gravity.config.enableTemperature", Config.COMMON.enableTemperature, true);
-            addIntSlider(temperature, entry, "endless_gravity.config.temperatureFreezeInterval", Config.COMMON.temperatureFreezeInterval,
-                    1, 200, 20, TEXT_GRAY);
-            cat.addEntry(temperature.build());
-            allOverworld.add(temperature.build());
-
-            SubCategoryBuilder oxygen = group(entry, "endless_gravity.config.group.oxygen");
-            addToggle(oxygen, entry, "endless_gravity.config.enableOxygen", Config.COMMON.enableOxygen, true);
-            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenRate", Config.COMMON.oxygenRate,
-                    1, 100, 8, TEXT_GRAY);
-            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenTankCapacity", Config.COMMON.oxygenTankCapacity,
-                    50, 5000, 1000, TEXT_WHITE);
-            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenRechargeRate", Config.COMMON.oxygenRechargeRate,
-                    1, 200, 5, TEXT_GRAY);
-            addIntSlider(oxygen, entry, "endless_gravity.config.oxygenSuffocationFadeTicks", Config.COMMON.oxygenSuffocationFadeTicks,
-                    20, 600, 100, TEXT_GRAY);
-            cat.addEntry(oxygen.build());
-            allOverworld.add(oxygen.build());
-
             if (sableLoaded) {
                 SubCategoryBuilder sable = group(entry, "endless_gravity.config.group.sable_overworld");
                 sable.add(entry.startTextDescription(colored("endless_gravity.config.restartWarning", TEXT_AMBER)).build());
@@ -192,13 +172,6 @@ public class EndlessGravityConfigScreen {
         private void buildGeneral(ConfigBuilder builder, ConfigEntryBuilder entry, ConfigCategory all) {
             ConfigCategory cat = category(builder, "endless_gravity.config.section.general");
             SubCategoryBuilder allGeneral = group(entry, "endless_gravity.config.section.general");
-            var particle = entry.startDoubleField(colored("endless_gravity.config.particleGravityMultiplier", TEXT_WHITE),
-                            Config.COMMON.particleGravityMultiplier.get())
-                    .setMin(0.0).setMax(1.0).setDefaultValue(0.3)
-                    .setSaveConsumer(Config.COMMON.particleGravityMultiplier::set)
-                    .build();
-            cat.addEntry(particle);
-            allGeneral.add(particle);
             var mode = entry.startEnumSelector(text("endless_gravity.config.fallDamageMode"), FallDamageMode.class,
                             FallDamageMode.fromInt(Config.COMMON.fallDamageMode.get()))
                     .setDefaultValue(FallDamageMode.VELOCITY)
