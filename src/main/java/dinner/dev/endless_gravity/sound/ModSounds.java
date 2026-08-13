@@ -20,33 +20,6 @@ public class ModSounds {
                     )
             );
 
-    private static final float STARSHIP_SOUND_RANGE = 128.0f;
-
-    public static final DeferredHolder<SoundEvent, SoundEvent> STARSHIP_STARTUP =
-            SOUNDS.register("starship_startup", () ->
-                    SoundEvent.createFixedRangeEvent(
-                            ResourceLocation.fromNamespaceAndPath(EndlessGravity.MODID, "starship_startup"),
-                            STARSHIP_SOUND_RANGE
-                    )
-            );
-
-    public static final DeferredHolder<SoundEvent, SoundEvent> STARSHIP_LOOP =
-            SOUNDS.register("starship_loop", () ->
-                    SoundEvent.createFixedRangeEvent(
-                            ResourceLocation.fromNamespaceAndPath(EndlessGravity.MODID, "starship_loop"),
-                            STARSHIP_SOUND_RANGE
-                    )
-            );
-
-    public static final DeferredHolder<SoundEvent, SoundEvent> STARSHIP_SHUTDOWN =
-            SOUNDS.register("starship_shutdown", () ->
-                    SoundEvent.createFixedRangeEvent(
-                            ResourceLocation.fromNamespaceAndPath(EndlessGravity.MODID, "starship_shutdown"),
-                            STARSHIP_SOUND_RANGE
-                    )
-            );
-
-
     public static void init(IEventBus modEventBus) {
         SOUNDS.register(modEventBus);
     }

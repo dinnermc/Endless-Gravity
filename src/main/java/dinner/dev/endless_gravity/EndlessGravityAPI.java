@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
  * The atmosphere is controlled by a single configurable pressure curve
  * (see {@link AtmosphereLayers}): pressure 1.0 at base = full atmosphere,
  * pressure 0.0 at deep space = vacuum. Every atmosphere system (gravity,
- * muffle, temperature, oxygen, Sable physics) derives from that curve.
+ * muffle, Sable physics) derives from that curve.
  */
 public final class EndlessGravityAPI {
 
@@ -206,21 +206,5 @@ public final class EndlessGravityAPI {
         ResourceKey<Level> dim = level.dimension();
         if (dim == Level.OVERWORLD) return true;
         return dim.location().getNamespace().equals("sable");
-    }
-
-    /**
-     * Temperature progress for freezing effects, derived from the configured atmosphere layers.
-     * 0.0 at full atmosphere pressure (comfortable), ramps to 1.0 at vacuum (max freeze).
-     */
-    public static double getTemperatureProgress(double y) {
-        return AtmosphereLayers.getProgress(y);
-    }
-
-    /**
-     * Oxygen depletion progress, derived from the configured atmosphere layers.
-     * 0.0 at full atmosphere pressure (normal air), ramps to 1.0 at vacuum.
-     */
-    public static double getOxygenProgress(double y) {
-        return AtmosphereLayers.getProgress(y);
     }
 }
