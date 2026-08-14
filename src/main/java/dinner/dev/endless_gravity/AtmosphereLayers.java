@@ -8,10 +8,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Configurable atmospheric layers. Each layer is a point on the pressure curve
- * (altitude -> pressure). The same curve drives:
- * - the mod's own atmosphere gravity/muffle progress (progress = 1 - pressure),
- * - the Sable Overworld datapack pressure_function (slopes auto-computed).
+ * Configurable pressure curve. Each layer is an altitude -> pressure point;
+ * the same curve drives the mod's gravity/muffle progress and the Sable
+ * Overworld datapack pressure_function.
  */
 public final class AtmosphereLayers {
 
