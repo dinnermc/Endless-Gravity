@@ -12,13 +12,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Public API for Endless Gravity. Other mods can use this to check gravity state,
- * read atmosphere progress, and interact with the gravity immune tag.
- * <p>
- * The atmosphere is controlled by a single configurable pressure curve
- * (see {@link AtmosphereLayers}): pressure 1.0 at base = full atmosphere,
- * pressure 0.0 at deep space = vacuum. Every atmosphere system (gravity,
- * muffle, Sable physics) derives from that curve.
+ * Public API for Endless Gravity: atmosphere queries, dimension/Sable helpers,
+ * and the gravity-immune tag. The pressure curve lives in {@link AtmosphereLayers}.
  */
 public final class EndlessGravityAPI {
 
@@ -35,31 +30,28 @@ public final class EndlessGravityAPI {
     private EndlessGravityAPI() {}
 
     /**
-     * Returns {@code true} if the entity's type is in the {@code endless_gravity:gravity_immune} tag.
+     * {@code true} if the entity type is in {@code endless_gravity:gravity_immune}.
      */
     public static boolean isGravityImmune(Entity entity) {
         return entity.getType().is(GRAVITY_IMMUNE);
     }
 
     /**
-     * Returns the atmosphere pressure at the given Y level, from the configured atmosphere layers.
-     * 1.0 at base (full atmosphere), 0.0 at vacuum.
+     * Atmosphere pressure at Y, from the configured layers: 1.0 at base, 0.0 at vacuum.
      */
     public static double getPressure(double y) {
         return AtmosphereLayers.getPressure(y);
     }
 
     /**
-     * Returns the atmosphere progress for a given Y level, from 0.0 at full atmosphere pressure
-     * to 1.0 at vacuum, derived from the configured atmospheric layers (progress = 1 - pressure).
+     * 0.0 at full atmosphere, 1.0 at vacuum ({@code 1 - pressure}).
      */
     public static double getAtmosphereProgress(double y) {
         return AtmosphereLayers.getProgress(y);
     }
 
     /**
-     * Returns the atmosphere gravity offset at the given Y level.
-     * 0.0 at full pressure, max at vacuum, following the configured atmosphere layers.
+     * Gravity offset at Y: 0.0 at full pressure, ramping to max at vacuum. 0.0 when the atmosphere is disabled.
      */
     public static double getAtmosphereOffset(double y) {
         if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
@@ -68,8 +60,7 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Returns the atmosphere muffle gain at the given Y level.
-     * 1.0 at full pressure, Config value at vacuum.
+     * Muffle gain at Y: 1.0 at full pressure, the configured value at vacuum.
      */
     public static double getAtmosphereMuffleGain(double y) {
         double progress = getAtmosphereProgress(y);
@@ -77,8 +68,7 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Returns the atmosphere muffle gain HF at the given Y level.
-     * 1.0 at full pressure, Config value at vacuum.
+     * Muffle gain HF at Y: 1.0 at full pressure, the configured value at vacuum.
      */
     public static double getAtmosphereMuffleGainHF(double y) {
         double progress = getAtmosphereProgress(y);
@@ -86,9 +76,8 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Projects an entity's position out of a Sable sub-level into global (Overworld) space.
-     * Returns the entity's actual Overworld Y coordinate, accounting for sub-level offsets.
-     * If not in a sub-level, returns {@code entity.getY()} unchanged.
+     * Projects an entity out of a Sable sub-level into global (Overworld) Y.
+     * Unchanged {@code entity.getY()} when not in a sub-level.
      */
     public static double getRealY(Entity entity) {
         Level level = entity.level();
@@ -113,8 +102,7 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Projects an arbitrary position out of a Sable sub-level into global (Overworld) space.
-     * Returns the position's global Y coordinate, or {@code pos.y} unchanged when not in a sub-level.
+     * Same as {@link #getRealY(Entity)} but for an arbitrary position.
      */
     public static double getRealY(Level level, Vec3 pos) {
         ResourceKey<Level> dim = level.dimension();
@@ -147,7 +135,7 @@ public final class EndlessGravityAPI {
     private static Boolean sableLoaded;
 
     /**
-     * Returns {@code true} if the Sable mod is installed.
+     * {@code true} if the Sable mod is installed.
      */
     public static boolean isSableLoaded() {
         if (sableLoaded == null) {
@@ -163,9 +151,9 @@ public final class EndlessGravityAPI {
     private static Boolean cosmonauticsLoaded;
 
     /**
-     * Returns {@code true} if Create: Cosmonautics ({@code rocketnautics}) is installed.
-     * When it is, the Overworld atmosphere gravity system is disabled so Cosmonautics
-     * (and Create Aeronautics) owns gravity for the Overworld, its entities and sub-levels.
+     * {@code true} if Create: Cosmonautics ({@code rocketnautics}) is installed.
+     * When it is, the Overworld atmosphere gravity system backs off so Cosmonautics
+     * owns gravity for the Overworld, its entities and sub-levels.
      */
     public static boolean isCosmonauticsInstalled() {
         if (cosmonauticsLoaded == null) {
@@ -179,9 +167,8 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Returns {@code true} if Sable manages physics for this dimension.
-     * When this returns true, Endless Gravity's gravity and drag handlers
-     * should defer to Sable's physics engine.
+     * {@code true} if Sable manages physics for this dimension. When true, the
+     * gravity/drag handlers defer to Sable's physics engine.
      */
     public static boolean isSableManaged(Level level) {
         if (!isSableLoaded()) return false;
@@ -193,14 +180,14 @@ public final class EndlessGravityAPI {
     }
 
     /**
-     * Returns {@code true} if the given level is The End.
+     * {@code true} if the given level is The End.
      */
     public static boolean isEnd(Level level) {
         return level.dimension() == Level.END;
     }
 
     /**
-     * Returns {@code true} if the given level is the Overworld or a Sable sub-level.
+     * {@code true} if the level is the Overworld or a Sable sub-level.
      */
     public static boolean isOverworldOrSable(Level level) {
         ResourceKey<Level> dim = level.dimension();

@@ -66,35 +66,35 @@ public class Config {
             builder.push("gravity");
 
             endEntityGravity = builder
-                    .comment("Master toggle: completely disable all entity gravity reduction in The End (default: true). Overrides the individual toggles below.")
+                    .comment("Master switch for End gravity. Off = vanilla gravity for everything, ignoring the toggles below.")
                     .define("endEntityGravity", true);
 
             enablePlayerGravity = builder
-                    .comment("Enable player gravity reduction in The End (default: true).")
+                    .comment("Reduced gravity for players in The End.")
                     .define("enablePlayerGravity", true);
             playerGravityOffset = builder
-                    .comment("Upward force per tick for players in The End (default: 0.055). Higher = less gravity.")
+                    .comment("Upward impulse per tick for players. 0.055 leaves a gentle float; crank it up and you barely fall at all.")
                     .defineInRange("playerGravityOffset", 0.055, 0.0, 0.07);
 
             enableItemGravity = builder
-                    .comment("Enable item gravity reduction in The End (default: true).")
+                    .comment("Reduced gravity for dropped items in The End.")
                     .define("enableItemGravity", true);
             itemGravityOffset = builder
-                    .comment("Upward force per tick for items in The End (default: 0.025). Higher = less gravity.")
+                    .comment("Same impulse as the player offset, but for items. Lower because items have no way to steer.")
                     .defineInRange("itemGravityOffset", 0.025, 0.0, 0.035);
 
             enableArrowGravity = builder
-                    .comment("Enable arrow/trident gravity reduction in The End (default: true).")
+                    .comment("Reduced gravity for arrows and tridents in The End.")
                     .define("enableArrowGravity", true);
             arrowGravityOffset = builder
-                    .comment("Upward force per tick for arrows/tridents in The End (default: 0.03). Higher = less gravity.")
+                    .comment("Upward impulse per tick for arrows and tridents.")
                     .defineInRange("arrowGravityOffset", 0.03, 0.0, 0.04);
 
             enableThrownGravity = builder
-                    .comment("Enable thrown projectile gravity reduction in The End (default: true).")
+                    .comment("Reduced gravity for thrown projectiles (snowballs, pearls, bottles...) in The End.")
                     .define("enableThrownGravity", true);
             thrownGravityOffset = builder
-                    .comment("Upward force per tick for thrown projectiles in The End (default: 0.018). Higher = less gravity.")
+                    .comment("Upward impulse per tick for thrown projectiles.")
                     .defineInRange("thrownGravityOffset", 0.018, 0.0, 0.025);
 
             builder.pop();
@@ -102,13 +102,13 @@ public class Config {
             builder.push("effects");
 
             enableLowPassFilter = builder
-                    .comment("Enable low-pass audio filter in The End (default: true). Creates a muffled underwater-like sound.")
+                    .comment("Muffles The End's audio with a low-pass filter, like being underwater.")
                     .define("enableLowPassFilter", true);
             lowPassGain = builder
-                    .comment("Low-pass filter volume (default: 0.35). Lower = more muffled.")
+                    .comment("Filter volume. 0.35 is a subtle dampening; go lower for a heavier blanket.")
                     .defineInRange("lowPassGain", 0.35, 0.0, 1.0);
             lowPassGainHF = builder
-                    .comment("Low-pass filter high-frequency volume (default: 0.25). Lower = less high-frequency sound.")
+                    .comment("How much high-frequency sound survives the filter. Lower = duller, boomier audio.")
                     .defineInRange("lowPassGainHF", 0.25, 0.0, 1.0);
 
             builder.pop();
@@ -116,20 +116,20 @@ public class Config {
             builder.push("gameplay");
 
             fallDamageMode = builder
-                    .comment("Fall damage mode in The End: 0 = normal, 1 = disabled, 2 = velocity-based (default: 2).")
+                    .comment("Fall damage in The End and the Overworld: 0 = vanilla, 1 = disabled, 2 = velocity-based.")
                     .defineInRange("fallDamageMode", 2, 0, 2);
             fallDamageVelocityScale = builder
-                    .comment("Damage per unit of velocity for velocity-based fall damage (default: 1.0). Higher = more damage.")
+                    .comment("Damage multiplier for velocity-based mode. 1.0 = one heart per unit of impact velocity.")
                     .defineInRange("fallDamageVelocityScale", 1.0, 0.1, 10.0);
             fallDamageMinVelocity = builder
-                    .comment("Minimum impact velocity before velocity-based damage applies (default: 0.6). Below this, no damage.")
+                    .comment("Impact speed below which velocity-based mode deals no damage.")
                     .defineInRange("fallDamageMinVelocity", 0.6, 0.0, 5.0);
 
             enableBlockGravity = builder
-                    .comment("Enable falling block gravity reduction in The End (default: true). Affects sand, gravel, anvils, dragon eggs.")
+                    .comment("Falling blocks (sand, gravel, anvils, dragon eggs) fall slower in The End.")
                     .define("enableBlockGravity", true);
             blockGravityOffset = builder
-                    .comment("Upward force per tick for falling blocks in The End (default: 0.035). Higher = slower fall.")
+                    .comment("Upward impulse per tick for falling blocks.")
                     .defineInRange("blockGravityOffset", 0.035, 0.0, 0.1);
 
             builder.pop();
@@ -137,20 +137,20 @@ public class Config {
             builder.push("sable");
 
             endSableGravity = builder
-                    .comment("Master toggle: completely disable Sable gravity changes in The End (default: true). When disabled, The End uses Sable's default gravity.")
+                    .comment("Master switch for the End Sable physics pack. Off = Sable falls back to its own defaults.")
                     .define("endSableGravity", true);
 
             sableGravityY = builder
-                    .comment("Sable gravity Y value for The End (default: -4.0). More negative = stronger downward pull.")
+                    .comment("Downward pull in The End. Negative = down; the more negative, the stronger.")
                     .defineInRange("sableGravityY", -4.0, -20.0, 0.0);
             sablePressure = builder
-                    .comment("Sable pressure value for The End (default: 0.0). 0 = no pressure.")
+                    .comment("Air pressure in The End. 0 = vacuum.")
                     .defineInRange("sablePressure", 0.0, 0.0, 10.0);
             sableDrag = builder
-                    .comment("Sable drag value for The End (default: 0.05). Air resistance. 0 = no drag.")
+                    .comment("Air drag in The End. 0 = no resistance.")
                     .defineInRange("sableDrag", 0.05, 0.0, 10.0);
             sableDatapackPriority = builder
-                    .comment("Sable datapack priority for The End (default: 9999). Must be > 1000 to override Sable built-in defaults.")
+                    .comment("Datapack priority for the End pack. Sable's built-ins sit at 1000, so anything above that wins.")
                     .defineInRange("sableDatapackPriority", 9999, 1, 9999);
 
             builder.pop();
@@ -158,11 +158,11 @@ public class Config {
             builder.push("sable_overworld");
 
             overworldSableGravity = builder
-                    .comment("Master toggle: completely disable Sable gravity changes in the Overworld (default: true). When disabled, the Overworld uses Sable's default gravity.")
+                    .comment("Master switch for the Overworld Sable physics pack. Off = Sable reuses its own defaults.")
                     .define("overworldSableGravity", true);
 
             overworldSableDatapackPriority = builder
-                    .comment("Sable datapack priority for the Overworld (default: 2000). Must be > 1000 to override Sable built-in defaults.")
+                    .comment("Datapack priority for the Overworld pack. Must beat Sable's built-in 1000.")
                     .defineInRange("overworldSableDatapackPriority", 2000, 1, 9999);
 
             builder.pop();
@@ -170,22 +170,22 @@ public class Config {
             builder.push("atmosphere");
 
             enableAtmosphere = builder
-                    .comment("Enable atmospheric gravity in the Overworld (default: true). Gravity, muffled audio and drag scale with real atmospheric layers from Y=64 (BASE) to Y=3500 (deep space). Also affects Sable sub-levels.")
+                    .comment("Turns on the Overworld's altitude physics: gravity eases off above Y=64 and fades to vacuum by Y=3500. Also applies inside Sable sub-levels.")
                     .define("enableAtmosphere", true);
             overworldEntityGravity = builder
-                    .comment("Master toggle: completely disable entity gravity reduction in the Overworld atmosphere (default: true). When disabled, entities keep full gravity at any altitude.")
+                    .comment("Master switch for the atmosphere's effect on entities. Off = full vanilla gravity at every altitude.")
                     .define("overworldEntityGravity", true);
             atmosphereGravityMax = builder
-                    .comment("Maximum upward force per tick at deep space (default: 0.075). Interpolated from 0.0 at BASE Y=64. Higher = less gravity. Keep slightly below vanilla 0.08 so a tiny residual pull remains instead of perfect zero-G.")
+                    .comment("Upward impulse per tick at deep space, ramped from 0 at Y=64. Keep under 0.08 so a residual pull always remains - never perfect zero-G.")
                     .defineInRange("atmosphereGravityMax", 0.075, 0.0, 0.1);
             atmosphereMuffleGain = builder
-                    .comment("Low-pass filter gain at deep space Y=3500 (default: 0.01). Lower = more muffled. Interpolated from 1.0 at BASE.")
+                    .comment("Low-pass gain at deep space, interpolated from 1.0 at the base. 0.01 is effectively silence.")
                     .defineInRange("atmosphereMuffleGain", 0.01, 0.0, 1.0);
             atmosphereMuffleGainHF = builder
-                    .comment("Low-pass filter high-frequency gain at deep space (default: 0.005). Lower = less high-frequency sound.")
+                    .comment("High-frequency gain at deep space, same interpolation as the gain above.")
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
             atmosphereLayers = builder
-                    .comment("Atmospheric layers as \"altitude:pressure\" pairs - the universal atmosphere controller. The pressure curve drives custom gravity and levitation (progress = 1 - pressure), muffled audio and the Sable Overworld datapack pressure_function. Pressure 1.0 at base = full atmosphere, 0.0 at deep space = vacuum. Default: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
+                    .comment("\"altitude:pressure\" pairs defining the pressure curve - 1.0 = full atmosphere, 0.0 = vacuum. Gravity, muffling and the Sable datapack all read this curve. Defaults: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
                     .defineList("atmosphereLayers",
                             List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0"),
                             obj -> obj instanceof String);

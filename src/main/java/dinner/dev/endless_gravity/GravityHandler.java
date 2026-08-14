@@ -32,7 +32,7 @@ public class GravityHandler {
 
         if (applyAtmosphereEffects(level, player)) return;
 
-        // When Sable manages this dimension, its physics engine handles gravity
+        // Sable's own engine handles gravity in its dimensions.
         if (EndlessGravityAPI.isSableManaged(level)) return;
 
         if (!isEndOrSable(level)) return;
@@ -54,11 +54,9 @@ public class GravityHandler {
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
-        // Apply atmosphere gravity BEFORE velocity threshold check,
-        // so entities with purely horizontal motion still get reduced gravity.
+        // Atmosphere gravity first, so horizontal-only motion still gets the lift.
         if (applyAtmosphereEffects(level, entity)) return;
 
-        // When Sable manages this dimension, its physics engine handles gravity
         if (EndlessGravityAPI.isSableManaged(level)) return;
 
         double velY = entity.getDeltaMovement().y;
@@ -94,8 +92,7 @@ public class GravityHandler {
      * Returns true if effects were applied.
      */
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
-        // Create: Cosmonautics owns gravity for the Overworld and its sub-levels;
-        // skip the atmosphere gravity system entirely so nothing double-applies.
+        // Cosmonautics owns Overworld gravity; nothing to do here.
         if (EndlessGravityAPI.isCosmonauticsInstalled()) {
             return false;
         }
@@ -109,8 +106,7 @@ public class GravityHandler {
             return false;
         }
 
-        // For Sable sub-levels, gravity reduction is handled by the ForceGroup in ServerSubLevelMixin.
-        // Don't apply additional upward force here to avoid double-applying.
+        // Sub-level gravity runs through the ForceGroup mixin; adding force here would double it.
         if (EndlessGravityAPI.isSableManaged(level)) {
             return false;
         }
@@ -125,9 +121,7 @@ public class GravityHandler {
             return false;
         }
 
-        // Light entities (items, projectiles) have weaker gravity than players:
-        // cap the upward force at their own gravity so thin air makes them
-        // weightless instead of accelerating them upward.
+        // Cap the lift at the entity's own gravity or items would fly up.
         double entityGravity = entity.getGravity();
         if (offset > entityGravity) {
             offset = entityGravity;
@@ -155,9 +149,7 @@ public class GravityHandler {
 
         Level level = player.level();
 
-        // High Overworld layers (above the atmosphere base) negate fall damage:
-        // thin air makes impacts negligible. When Cosmonautics is installed it
-        // owns that region, so we back off entirely.
+        // No fall damage above the atmosphere base; Cosmonautics owns that region when present.
         if (!EndlessGravityAPI.isCosmonauticsInstalled()
                 && Config.COMMON.enableAtmosphere.get()
                 && EndlessGravityAPI.isOverworldOrSable(level)
@@ -167,8 +159,7 @@ public class GravityHandler {
             return;
         }
 
-        // The Overworld keeps vanilla fall damage; only The End and Sable
-        // sub-levels are gravity-managed with configurable fall damage.
+        // Vanilla damage in the Overworld; only End/Sable use the configurable modes.
         if (!isEndOrSable(level)) return;
         handleFallDamage(event, player);
     }
