@@ -1,6 +1,6 @@
 # Endless Gravity
 
-+Low gravity for **The End** and layered atmosphere physics for the **Overworld**.
+Low gravity for **The End** and layered atmosphere physics for the **Overworld**.
 
 ## Features
 
