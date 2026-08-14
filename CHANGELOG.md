@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.9
+
+- **Dedicated server support** — runs on a server without any extra client-side installs: cloth_config became an optional dependency and the config screen only registers when it's present
+
 ## 1.1.8
 
 - **Removed the environment systems** — temperature (freezing) and oxygen (depletion, suffocation, tank recharge) are gone, together with their config options and the O₂ HUD / suffocation overlay
