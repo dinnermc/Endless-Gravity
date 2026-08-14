@@ -1,14 +1,18 @@
-<p align="center"><img src="src/main/resources/icon.png" alt="Logo" width="200"></p>
-<h1 align="center">Endless Gravity<br>
 <div align="center">
-    </a>
+  <img src="src/main/resources/icon.png" alt="Endless Gravity Icon" width="180" />
+
+  <h1>Endless Gravity</h1>
+
+  <p>
     <a href="https://modrinth.com/mod/endless-gravity">
-        <img src="https://img.shields.io/modrinth/dt/endless-gravity?logo=modrinth&amp;label=&amp;suffix=%20&amp;style=flat&amp;color=242629&amp;labelColor=5CA424&amp;logoColor=1C1C1C" alt="Modrinth Download"/>
+      <img src="https://img.shields.io/modrinth/dt/endless-gravity?logo=modrinth&label=Downloads&style=flat&color=242629&labelColor=5CA424&logoColor=fff" alt="Modrinth Downloads" />
     </a>
+    <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?logo=minecraft" alt="Minecraft Version" />
+    <img src="https://img.shields.io/badge/Loader-NeoForge-orange" alt="NeoForge" />
+  </p>
+
+  <p>Low gravity for <b>The End</b> and layered atmosphere physics for the <b>Overworld</b>.</p>
 </div>
-</h1>
-  
-Low gravity for **The End** and layered atmosphere physics for the **Overworld**.
 
 ## Features
 
@@ -20,8 +24,8 @@ Low gravity for **The End** and layered atmosphere physics for the **Overworld**
 - **Addon API** — `EndlessGravityAPI` utility (pressure, atmosphere progress, real Y projection, Sable helpers) plus the `endless_gravity:gravity_immune` entity type tag
 - **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
 
-## Modrinth:
-https://modrinth.com/mod/endless-gravity
+---
+<img src="https://cdn.modrinth.com/data/cached_images/b9ae07fbc26c08220b4856cb244f86904d0c172c.png" alt="Available on NeoForge">
 
 ## Configuration
 
