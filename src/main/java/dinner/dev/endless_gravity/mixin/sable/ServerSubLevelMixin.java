@@ -33,6 +33,8 @@ public abstract class ServerSubLevelMixin {
     private static boolean forceErrorLogged = false;
 
     private static void initReflection(Class<?> targetClass) {
+        // Sable changes its API without notice: if this starts failing at runtime,
+        // check the reflected methods here before anything else.
         if (reflectionInitialized) return;
         reflectionInitialized = true;
         try {
