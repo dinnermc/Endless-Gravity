@@ -24,9 +24,6 @@
 - **Addon API** — `EndlessGravityAPI` utility (pressure, atmosphere progress, real Y projection, Sable helpers) plus the `endless_gravity:gravity_immune` entity type tag
 - **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
 
----
-<img src="https://cdn.modrinth.com/data/cached_images/b9ae07fbc26c08220b4856cb244f86904d0c172c.png" alt="Available on NeoForge">
-
 ## Configuration
 
 Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity*). Changes apply live where possible; the audio filter and Sable datapack need a restart.
