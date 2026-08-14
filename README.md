@@ -3,7 +3,7 @@
 <div align="center">
     </a>
     <a href="https://modrinth.com/mod/endless-gravity">
-        <img src="https://img.shields.io/modrinth/dt/sable?logo=modrinth&amp;label=&amp;suffix=%20&amp;style=flat&amp;color=242629&amp;labelColor=5CA424&amp;logoColor=1C1C1C" alt="Modrinth Download"/>
+        <img src="https://img.shields.io/modrinth/dt/endless-gravity?logo=modrinth&amp;label=&amp;suffix=%20&amp;style=flat&amp;color=242629&amp;labelColor=5CA424&amp;logoColor=1C1C1C" alt="Modrinth Download"/>
     </a>
 </div>
 </h1>
