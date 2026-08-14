@@ -1,6 +1,6 @@
 # Endless Gravity
 
-Low gravity for **The End** and layered atmosphere physics for the **Overworld**. Jump higher, fall slower, float longer — and fly to space with a starship.
++Low gravity for **The End** and layered atmosphere physics for the **Overworld**.
 
 ## Features
 
