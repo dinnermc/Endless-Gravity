@@ -6,61 +6,61 @@
 
 ## 1.1.8
 
-- quité el sistema de temperatura y oxigeno entero: Stellar Suit, tanques de O2, HUD, config... todo fuera
-- starship y plush ahora en la tab vanilla de bloques funcionales
+- removed the temperature/oxygen systems entirely: Stellar Suit, O2 tanks, HUD, config... all gone
+- starship and plush now live in the vanilla functional blocks tab
 
 ## 1.1.7
 
-- tanques de oxigeno en los cofres de las end citadels (el grande es comun, el normal raro)
-- sin fall damage en el Overworld alto (Y 64+); se salta entero si Cosmonautics esta instalado
-- integracion con Create: Cosmonautics: si esta, el mod se aparta del Overworld y de los sub-levels
-- fix: con Sable instalado el End habia perdido la gravedad reducida, vuelve a flotar
-- muffling del End mas suave (gains 0.35/0.25)
+- oxygen tanks in end citadel chests (large one common, regular one rare)
+- no fall damage in the high overworld (Y 64+); skipped entirely when Cosmonautics is installed
+- Create: Cosmonautics integration: the mod backs off the overworld and sub-levels when present
+- fix: the end lost its reduced gravity with Sable installed, floats again
+- softer end muffling (gains 0.35/0.25)
 
 ## 1.1.6
 
-- asfixia escalada por altitud: ~150s a Y 400, minimo 30s en espacio profundo
-- fall damage vanilla otra vez en el Overworld
-- fix crash del servidor dedicado con la starship volando: el sonido del motor ahora va por paquete
+- suffocation scaled by altitude: ~150s at Y 400, 30s minimum in deep space
+- vanilla fall damage back in the overworld
+- fix dedicated server crash with the starship flying: engine sound now goes through a packet
 
 ## 1.1.5
 
-- tanques de oxigeno portatiles (250 / 1000 O2) que se recargan gratis a presion atmosferica
-- barra de O2 cyan en el tanque y la chestplate del Stellar Suit
-- fix items y flechas volando para arriba en el aire fino (el lift se capa con la gravedad de cada entity)
+- portable oxygen tanks (250 / 1000 O2) that recharge for free at full pressure
+- cyan O2 bar on the tank and the Stellar Suit chestplate
+- fix items and arrows flying up in thin air (lift capped at each entity's own gravity)
 
 ## 1.1.4
 
-- el End es vacio total: congelacion y asfixia a cualquier altitud, sin curva de altura
-- congelacion solo por encima de Y 400 (curva de frost remapeada)
+- the end is a full vacuum now: freezing and suffocation at any altitude, no height curve
+- freezing only above Y 400 (frost curve remapped)
 
 ## 1.1.3
 
-- congelacion mortal en el espacio: escala con altitud y con el tiempo expuesto
-- max gravity offset por defecto a 0.075, el espacio profundo mantiene pull residual
+- freezing deadly in space: scales with altitude and exposure time
+- max gravity offset default 0.075, deep space keeps residual pull
 
 ## 1.1.2
 
-- fix death loop de asfixia al respawnear
-- fix burbujas de aire vanilla que habian desaparecido
-- asfixia solo en aire fino de verdad (progress >= 0.5, ~Y 400+ con las capas por defecto)
+- fix suffocation death loop on respawn
+- fix vanilla air bubbles missing from the hotbar
+- suffocation only in genuinely thin air (progress >= 0.5, ~Y 400+ with default layers)
 
 ## 1.1.1
 
-- texturas nuevas del Stellar Suit
+- new Stellar Suit textures
 
 ## 1.1.0
 
-- config screen nuevo con Cloth Config bundled: tabs All / The End / Overworld / General
-- atmosfera rework: curva de presion continua de 8 capas en vez del sistema de capas discretas
-- fall damage por velocidad tambien en el Overworld
-- starship: cohete de 2 bloques con fisica de Sable, separacion a Y 1800, aterrizaje con control lateral
-- Stellar Suit completo (4 piezas, modelo custom, tanque de oxigeno en la chestplate)
-- Dinner Plush decorativo y saltarin
-- Addon API: utilidades en vez de eventos, tag gravity_immune
-- refactor del motor de gravedad: tick handlers unificados, menos mixins
-- audio por jugador siguiendo la curva de presion
-- datapack de Sable para The End y Overworld, regenerable desde la config
+- new config screen with bundled Cloth Config: All / The End / Overworld / General tabs
+- atmosphere rework: continuous 8-layer pressure curve instead of discrete layers
+- velocity-based fall damage also in the overworld
+- starship: 2-block rocket with Sable physics, separation at Y 1800, powered landing with lateral control
+- full Stellar Suit (4 pieces, custom model, oxygen tank in the chestplate)
+- decorative bouncy Dinner Plush
+- addon API: utilities instead of events, gravity_immune tag
+- gravity engine refactor: unified tick handlers, fewer mixins
+- per-player audio following the pressure curve
+- Sable datapack for the end and overworld, regenerated from the config screen
 
 ## 1.0.25
 
