@@ -1,4 +1,4 @@
-<p align="center"><img src="./.idea/icon.png" alt="Logo" width="200"></p>
+<p align="center"><img src="src/main/resources/icon.png" alt="Logo" width="200"></p>
 <h1 align="center">Endless Gravity<br>
 <div align="center">
     </a>
