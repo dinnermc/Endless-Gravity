@@ -35,6 +35,8 @@ public abstract class SoundEngineMixin {
 
     @Unique
     private static void endlessgravity$resolveRefs() {
+        // Channel.source is not exposed and Mojang won't make it public;
+        // reflection is the only way to touch the sources' filters.
         if (endlessgravity$refsResolved) return;
         try {
             endlessgravity$libraryStaticChannels = com.mojang.blaze3d.audio.Library.class.getDeclaredField("staticChannels");
