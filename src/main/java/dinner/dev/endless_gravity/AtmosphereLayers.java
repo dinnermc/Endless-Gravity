@@ -8,9 +8,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Configurable pressure curve. Each layer is an altitude -> pressure point;
- * the same curve drives the mod's gravity/muffle progress and the Sable
- * Overworld datapack pressure_function.
+ * Pressure curve from the config: altitude -> pressure points. The same curve
+ * drives the mod's gravity/muffle progress and the Sable datapack.
  */
 public final class AtmosphereLayers {
 
@@ -38,10 +37,7 @@ public final class AtmosphereLayers {
         return DEFAULTS;
     }
 
-    /**
-     * Parses the config list ("altitude:pressure" entries), sorted by altitude.
-     * Falls back to defaults when the list is invalid, empty or too short.
-     */
+    /** "altitude:pressure" entries, sorted by altitude; defaults if invalid or too short. */
     public static List<Layer> parse(List<? extends String> raw) {
         if (raw == cachedRaw) return cached;
         cachedRaw = raw;
@@ -96,7 +92,7 @@ public final class AtmosphereLayers {
         return Mth.clamp(1.0 - getPressure(y), 0.0, 1.0);
     }
 
-    /** Slope for the Sable bezier at the given layer index, via central difference. */
+    /** Slope for the Sable bezier at a layer, from the two neighbors. */
     public static double getSlope(List<Layer> layers, int index) {
         if (layers.size() < 2) return 0.0;
         Layer prev = layers.get(Math.max(0, index - 1));
