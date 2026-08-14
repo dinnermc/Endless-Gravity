@@ -2,7 +2,7 @@
 
 ## 1.1.9
 
-- **Dedicated server support** — runs on a server without any extra client-side installs: cloth_config became an optional dependency and the config screen only registers when it's present
+- dedicated server support: works with only the server installed, cloth_config is optional now and the config screen only registers when its present
 
 ## 1.1.8
 
@@ -64,96 +64,96 @@
 
 ## 1.0.25
 
-- Properly register `endless_gravity.sable.mixins.json` in `neoforge.mods.toml`
+- actually register the sable mixins config in the mods toml, it was missing
 
 ## 1.0.24
 
-- Reduce atmosphere drag default to 0.5 for slower entity acceleration
+- atmosphere drag default down to 0.5, entities accelerate slower
 
 ## 1.0.23
 
-- Mixin for sub-level structure atmosphere gravity
+- sub-levels get atmosphere gravity via mixin
 
 ## 1.0.22
 
-- Fix drag compensation in Sable sub-levels; restore Overworld Sable datapack
+- fix drag compensation in sable sub-levels, restore the overworld datapack
 
 ## 1.0.21
 
-- Weaker gravity at high altitude (0.08 max offset); atmosphere works in Sable sub-levels
+- weaker gravity up high (0.08 max offset), atmosphere also works in sub-levels
 
 ## 1.0.20
 
-- Mixin-based drag at source, with Sable compatibility
+- drag moved to a mixin at the source, works with sable
 
 ## 1.0.19
 
-- Post-tick drag compensation — preserves gravity + input, covers players and mobs
+- post-tick drag compensation, keeps gravity and input, covers players and mobs
 
 ## 1.0.18
 
-- Fix sub-level inertia — project Y before velocity threshold; robust Sable dimension detection
+- fix sub-level inertia (project Y before the velocity check), sturdier sable dimension detection
 
 ## 1.0.17
 
-- Full 3-axis drag compensation; inertia caps at Kármán line; realistic temperature/oxygen layers
+- 3-axis drag compensation, inertia caps at the karman line, temperature and oxygen layers
 
 ## 1.0.16
 
-- Full inertia at deep space — drag compensation cancels Minecraft's 0.91 drag
+- full inertia in deep space, drag compensation cancels the vanilla 0.91 drag
 
 ## 1.0.15
 
-- Sable Overworld `dimension_physics` with pressure function; sub-level gravity fix
+- sable overworld dimension_physics with a pressure function, sub-level gravity fix
 
 ## 1.0.14
 
-- Real atmospheric layer system
+- real atmospheric layer system
 
 ## 1.0.13
 
-- Fix `ChannelMixin` crash on Channel resume
+- fix `ChannelMixin` crash on Channel resume
 
 ## 1.0.12
 
-- Muffled audio fix; Sable sub-level gravity fix; config spacing
+- muffled audio fix, sable sub-level gravity fix, config spacing
 
 ## 1.0.11
 
-- More space-like audio; Sable priority set to maximum
+- more space-like audio, sable priority maxed
 
 ## 1.0.10
 
-- Sable sub-levels now get Overworld layer gravity, temperature, and oxygen
+- sub-levels inherit overworld layer gravity, temperature and oxygen
 
 ## 1.0.9
 
-- Overworld enabled by default; temperature/oxygen systems; reduced max gravity; lang entries
+- overworld on by default, temperature and oxygen systems, lower max gravity, lang entries
 
 ## 1.0.8
 
-- API improvements — immunity/application events, config sync, velocity/position getters
+- api improvements: immunity/application events, config sync, velocity and position getters
 
 ## 1.0.7
 
-- Height-based muffled audio in Overworld space layers
+- height-based muffled audio in overworld space layers
 
 ## 1.0.6
 
-- Compatibility and stability fixes
+- compatibility and stability fixes
 
 ## 1.0.5
 
-- Stability fixes
+- stability fixes
 
 ## 1.0.4
 
-- Fix dedicated server crash
+- fix dedicated server crash
 
 ## 1.0.3
 
-- Add addon API hooks; fix config screen clipping; update Maven publishing
+- addon api hooks, fixed config screen clipping, maven publishing updated
 
 ## 1.0.2
 
-- Fix Sable datapack loading; fall damage modes; audio filter optimization; config UI improvements
+- sable datapack loading fixed, fall damage modes, audio filter optimization, config ui improvements
