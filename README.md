@@ -4,11 +4,11 @@ Low gravity for **The End** and layered atmosphere physics for the **Overworld**
 
 ## Features
 
-- **The End** — reduced gravity for players, items, arrows, thrown projectiles, and falling blocks, fully configurable per entity type
-- **Overworld atmosphere** — a continuous pressure curve (8 configurable layers) drives gravity and audio muffling above Y 64, up to full vacuum at Y 3500
-- **Fall damage** — three modes: normal, disabled, or velocity-based with configurable scale and minimum velocity
-- **Sable integration** — configurable physics datapack (gravity, pressure, drag) auto-generated for The End and the Overworld with configurable priorities
-- **Modded config screen** — Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs, color-coded entries, and per-entry reset
+- **The End** — reduced gravity for players, items, arrows, thrown projectiles, and falling blocks, configurable per entity type
+- **Overworld atmosphere** — a continuous pressure curve (8 configurable layers) weakens gravity and muffles audio above Y 64, up to full vacuum at Y 3500
+- **Fall damage** — three modes: normal, disabled, or velocity-based, with configurable scale and minimum velocity
+- **Sable integration** — physics datapack (gravity, pressure, drag) generated automatically for The End and the Overworld, with configurable priorities
+- **Modded config screen** — Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs
 - **Addon API** — `EndlessGravityAPI` utility (pressure, atmosphere progress, real Y projection, Sable helpers) plus the `endless_gravity:gravity_immune` entity type tag
 - **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
 
