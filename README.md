@@ -5,10 +5,9 @@ Low gravity for **The End** and layered atmosphere physics for the **Overworld**
 ## Features
 
 - **The End** — reduced gravity for players, items, arrows, thrown projectiles, and falling blocks, fully configurable per entity type
-- **Overworld atmosphere** — a continuous pressure curve (8 configurable layers) drives gravity, audio muffling, temperature, and oxygen above Y 64, up to full vacuum at Y 3500
+- **Overworld atmosphere** — a continuous pressure curve (8 configurable layers) drives gravity and audio muffling above Y 64, up to full vacuum at Y 3500
 - **Fall damage** — three modes: normal, disabled, or velocity-based with configurable scale and minimum velocity
-- **Stellar Suit** — full armor set; the chestplate carries an oxygen tank with an inventory durability bar, and helmet + chestplate let you breathe in thin air
-- **Sable integration** — optional physics datapack (gravity, pressure, drag) auto-generated for The End and the Overworld with configurable priorities
+- **Sable integration** — configurable physics datapack (gravity, pressure, drag) auto-generated for The End and the Overworld with configurable priorities
 - **Modded config screen** — Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs, color-coded entries, and per-entry reset
 - **Addon API** — `EndlessGravityAPI` utility (pressure, atmosphere progress, real Y projection, Sable helpers) plus the `endless_gravity:gravity_immune` entity type tag
 - **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
@@ -27,14 +26,11 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 | Arrow Gravity Offset | 0.03 | Upward force per tick for arrows/tridents |
 | Thrown Projectile Offset | 0.018 | Upward force per tick for thrown projectiles |
 | Falling Block Offset | 0.035 | Upward force per tick for sand, gravel, anvils, dragon eggs |
-| Particle Gravity Multiplier | 0.3 | 0 = no gravity, 1 = vanilla |
 | Fall Damage Mode | Velocity-Based | Normal / Disabled / Velocity-Based (shared with the Overworld) |
 | Fall Damage Velocity Scale | 1.0 | Damage multiplier for velocity-based mode |
 | Fall Damage Min Velocity | 0.6 | Minimum fall velocity before damage applies |
-| Audio Filter Gain | 0.1 | Low-pass filter volume in The End (lower = more muffled) |
-| Audio Filter Gain HF | 0.05 | Low-pass filter high-frequency volume |
-
-The End is **full vacuum everywhere**: temperature and oxygen effects apply at every altitude (no height curve) — players freeze and suffocate unless wearing the Stellar Suit, and the tank drains without ever recharging there.
+| Audio Filter Gain | 0.35 | Low-pass filter volume in The End (lower = more muffled) |
+| Audio Filter Gain HF | 0.25 | Low-pass filter high-frequency volume |
 
 ### Overworld
 
@@ -46,21 +42,6 @@ The End is **full vacuum everywhere**: temperature and oxygen effects apply at e
 | Muffle Gain | 0.01 | Low-pass gain at full vacuum (interpolated from 1.0 at ground) |
 | Muffle Gain HF | 0.005 | Low-pass high-frequency gain at full vacuum |
 | Atmosphere Layers | 8 layers | Altitude → pressure pairs: `-64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0` |
-| Enable Temperature | ON | Freeze (ice overlay) when pressure drops — starts above Y ~400, zero before that |
-| Freeze Interval | 20 | Ticks between freeze damage applications |
-| Enable Oxygen | ON | Suffocation in thin air without a Stellar Suit |
-| Oxygen Rate | 8 | Air units consumed per second at altitude |
-| Tank Capacity | 1000 | Stellar chestplate oxygen tank capacity |
-| Recharge Rate | 5 | Tank recharges per second at full pressure |
-| Suffocation Fade Ticks | 100 | Ticks of oxygen left at which the suffocation effect fades in |
-
-## Stellar Suit
-
-Four-piece armor set with a custom in-game model and texture:
-
-- **Chestplate** — oxygen tank (default 1000 units). Shows a durability-style bar in the inventory; cyan at >25%, red when low. Drains faster at altitude, recharges at full pressure.
-- **Helmet** — must be worn with the chestplate to breathe in thin air.
-- **Leggings & Boots** — set bonuses; complete the suit.
 
 ## Addon API
 
@@ -68,7 +49,6 @@ Four-piece armor set with a custom in-game model and texture:
 
 - `getPressure(y)` / `getAtmosphereProgress(y)` — read the configured pressure curve
 - `getAtmosphereOffset(y)`, `getAtmosphereMuffleGain(y)`, `getAtmosphereMuffleGainHF(y)` — derived atmosphere values
-- `getTemperatureProgress(y)`, `getOxygenProgress(y)` — environment progress
 - `getRealY(entity)`, `getRealY(level, pos)` — project positions out of Sable sub-levels into global space
 - `isSableLoaded()`, `isSableManaged(level)`, `isOverworldOrSable(level)` — dimension/Sable helpers
 - `GRAVITY_IMMUNE` tag — add entity types to `data/endless_gravity/tags/entity/gravity_immune.json` to make them ignore low gravity in The End
@@ -81,7 +61,7 @@ All gameplay-affecting config values are synced from server to client on login v
 - NeoForge 21.1+
 - Cloth Config — bundled (via Jar-in-Jar), no manual install
 - Sable (required)
-- Create: Aeronautics (required)
+- Create: Cosmonautics (optional — when installed, it owns Overworld gravity and Endless Gravity backs off)
 
 ## License
 
