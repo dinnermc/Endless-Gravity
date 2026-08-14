@@ -12,6 +12,9 @@ Low gravity for **The End** and layered atmosphere physics for the **Overworld**
 - **Addon API** — `EndlessGravityAPI` utility (pressure, atmosphere progress, real Y projection, Sable helpers) plus the `endless_gravity:gravity_immune` entity type tag
 - **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
 
+## Modrinth:
+https://modrinth.com/mod/endless-gravity
+
 ## Configuration
 
 Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity*). Changes apply live where possible; the audio filter and Sable datapack need a restart.
