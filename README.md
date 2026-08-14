@@ -1,5 +1,13 @@
-# Endless Gravity
-
+<p align="center"><img src="./.idea/icon.png" alt="Logo" width="200"></p>
+<h1 align="center">Endless Gravity<br>
+<div align="center">
+    </a>
+    <a href="https://modrinth.com/mod/endless-gravity">
+        <img src="https://img.shields.io/modrinth/dt/sable?logo=modrinth&amp;label=&amp;suffix=%20&amp;style=flat&amp;color=242629&amp;labelColor=5CA424&amp;logoColor=1C1C1C" alt="Modrinth Download"/>
+    </a>
+</div>
+</h1>
+  
 Low gravity for **The End** and layered atmosphere physics for the **Overworld**.
 
 ## Features
