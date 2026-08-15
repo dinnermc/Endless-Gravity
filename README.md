@@ -39,7 +39,7 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 | Arrow Gravity Offset | 0.03 | Upward force per tick for arrows and tridents |
 | Thrown Projectile Offset | 0.018 | Upward force per tick for snowballs, potions, pearls |
 | Falling Block Offset | 0.035 | Upward force per tick for sand, gravel, anvils, dragon eggs |
-| Fall Damage Mode | Normal | Normal / Disabled (The End and Sable sub-levels; the Overworld stays vanilla) |
+| Fall Damage Mode | Disabled | Normal / Disabled (The End and Sable sub-levels; the Overworld stays vanilla) |
 | Audio Filter Gain | 0.35 | Low-pass volume in The End; 1.0 is vanilla audio |
 | Audio Filter Gain HF | 0.25 | High-frequency side of the filter |
 

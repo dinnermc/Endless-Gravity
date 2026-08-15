@@ -116,7 +116,7 @@ public class Config {
 
             fallDamageMode = builder
                     .comment("Fall damage in The End and Sable dimensions: 0 = vanilla, 1 = disabled.")
-                    .defineInRange("fallDamageMode", 0, 0, 1);
+                    .defineInRange("fallDamageMode", 1, 0, 1);
 
             enableBlockGravity = builder
                     .comment("Falling blocks (sand, gravel, anvils, dragon eggs) fall slower in The End.")

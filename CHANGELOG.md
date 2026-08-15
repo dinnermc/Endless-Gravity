@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.5
+
+- fall damage is disabled by default in the end and sable sub-levels
+
 ## 1.2.4
 
 - removed the velocity-based fall damage mode: it never actually triggered, the impact speed reads as zero by the time the event fires, so the end uses vanilla fall damage by default again (or disabled, if you prefer)

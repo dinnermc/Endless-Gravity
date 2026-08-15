@@ -176,7 +176,7 @@ public class EndlessGravityConfigScreen {
             SubCategoryBuilder allGeneral = group(entry, "endless_gravity.config.section.general");
             var mode = entry.startEnumSelector(text("endless_gravity.config.fallDamageMode"), FallDamageMode.class,
                             FallDamageMode.fromInt(Config.COMMON.fallDamageMode.get()))
-                    .setDefaultValue(FallDamageMode.NORMAL)
+                    .setDefaultValue(FallDamageMode.DISABLED)
                     .setEnumNameProvider(e -> colored("endless_gravity.config.fallDamageMode."
                                     + ((FallDamageMode) e).name().toLowerCase(Locale.ROOT),
                             switch ((FallDamageMode) e) {
