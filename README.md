@@ -9,6 +9,7 @@
     </a>
     <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?logo=minecraft" alt="Minecraft Version" />
     <img src="https://img.shields.io/badge/Loader-NeoForge-orange" alt="NeoForge" />
+    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License" />
   </p>
 
   <p>Low gravity for <b>The End</b> and layered atmosphere physics for the <b>Overworld</b>.</p>
