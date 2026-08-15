@@ -19,7 +19,7 @@
 
 - **The End**: reduced gravity for players, items, arrows, thrown projectiles, and falling blocks, configurable per entity type
 - **Overworld atmosphere**: a continuous pressure curve (8 configurable layers) weakens gravity and muffles audio above Y 64, up to full vacuum at Y 3500
-- **Fall damage** — three modes: normal, disabled, or velocity-based, with configurable scale and minimum velocity
+- **Fall damage** — normal or disabled in The End and Sable sub-levels, and no fall damage above a configurable altitude in the Overworld
 - **Sable integration** — physics datapack (gravity, pressure, drag) generated automatically for The End and the Overworld, with configurable priorities
 - **Modded config screen** — Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs
 - **Addon API** — `EndlessGravityAPI` utility (pressure, atmosphere progress, real Y projection, Sable helpers) plus the `endless_gravity:gravity_immune` entity type tag
@@ -39,9 +39,7 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 | Arrow Gravity Offset | 0.03 | Upward force per tick for arrows and tridents |
 | Thrown Projectile Offset | 0.018 | Upward force per tick for snowballs, potions, pearls |
 | Falling Block Offset | 0.035 | Upward force per tick for sand, gravel, anvils, dragon eggs |
-| Fall Damage Mode | Velocity-Based | Normal / Disabled / Velocity-Based (shared with the Overworld) |
-| Fall Damage Velocity Scale | 1.0 | How hard impact hits in velocity-based mode |
-| Fall Damage Min Velocity | 0.6 | Slower than this, no damage |
+| Fall Damage Mode | Normal | Normal / Disabled (The End and Sable sub-levels; the Overworld stays vanilla) |
 | Audio Filter Gain | 0.35 | Low-pass volume in The End; 1.0 is vanilla audio |
 | Audio Filter Gain HF | 0.25 | High-frequency side of the filter |
 
@@ -52,6 +50,7 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 | Enable Atmosphere | ON | Master toggle for Overworld space effects |
 | Entity Gravity | ON | Gravity from the pressure curve applies to entities |
 | Max Gravity Offset | 0.075 | Upward force at full vacuum (progress × max) |
+| No Fall Damage Above | 400 | Above this Y, fall damage is cancelled (64–3500) |
 | Muffle Gain | 0.01 | Low-pass gain at full vacuum, interpolated from 1.0 at ground |
 | Muffle Gain HF | 0.005 | High-frequency part of the muffle |
 | Atmosphere Layers | 8 layers | Altitude → pressure pairs: `-64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0` |

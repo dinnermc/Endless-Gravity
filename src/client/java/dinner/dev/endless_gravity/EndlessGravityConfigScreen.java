@@ -29,12 +29,12 @@ public class EndlessGravityConfigScreen {
     }
 
     private enum FallDamageMode {
-        NORMAL, DISABLED, VELOCITY;
+        NORMAL, DISABLED;
 
         static FallDamageMode fromInt(int value) {
             return switch (value) {
                 case 0 -> NORMAL;
-                case 2 -> VELOCITY;
+                case 1 -> DISABLED;
                 default -> DISABLED;
             };
         }
@@ -176,32 +176,17 @@ public class EndlessGravityConfigScreen {
             SubCategoryBuilder allGeneral = group(entry, "endless_gravity.config.section.general");
             var mode = entry.startEnumSelector(text("endless_gravity.config.fallDamageMode"), FallDamageMode.class,
                             FallDamageMode.fromInt(Config.COMMON.fallDamageMode.get()))
-                    .setDefaultValue(FallDamageMode.VELOCITY)
+                    .setDefaultValue(FallDamageMode.NORMAL)
                     .setEnumNameProvider(e -> colored("endless_gravity.config.fallDamageMode."
                                     + ((FallDamageMode) e).name().toLowerCase(Locale.ROOT),
                             switch ((FallDamageMode) e) {
                                 case DISABLED -> TEXT_RED;
-                                case VELOCITY -> TEXT_GREEN;
                                 default -> TEXT_WHITE;
                             }))
                     .setSaveConsumer(m -> Config.COMMON.fallDamageMode.set(m.ordinal()))
                     .build();
             cat.addEntry(mode);
             allGeneral.add(mode);
-            var scale = entry.startDoubleField(colored("endless_gravity.config.fallDamageVelocityScale", TEXT_WHITE),
-                            Config.COMMON.fallDamageVelocityScale.get())
-                    .setMin(0.1).setMax(10.0).setDefaultValue(1.0)
-                    .setSaveConsumer(Config.COMMON.fallDamageVelocityScale::set)
-                    .build();
-            cat.addEntry(scale);
-            allGeneral.add(scale);
-            var minVelocity = entry.startDoubleField(colored("endless_gravity.config.fallDamageMinVelocity", TEXT_GRAY),
-                            Config.COMMON.fallDamageMinVelocity.get())
-                    .setMin(0.0).setMax(5.0).setDefaultValue(0.6)
-                    .setSaveConsumer(Config.COMMON.fallDamageMinVelocity::set)
-                    .build();
-            cat.addEntry(minVelocity);
-            allGeneral.add(minVelocity);
             all.addEntry(allGeneral.build());
         }
 

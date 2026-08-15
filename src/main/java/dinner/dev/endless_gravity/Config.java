@@ -38,8 +38,6 @@ public class Config {
 
         // Gameplay
         public final ModConfigSpec.IntValue fallDamageMode;
-        public final ModConfigSpec.DoubleValue fallDamageVelocityScale;
-        public final ModConfigSpec.DoubleValue fallDamageMinVelocity;
         public final ModConfigSpec.BooleanValue enableBlockGravity;
         public final ModConfigSpec.DoubleValue blockGravityOffset;
 
@@ -117,14 +115,8 @@ public class Config {
             builder.push("gameplay");
 
             fallDamageMode = builder
-                    .comment("Fall damage in The End and the Overworld: 0 = vanilla, 1 = disabled, 2 = velocity-based.")
-                    .defineInRange("fallDamageMode", 2, 0, 2);
-            fallDamageVelocityScale = builder
-                    .comment("Damage multiplier for velocity-based mode. 1.0 = one heart per unit of impact velocity.")
-                    .defineInRange("fallDamageVelocityScale", 1.0, 0.1, 10.0);
-            fallDamageMinVelocity = builder
-                    .comment("Impact speed below which velocity-based mode deals no damage.")
-                    .defineInRange("fallDamageMinVelocity", 0.6, 0.0, 5.0);
+                    .comment("Fall damage in The End and Sable dimensions: 0 = vanilla, 1 = disabled.")
+                    .defineInRange("fallDamageMode", 0, 0, 1);
 
             enableBlockGravity = builder
                     .comment("Falling blocks (sand, gravel, anvils, dragon eggs) fall slower in The End.")
