@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.3
+
+- the end and overworld master toggles finally sync to clients (thanks Spagles)
+- duplicate altitudes in the atmosphere curve no longer produce NaN gravity (thanks Spagles)
+- atmospheric audio only muffles in the overworld and sable sub-levels, not the nether (thanks Spagles)
+- the OpenAL filter re-creates itself cleanly if the audio device reloads (thanks Spagles)
+
 ## 1.2.2
 
 - no fall damage above Y=400 in the overworld (configurable), so falls from way up high don't hurt anymore

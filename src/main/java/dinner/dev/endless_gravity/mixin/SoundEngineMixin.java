@@ -85,8 +85,9 @@ public abstract class SoundEngineMixin {
         double playerY = EndlessGravityAPI.getRealY(mc.player);
 
         boolean inEnd = mc.level.dimension() == Level.END;
+        boolean inAtmosphere = EndlessGravityAPI.isOverworldOrSable(mc.level) && !EndlessGravityAPI.isCosmonauticsInstalled();
         double atmosphereProgress = EndlessGravityAPI.getAtmosphereProgress(playerY);
-        boolean atmFiltering = atmosphereProgress > 0 && Config.COMMON.enableAtmosphere.get();
+        boolean atmFiltering = inAtmosphere && atmosphereProgress > 0 && Config.COMMON.enableAtmosphere.get();
 
         float targetGain = 1.0f;
         float targetGainHF = 1.0f;
