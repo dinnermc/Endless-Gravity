@@ -149,16 +149,6 @@ public class GravityHandler {
 
         Level level = player.level();
 
-        // No fall damage above the atmosphere base; Cosmonautics owns that region when present.
-        if (!EndlessGravityAPI.isCosmonauticsInstalled()
-                && Config.COMMON.enableAtmosphere.get()
-                && EndlessGravityAPI.isOverworldOrSable(level)
-                && EndlessGravityAPI.getRealY(player) > EndlessGravityAPI.BASE) {
-            event.setDamageMultiplier(0.0F);
-            event.setDistance(0.0F);
-            return;
-        }
-
         // Vanilla damage in the Overworld; only End/Sable use the configurable modes.
         if (!isEndOrSable(level)) return;
         handleFallDamage(event, player);
