@@ -39,7 +39,7 @@ public final class AtmosphereLayers {
 
     /** "altitude:pressure" entries, sorted by altitude; defaults if invalid or too short. */
     public static List<Layer> parse(List<? extends String> raw) {
-        if (raw == cachedRaw) return cached;
+        if (raw != null && raw.equals(cachedRaw) && cached != null) return cached;
         cachedRaw = raw;
         cached = doParse(raw);
         return cached;
@@ -80,7 +80,9 @@ public final class AtmosphereLayers {
             Layer a = layers.get(i);
             Layer b = layers.get(i + 1);
             if (y <= b.altitude()) {
-                double fraction = (y - a.altitude()) / (b.altitude() - a.altitude());
+                double dAlt = b.altitude() - a.altitude();
+                if (dAlt <= 0.0) return b.pressure();
+                double fraction = (y - a.altitude()) / dAlt;
                 return a.pressure() + fraction * (b.pressure() - a.pressure());
             }
         }
