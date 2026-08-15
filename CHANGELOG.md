@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- overworld fall damage is vanilla again at every height (the no-damage-above-Y-64 thing is gone)
+- fixed the config deprecation warning for defineList
+
 ## 1.2.0
 
 - removed the starship and the dinner plush: blocks, items, recipes, sounds and physics properties all gone

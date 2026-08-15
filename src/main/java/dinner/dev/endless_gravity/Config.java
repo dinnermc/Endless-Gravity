@@ -186,7 +186,7 @@ public class Config {
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
             atmosphereLayers = builder
                     .comment("\"altitude:pressure\" pairs defining the pressure curve - 1.0 = full atmosphere, 0.0 = vacuum. Gravity, muffling and the Sable datapack all read this curve. Defaults: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
-                    .defineList("atmosphereLayers",
+                    .defineListAllowEmpty("atmosphereLayers",
                             List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0"),
                             obj -> obj instanceof String);
 
