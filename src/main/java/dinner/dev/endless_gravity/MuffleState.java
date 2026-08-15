@@ -9,17 +9,20 @@ public class MuffleState {
     private static float currentGainHF = 1.0f;
 
     public static int getFilter() {
-        if (filterId == -1) {
+        if (filterId == -1 || !alIsFilter(filterId)) {
             filterId = alGenFilters();
             alFilteri(filterId, AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+            currentGain = -1.0f;
+            currentGainHF = -1.0f;
         }
         return filterId;
     }
 
     public static void update(float gain, float gainHF) {
+        int filter = getFilter();
         if (gain != currentGain || gainHF != currentGainHF) {
-            alFilterf(filterId, AL_LOWPASS_GAIN, gain);
-            alFilterf(filterId, AL_LOWPASS_GAINHF, gainHF);
+            alFilterf(filter, AL_LOWPASS_GAIN, gain);
+            alFilterf(filter, AL_LOWPASS_GAINHF, gainHF);
             currentGain = gain;
             currentGainHF = gainHF;
         }
