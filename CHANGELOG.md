@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.4
+
+- removed the velocity-based fall damage mode: it never actually triggered, the impact speed reads as zero by the time the event fires, so the end uses vanilla fall damage by default again (or disabled, if you prefer)
+- added the Spanish (Castilian) translation
+
 ## 1.2.3
 
 - the end and overworld master toggles finally sync to clients (thanks Spagles)

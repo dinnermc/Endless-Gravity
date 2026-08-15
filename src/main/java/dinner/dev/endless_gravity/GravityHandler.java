@@ -141,7 +141,6 @@ public class GravityHandler {
 
         Level level = player.level();
 
-        // No fall damage above the configurable altitude; the air is too thin to hurt.
         if (!EndlessGravityAPI.isCosmonauticsInstalled()
                 && Config.COMMON.enableAtmosphere.get()
                 && EndlessGravityAPI.isOverworldOrSable(level)
@@ -152,27 +151,9 @@ public class GravityHandler {
         }
 
         if (!isEndOrSable(level)) return;
-        handleFallDamage(event, player);
-    }
-
-    private static void handleFallDamage(LivingFallEvent event, ServerPlayer player) {
-        int mode = Config.COMMON.fallDamageMode.get();
-
-        if (mode == 1) {
+        if (Config.COMMON.fallDamageMode.get() == 1) {
             event.setDamageMultiplier(0.0F);
             event.setDistance(0.0F);
-        } else if (mode == 2) {
-            double velY = Math.abs(player.getDeltaMovement().y);
-            double minVel = Config.COMMON.fallDamageMinVelocity.get();
-            if (velY < minVel) {
-                event.setCanceled(true);
-                return;
-            }
-            double scale = Config.COMMON.fallDamageVelocityScale.get();
-            float velocityDamage = (float) (velY * scale);
-
-            event.setDamageMultiplier(1.0F);
-            event.setDistance(velocityDamage + 3.0F);
         }
     }
 }
