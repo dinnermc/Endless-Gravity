@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- no fall damage above Y=400 in the overworld (configurable), so falls from way up high don't hurt anymore
+- atmosphere now has a noFallDamageAltitude setting, synced to clients like the rest
+
 ## 1.2.1
 
 - overworld fall damage is vanilla again at every height (the no-damage-above-Y-64 thing is gone)

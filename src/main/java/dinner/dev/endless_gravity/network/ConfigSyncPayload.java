@@ -19,6 +19,7 @@ public record ConfigSyncPayload(
         int fallDamageMode, double fallDamageVelocityScale, double fallDamageMinVelocity,
         boolean enableBlockGravity, double blockGravityOffset,
         boolean enableAtmosphere, double atmosphereGravityMax,
+        double noFallDamageAltitude,
         double atmosphereMuffleGain, double atmosphereMuffleGainHF,
         List<String> atmosphereLayers
 ) implements CustomPacketPayload {
@@ -44,6 +45,7 @@ public record ConfigSyncPayload(
             buf.writeDouble(p.blockGravityOffset());
             buf.writeBoolean(p.enableAtmosphere());
             buf.writeDouble(p.atmosphereGravityMax());
+            buf.writeDouble(p.noFallDamageAltitude());
             buf.writeDouble(p.atmosphereMuffleGain());
             buf.writeDouble(p.atmosphereMuffleGainHF());
             buf.writeInt(p.atmosphereLayers().size());
@@ -69,6 +71,7 @@ public record ConfigSyncPayload(
             double blockGravityOffset = buf.readDouble();
             boolean enableAtmosphere = buf.readBoolean();
             double atmosphereGravityMax = buf.readDouble();
+            double noFallDamageAltitude = buf.readDouble();
             double atmosphereMuffleGain = buf.readDouble();
             double atmosphereMuffleGainHF = buf.readDouble();
             int layerCount = buf.readInt();
@@ -84,6 +87,7 @@ public record ConfigSyncPayload(
                     fallDamageMode, fallDamageVelocityScale, fallDamageMinVelocity,
                     enableBlockGravity, blockGravityOffset,
                     enableAtmosphere, atmosphereGravityMax,
+                    noFallDamageAltitude,
                     atmosphereMuffleGain, atmosphereMuffleGainHF,
                     atmosphereLayers
             );
@@ -104,6 +108,7 @@ public record ConfigSyncPayload(
                 Config.COMMON.fallDamageMode.get(), Config.COMMON.fallDamageVelocityScale.get(), Config.COMMON.fallDamageMinVelocity.get(),
                 Config.COMMON.enableBlockGravity.get(), Config.COMMON.blockGravityOffset.get(),
                 Config.COMMON.enableAtmosphere.get(), Config.COMMON.atmosphereGravityMax.get(),
+                Config.COMMON.noFallDamageAltitude.get(),
                 Config.COMMON.atmosphereMuffleGain.get(), Config.COMMON.atmosphereMuffleGainHF.get(),
                 List.copyOf(Config.COMMON.atmosphereLayers.get())
         );
@@ -125,6 +130,7 @@ public record ConfigSyncPayload(
         Config.COMMON.blockGravityOffset.set(blockGravityOffset);
         Config.COMMON.enableAtmosphere.set(enableAtmosphere);
         Config.COMMON.atmosphereGravityMax.set(atmosphereGravityMax);
+        Config.COMMON.noFallDamageAltitude.set(noFallDamageAltitude);
         Config.COMMON.atmosphereMuffleGain.set(atmosphereMuffleGain);
         Config.COMMON.atmosphereMuffleGainHF.set(atmosphereMuffleGainHF);
         Config.COMMON.atmosphereLayers.set(atmosphereLayers);

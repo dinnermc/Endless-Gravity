@@ -58,6 +58,7 @@ public class Config {
         public final ModConfigSpec.BooleanValue enableAtmosphere;
         public final ModConfigSpec.BooleanValue overworldEntityGravity;
         public final ModConfigSpec.DoubleValue atmosphereGravityMax;
+        public final ModConfigSpec.DoubleValue noFallDamageAltitude;
         public final ModConfigSpec.DoubleValue atmosphereMuffleGain;
         public final ModConfigSpec.DoubleValue atmosphereMuffleGainHF;
         public final ModConfigSpec.ConfigValue<List<? extends String>> atmosphereLayers;
@@ -178,6 +179,9 @@ public class Config {
             atmosphereGravityMax = builder
                     .comment("Upward impulse per tick at deep space, ramped from 0 at Y=64. Keep under 0.08 so a residual pull always remains - never perfect zero-G.")
                     .defineInRange("atmosphereGravityMax", 0.075, 0.0, 0.1);
+            noFallDamageAltitude = builder
+                    .comment("Above this Y, fall damage is cancelled in the Overworld (and Sable sub-levels). 400 = the air is already thin enough that falls stop hurting; 3500 = only at the top of the atmosphere.")
+                    .defineInRange("noFallDamageAltitude", 400.0, 64.0, 3500.0);
             atmosphereMuffleGain = builder
                     .comment("Low-pass gain at deep space, interpolated from 1.0 at the base. 0.01 is effectively silence.")
                     .defineInRange("atmosphereMuffleGain", 0.01, 0.0, 1.0);

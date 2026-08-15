@@ -42,6 +42,7 @@
   "endless_gravity.config.fallDamageMode.velocity": "Velocity-Based",
   "endless_gravity.config.enableAtmosphere": "Atmosphere",
   "endless_gravity.config.atmosphereGravityMax": "Max Gravity Offset",
+  "endless_gravity.config.noFallDamageAltitude": "No Fall Damage Above",
   "endless_gravity.config.atmosphereMuffleGain": "Muffle Volume",
   "endless_gravity.config.atmosphereMuffleGainHF": "Muffle High Frequencies",
   "endless_gravity.config.atmosphereLayers": "Atmosphere Layers",

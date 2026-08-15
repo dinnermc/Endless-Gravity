@@ -32,7 +32,6 @@ public class GravityHandler {
 
         if (applyAtmosphereEffects(level, player)) return;
 
-        // Sable's own engine handles gravity in its dimensions.
         if (EndlessGravityAPI.isSableManaged(level)) return;
 
         if (!isEndOrSable(level)) return;
@@ -54,7 +53,6 @@ public class GravityHandler {
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
-        // Atmosphere gravity first, so horizontal-only motion still gets the lift.
         if (applyAtmosphereEffects(level, entity)) return;
 
         if (EndlessGravityAPI.isSableManaged(level)) return;
@@ -87,12 +85,7 @@ public class GravityHandler {
         applyGravity(entity, offset);
     }
 
-    /**
-     * Applies atmosphere-based gravity and drag for the Overworld and Sable sub-levels.
-     * Returns true if effects were applied.
-     */
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
-        // Cosmonautics owns Overworld gravity; nothing to do here.
         if (EndlessGravityAPI.isCosmonauticsInstalled()) {
             return false;
         }
@@ -106,7 +99,6 @@ public class GravityHandler {
             return false;
         }
 
-        // Sub-level gravity runs through the ForceGroup mixin; adding force here would double it.
         if (EndlessGravityAPI.isSableManaged(level)) {
             return false;
         }
@@ -149,7 +141,16 @@ public class GravityHandler {
 
         Level level = player.level();
 
-        // Vanilla damage in the Overworld; only End/Sable use the configurable modes.
+        // No fall damage above the configurable altitude; the air is too thin to hurt.
+        if (!EndlessGravityAPI.isCosmonauticsInstalled()
+                && Config.COMMON.enableAtmosphere.get()
+                && EndlessGravityAPI.isOverworldOrSable(level)
+                && EndlessGravityAPI.getRealY(player) > Config.COMMON.noFallDamageAltitude.get()) {
+            event.setDamageMultiplier(0.0F);
+            event.setDistance(0.0F);
+            return;
+        }
+
         if (!isEndOrSable(level)) return;
         handleFallDamage(event, player);
     }
