@@ -72,7 +72,7 @@ All gameplay-affecting config values are synced from server to client on login v
 - Minecraft 1.21.1
 - NeoForge 21.1+
 - Cloth Config — bundled (via Jar-in-Jar), no manual install
-- Sable (required)
+- Sable (optional — the mod runs without it; only the Sable sub-level physics and datapacks are skipped)
 - Create: Cosmonautics (optional — when installed, it owns Overworld gravity and Endless Gravity backs off)
 
 ## License
