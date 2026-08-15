@@ -158,7 +158,6 @@ modrinth {
     def sectionStart = changelogText.indexOf("\n## ")
     def sectionEnd = changelogText.indexOf("\n## ", sectionStart + 1)
     changelog = sectionStart == -1 ? changelogText : changelogText.substring(sectionStart + 1, sectionEnd == -1 ? changelogText.length() : sectionEnd).trim()
-    syncBodyFrom = rootProject.file("README.md").text
 }
 
 tasks.register('publishToModrinth') {
