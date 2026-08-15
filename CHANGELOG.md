@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- removed the starship and the dinner plush: blocks, items, recipes, sounds and physics properties all gone
+- sable is now truly optional, the mod runs without it (only the sable sub-level physics and datapacks are skipped)
+
 ## 1.1.9
 
 - dedicated server support: works with only the server installed, cloth_config is optional now and the config screen only registers when its present

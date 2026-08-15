@@ -48,9 +48,5 @@
   "endless_gravity.config.atmosphereLayers.tooltip": "The altitude-to-pressure curve drives gravity, muffled audio and the Sable datapack. Pressure 1.0 = full atmosphere at sea level, 0.0 = vacuum.",
   "endless_gravity.config.columnAltitude": "Altitude",
   "endless_gravity.config.columnPressure": "Pressure",
-  "endless_gravity.config.layerShort": "Layer %s",
-  "block.endless_gravity.dinner_plush": "Dinner Plush",
-  "block.endless_gravity.starship": "Starship",
-  "block.endless_gravity.super_heavy": "Super Heavy",
-  "block.endless_gravity.starship_upper": "Starship"
+  "endless_gravity.config.layerShort": "Layer %s"
 }
