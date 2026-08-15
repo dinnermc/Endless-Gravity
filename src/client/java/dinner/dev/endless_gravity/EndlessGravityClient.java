@@ -7,7 +7,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
-@EventBusSubscriber(modid = EndlessGravity.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(modid = EndlessGravity.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class EndlessGravityClient {
 
     @SubscribeEvent

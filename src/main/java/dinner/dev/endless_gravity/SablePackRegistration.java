@@ -14,7 +14,7 @@ import net.neoforged.neoforge.event.AddPackFindersEvent;
 
 import java.nio.file.Path;
 
-@EventBusSubscriber(modid = EndlessGravity.MODID)
+@EventBusSubscriber(modid = EndlessGravity.MODID, bus = EventBusSubscriber.Bus.MOD)
 public final class SablePackRegistration {
 
     private SablePackRegistration() {}
