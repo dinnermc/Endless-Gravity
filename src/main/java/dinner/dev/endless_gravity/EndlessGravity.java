@@ -16,6 +16,7 @@ public class EndlessGravity implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        Config.load();
         GravityHandler.register();
 
         PayloadTypeRegistry.playS2C().register(ConfigSyncPayload.ID, ConfigSyncPayload.STREAM_CODEC);

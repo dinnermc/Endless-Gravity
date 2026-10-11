@@ -19,7 +19,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 public class GravityHandler {
 
-    private static final double VEL_THRESHOLD = 0.005;
     private static volatile MinecraftServer server;
 
     public static void register() {
@@ -67,9 +66,6 @@ public class GravityHandler {
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
         if (applyAtmosphereEffects(level, entity)) return;
-
-        double velY = entity.getDeltaMovement().y;
-        if (Math.abs(velY) < VEL_THRESHOLD) return;
 
         if (!isEnd(level)) return;
         if (!Config.COMMON.endEntityGravity.get()) return;
@@ -152,11 +148,11 @@ public class GravityHandler {
         return true;
     }
 
-    private static boolean isEnd(Level level) {
+    public static boolean isEnd(Level level) {
         return level.dimension() == Level.END;
     }
 
-    private static boolean isOverworld(Level level) {
+    public static boolean isOverworld(Level level) {
         return level.dimension() == Level.OVERWORLD;
     }
 
