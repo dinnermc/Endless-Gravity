@@ -57,9 +57,8 @@ public class EndlessGravity {
         particles.register(modEventBus);
 
         // Register particle factory on client
-        modEventBus.addListener(event -> {
-            net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent event1 = (RegisterParticleProvidersEvent) event;
-            event1.registerSpriteSet(LOW_GRAVITY_PARTICLE, LowGravityParticle.Provider::new);
+        modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent.class, event -> {
+            event.registerSpriteSet(LOW_GRAVITY_PARTICLE, LowGravityParticle.Provider::new);
         });
 
         LOGGER.info("Endless Gravity loaded");
