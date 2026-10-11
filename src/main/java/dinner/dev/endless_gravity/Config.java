@@ -183,7 +183,7 @@ public class Config {
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
             particleGravityOffset = builder
                     .comment("Upward acceleration per tick for particles in The End. 0.08 = neutral gravity (float), <0.08 = slow fall, >0.08 = slow rise")
-                    .defineInRange("particleGravityOffset", 0.1, 0.0, 0.5);
+                    .defineInRange("particleGravityOffset", 0.5, 0.0, 0.5);
             atmosphereLayers = builder
                     .comment("\"altitude:pressure\" pairs defining the pressure curve - 1.0 = full atmosphere, 0.0 = vacuum. Gravity, muffling and the Sable datapack all read this curve. Defaults: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
                     .defineListAllowEmpty("atmosphereLayers",
