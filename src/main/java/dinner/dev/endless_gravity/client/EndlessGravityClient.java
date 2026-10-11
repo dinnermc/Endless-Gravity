@@ -8,6 +8,8 @@ public class EndlessGravityClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        GravityHandlerClient.register();
+
         ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID, (payload, context) ->
                 context.client().execute(payload::applyToConfig));
     }
