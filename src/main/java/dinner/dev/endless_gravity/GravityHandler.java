@@ -36,6 +36,7 @@ public class GravityHandler {
     private static boolean cacheEnableBlockGravity;
     private static double cacheBlockGravityOffset;
     private static int cacheFallDamageMode;
+    private static double cacheParticleGravityOffset;
 
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTING.register(server -> GravityHandler.server = server);
@@ -77,6 +78,7 @@ public class GravityHandler {
         cacheEnableBlockGravity = Config.COMMON.enableBlockGravity.get();
         cacheBlockGravityOffset = Config.COMMON.blockGravityOffset.get();
         cacheFallDamageMode = Config.COMMON.fallDamageMode.get();
+        cacheParticleGravityOffset = Config.COMMON.particleGravityOffset.get();
     }
 
     private static void applyPlayerGravity(Player player, Level level) {
@@ -174,4 +176,5 @@ public class GravityHandler {
     public static boolean isEnableBlockGravity() { return cacheEnableBlockGravity; }
     public static double getBlockGravityOffset() { return cacheBlockGravityOffset; }
     public static int getFallDamageMode() { return cacheFallDamageMode; }
+    public static double getParticleGravityOffset() { return cacheParticleGravityOffset; }
 }

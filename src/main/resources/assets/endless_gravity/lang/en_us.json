@@ -30,6 +30,7 @@
   "endless_gravity.config.noFallDamageAltitude": "No Fall Damage Above",
   "endless_gravity.config.atmosphereMuffleGain": "Muffle Volume",
   "endless_gravity.config.atmosphereMuffleGainHF": "Muffle High Frequencies",
+  "endless_gravity.config.particleGravityOffset": "Particle Gravity Offset",
   "endless_gravity.config.atmosphereLayers": "Atmosphere Layers",
   "endless_gravity.config.atmosphereLayers.tooltip": "The altitude-to-pressure curve drives gravity and muffled audio. Pressure 1.0 = full atmosphere at sea level, 0.0 = vacuum.",
   "endless_gravity.config.columnAltitude": "Altitude",

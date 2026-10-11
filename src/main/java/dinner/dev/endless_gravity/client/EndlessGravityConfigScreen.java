@@ -111,6 +111,8 @@ public class EndlessGravityConfigScreen {
                     0.0, 1.0, 0.01, TEXT_WHITE);
             addDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGainHF", Config.COMMON.atmosphereMuffleGainHF,
                     0.0, 1.0, 0.005, TEXT_GRAY);
+            addDouble(atmosphere, entry, "endless_gravity.config.particleGravityOffset", Config.COMMON.particleGravityOffset,
+                    0.0, 0.1, 0.01, TEXT_GRAY);
             cat.addEntry(atmosphere.build());
             allOverworld.add(atmosphere.build());
 
