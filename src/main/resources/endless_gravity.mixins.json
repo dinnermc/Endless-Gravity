@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "SoundEngineMixin",
-    "ChannelMixin"
+    "ChannelMixin",
+    "ItemEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1
