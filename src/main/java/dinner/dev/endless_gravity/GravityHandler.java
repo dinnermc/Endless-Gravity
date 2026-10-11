@@ -6,11 +6,7 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.FallingBlockEntity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
 import net.minecraft.server.MinecraftServer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
@@ -35,12 +31,10 @@ public class GravityHandler {
     }
 
     private static void onLevelTick(ServerLevel level) {
-        // Fabric has no per-entity tick event; walk the level's entities instead.
+        // Solo gravedad de jugador en servidor (items/flechas/bloques los manejan mixins en ambos lados)
         for (Entity entity : level.getAllEntities()) {
             if (entity instanceof Player player) {
                 applyPlayerGravity(player, level);
-            } else {
-                applyEntityGravity(entity, level);
             }
         }
     }
@@ -58,38 +52,6 @@ public class GravityHandler {
         if (!Config.COMMON.enablePlayerGravity.get()) return;
 
         applyGravity(player, Config.COMMON.playerGravityOffset.get());
-    }
-
-    private static void applyEntityGravity(Entity entity, Level level) {
-        if (entity.onGround() || entity.isInWater()) return;
-
-        if (EndlessGravityAPI.isGravityImmune(entity)) return;
-
-        if (applyAtmosphereEffects(level, entity)) return;
-
-        if (!isEnd(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-
-        double offset;
-        if (entity instanceof ItemEntity) {
-            if (!Config.COMMON.enableItemGravity.get()) return;
-            offset = Config.COMMON.itemGravityOffset.get();
-        } else if (entity instanceof Projectile projectile) {
-            if (projectile instanceof AbstractArrow) {
-                if (!Config.COMMON.enableArrowGravity.get()) return;
-                offset = Config.COMMON.arrowGravityOffset.get();
-            } else {
-                if (!Config.COMMON.enableThrownGravity.get()) return;
-                offset = Config.COMMON.thrownGravityOffset.get();
-            }
-        } else if (entity instanceof FallingBlockEntity) {
-            if (!Config.COMMON.enableBlockGravity.get()) return;
-            offset = Config.COMMON.blockGravityOffset.get();
-        } else {
-            return;
-        }
-
-        applyGravity(entity, offset);
     }
 
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
@@ -127,8 +89,7 @@ public class GravityHandler {
     }
 
     /**
-     * Fall-damage cancellation. The NeoForge port zeroes LivingFallEvent's distance;
-     * Fabric instead vetoes the resulting damage before it is applied.
+     * Fall-damage cancellation. Fabric vetoes the resulting damage before it is applied.
      */
     private static boolean onAllowDamage(LivingEntity entity, DamageSource source, float amount) {
         if (!(entity instanceof ServerPlayer player)) return true;
@@ -156,7 +117,7 @@ public class GravityHandler {
         return level.dimension() == Level.OVERWORLD;
     }
 
-    private static void applyGravity(Entity entity, double offset) {
+    static void applyGravity(Entity entity, double offset) {
         entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
     }
 }

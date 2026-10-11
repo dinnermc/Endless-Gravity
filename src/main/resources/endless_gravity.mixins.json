@@ -5,7 +5,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ItemEntityMixin",
-    "AbstractArrowMixin"
+    "AbstractArrowMixin",
+    "FallingBlockEntityMixin",
+    "ProjectileMixin"
   ],
   "client": [
     "SoundEngineMixin",
