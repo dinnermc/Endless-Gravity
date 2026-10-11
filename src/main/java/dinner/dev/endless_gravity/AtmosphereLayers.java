@@ -8,8 +8,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Pressure curve from the config: altitude -> pressure points. The same curve
- * drives the mod's gravity/muffle progress and the Sable datapack.
+ * Pressure curve from the config: altitude -> pressure points.
  */
 public final class AtmosphereLayers {
 
@@ -63,7 +62,7 @@ public final class AtmosphereLayers {
         return layers;
     }
 
-    public static List<? extends String> serialize(List<Layer> layers) {
+    public static List<String> serialize(List<Layer> layers) {
         List<String> out = new ArrayList<>();
         for (Layer layer : layers) {
             out.add(String.format(Locale.ROOT, "%.0f:%.4f", layer.altitude(), layer.pressure()));
@@ -92,15 +91,5 @@ public final class AtmosphereLayers {
     /** Atmosphere progress from 0.0 (full pressure) to 1.0 (no pressure). */
     public static double getProgress(double y) {
         return Mth.clamp(1.0 - getPressure(y), 0.0, 1.0);
-    }
-
-    /** Slope for the Sable bezier at a layer, from the two neighbors. */
-    public static double getSlope(List<Layer> layers, int index) {
-        if (layers.size() < 2) return 0.0;
-        Layer prev = layers.get(Math.max(0, index - 1));
-        Layer next = layers.get(Math.min(layers.size() - 1, index + 1));
-        double dAlt = next.altitude() - prev.altitude();
-        if (dAlt == 0.0) return 0.0;
-        return (next.pressure() - prev.pressure()) / dAlt;
     }
 }

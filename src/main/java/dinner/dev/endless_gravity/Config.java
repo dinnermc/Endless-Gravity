@@ -1,192 +1,196 @@
 package dinner.dev.endless_gravity;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
-import org.apache.commons.lang3.tuple.Pair;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import net.fabricmc.loader.api.FabricLoader;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * JSON-backed config (Fabric has no ForgeConfigSpec). Mirrors the value-based
+ * API of the NeoForge version so gameplay/screen code stays identical.
+ */
 public class Config {
-    public static final ModConfigSpec COMMON_SPEC;
-    public static final Common COMMON;
+    public static final Common COMMON = new Common();
 
-    static {
-        Pair<Common, ModConfigSpec> pair = new ModConfigSpec.Builder().configure(Common::new);
-        COMMON = pair.getLeft();
-        COMMON_SPEC = pair.getRight();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("endless_gravity.json");
+
+    private static boolean dirty;
+
+    public static void load() {
+        try {
+            if (!Files.exists(PATH)) {
+                save();
+                return;
+            }
+            JsonObject obj = JsonParser.parseString(Files.readString(PATH)).getAsJsonObject();
+            for (Value<?> value : COMMON.all) {
+                value.read(obj);
+            }
+        } catch (Exception e) {
+            // Malformed or unreadable file: keep defaults.
+        }
+    }
+
+    public static void save() {
+        try {
+            JsonObject obj = new JsonObject();
+            for (Value<?> value : COMMON.all) {
+                value.write(obj);
+            }
+            Files.createDirectories(PATH.getParent());
+            Files.writeString(PATH, GSON.toJson(obj));
+            dirty = false;
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** Flushes pending changes (screen saves, synced values) once per tick. */
+    public static void saveIfDirty() {
+        if (dirty) {
+            save();
+        }
+    }
+
+    public abstract static class Value<T> {
+        protected final String key;
+        protected final T defaultValue;
+        protected T value;
+
+        Value(String key, T defaultValue) {
+            this.key = key;
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
+        }
+
+        public T get() {
+            return value;
+        }
+
+        public void set(T newValue) {
+            if (!newValue.equals(value)) {
+                value = newValue;
+                dirty = true;
+            }
+        }
+
+        abstract void read(JsonObject obj);
+
+        abstract void write(JsonObject obj);
+    }
+
+    public static class BoolValue extends Value<Boolean> {
+        BoolValue(String key, boolean def) { super(key, def); }
+
+        @Override
+        void read(JsonObject obj) {
+            JsonElement e = obj.get(key);
+            if (e != null && e.isJsonPrimitive()) value = e.getAsBoolean();
+        }
+
+        @Override
+        void write(JsonObject obj) {
+            obj.addProperty(key, value);
+        }
+    }
+
+    public static class DoubleValue extends Value<Double> {
+        DoubleValue(String key, double def) { super(key, def); }
+
+        @Override
+        void read(JsonObject obj) {
+            JsonElement e = obj.get(key);
+            if (e != null && e.isJsonPrimitive()) value = e.getAsDouble();
+        }
+
+        @Override
+        void write(JsonObject obj) {
+            obj.addProperty(key, value);
+        }
+    }
+
+    public static class IntValue extends Value<Integer> {
+        IntValue(String key, int def) { super(key, def); }
+
+        @Override
+        void read(JsonObject obj) {
+            JsonElement e = obj.get(key);
+            if (e != null && e.isJsonPrimitive()) value = e.getAsInt();
+        }
+
+        @Override
+        void write(JsonObject obj) {
+            obj.addProperty(key, value);
+        }
+    }
+
+    public static class StringListValue extends Value<List<String>> {
+        StringListValue(String key, List<String> def) { super(key, def); }
+
+        @Override
+        void read(JsonObject obj) {
+            JsonElement e = obj.get(key);
+            if (e == null || !e.isJsonArray()) return;
+            List<String> out = new ArrayList<>();
+            e.getAsJsonArray().forEach(el -> {
+                if (el.isJsonPrimitive()) out.add(el.getAsString());
+            });
+            if (!out.isEmpty()) value = out;
+        }
+
+        @Override
+        void write(JsonObject obj) {
+            JsonArray arr = new com.google.gson.JsonArray();
+            value.forEach(arr::add);
+            obj.add(key, arr);
+        }
     }
 
     public static class Common {
-        // Gravity toggles
-        public final ModConfigSpec.BooleanValue enablePlayerGravity;
-        public final ModConfigSpec.BooleanValue enableItemGravity;
-        public final ModConfigSpec.BooleanValue enableArrowGravity;
-        public final ModConfigSpec.BooleanValue enableThrownGravity;
-        public final ModConfigSpec.BooleanValue endEntityGravity;
+        final List<Value<?>> all = new ArrayList<>();
 
-        // Gravity values
-        public final ModConfigSpec.DoubleValue playerGravityOffset;
-        public final ModConfigSpec.DoubleValue itemGravityOffset;
-        public final ModConfigSpec.DoubleValue arrowGravityOffset;
-        public final ModConfigSpec.DoubleValue thrownGravityOffset;
+        private <V extends Value<?>> V add(V value) {
+            all.add(value);
+            return value;
+        }
 
-        // Effects toggles
-        public final ModConfigSpec.BooleanValue enableLowPassFilter;
+        // Gravity
+        public final BoolValue endEntityGravity = add(new BoolValue("endEntityGravity", true));
+        public final BoolValue enablePlayerGravity = add(new BoolValue("enablePlayerGravity", true));
+        public final DoubleValue playerGravityOffset = add(new DoubleValue("playerGravityOffset", 0.055));
+        public final BoolValue enableItemGravity = add(new BoolValue("enableItemGravity", true));
+        public final DoubleValue itemGravityOffset = add(new DoubleValue("itemGravityOffset", 0.025));
+        public final BoolValue enableArrowGravity = add(new BoolValue("enableArrowGravity", true));
+        public final DoubleValue arrowGravityOffset = add(new DoubleValue("arrowGravityOffset", 0.03));
+        public final BoolValue enableThrownGravity = add(new BoolValue("enableThrownGravity", true));
+        public final DoubleValue thrownGravityOffset = add(new DoubleValue("thrownGravityOffset", 0.018));
 
-        // Effects values
-        public final ModConfigSpec.DoubleValue lowPassGain;
-        public final ModConfigSpec.DoubleValue lowPassGainHF;
+        // Effects
+        public final BoolValue enableLowPassFilter = add(new BoolValue("enableLowPassFilter", true));
+        public final DoubleValue lowPassGain = add(new DoubleValue("lowPassGain", 0.35));
+        public final DoubleValue lowPassGainHF = add(new DoubleValue("lowPassGainHF", 0.25));
 
         // Gameplay
-        public final ModConfigSpec.IntValue fallDamageMode;
-        public final ModConfigSpec.BooleanValue enableBlockGravity;
-        public final ModConfigSpec.DoubleValue blockGravityOffset;
-
-        // Sable
-        public final ModConfigSpec.DoubleValue sableGravityY;
-        public final ModConfigSpec.DoubleValue sablePressure;
-        public final ModConfigSpec.DoubleValue sableDrag;
-        public final ModConfigSpec.IntValue sableDatapackPriority;
-        public final ModConfigSpec.BooleanValue endSableGravity;
-
-        // Sable Overworld
-        public final ModConfigSpec.IntValue overworldSableDatapackPriority;
-        public final ModConfigSpec.BooleanValue overworldSableGravity;
+        public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1));
+        public final BoolValue enableBlockGravity = add(new BoolValue("enableBlockGravity", true));
+        public final DoubleValue blockGravityOffset = add(new DoubleValue("blockGravityOffset", 0.035));
 
         // Atmosphere
-        public final ModConfigSpec.BooleanValue enableAtmosphere;
-        public final ModConfigSpec.BooleanValue overworldEntityGravity;
-        public final ModConfigSpec.DoubleValue atmosphereGravityMax;
-        public final ModConfigSpec.DoubleValue noFallDamageAltitude;
-        public final ModConfigSpec.DoubleValue atmosphereMuffleGain;
-        public final ModConfigSpec.DoubleValue atmosphereMuffleGainHF;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> atmosphereLayers;
-
-        public Common(ModConfigSpec.Builder builder) {
-            builder.push("gravity");
-
-            endEntityGravity = builder
-                    .comment("Master switch for End gravity. Off = vanilla gravity for everything, ignoring the toggles below.")
-                    .define("endEntityGravity", true);
-
-            enablePlayerGravity = builder
-                    .comment("Reduced gravity for players in The End.")
-                    .define("enablePlayerGravity", true);
-            playerGravityOffset = builder
-                    .comment("Upward impulse per tick for players. 0.055 leaves a gentle float; crank it up and you barely fall at all.")
-                    .defineInRange("playerGravityOffset", 0.055, 0.0, 0.07);
-
-            enableItemGravity = builder
-                    .comment("Reduced gravity for dropped items in The End.")
-                    .define("enableItemGravity", true);
-            itemGravityOffset = builder
-                    .comment("Same impulse as the player offset, but for items. Lower because items have no way to steer.")
-                    .defineInRange("itemGravityOffset", 0.025, 0.0, 0.035);
-
-            enableArrowGravity = builder
-                    .comment("Reduced gravity for arrows and tridents in The End.")
-                    .define("enableArrowGravity", true);
-            arrowGravityOffset = builder
-                    .comment("Upward impulse per tick for arrows and tridents.")
-                    .defineInRange("arrowGravityOffset", 0.03, 0.0, 0.04);
-
-            enableThrownGravity = builder
-                    .comment("Reduced gravity for thrown projectiles (snowballs, pearls, bottles...) in The End.")
-                    .define("enableThrownGravity", true);
-            thrownGravityOffset = builder
-                    .comment("Upward impulse per tick for thrown projectiles.")
-                    .defineInRange("thrownGravityOffset", 0.018, 0.0, 0.025);
-
-            builder.pop();
-
-            builder.push("effects");
-
-            enableLowPassFilter = builder
-                    .comment("Muffles The End's audio with a low-pass filter, like being underwater.")
-                    .define("enableLowPassFilter", true);
-            lowPassGain = builder
-                    .comment("Filter volume. 0.35 is a subtle dampening; go lower for a heavier blanket.")
-                    .defineInRange("lowPassGain", 0.35, 0.0, 1.0);
-            lowPassGainHF = builder
-                    .comment("How much high-frequency sound survives the filter. Lower = duller, boomier audio.")
-                    .defineInRange("lowPassGainHF", 0.25, 0.0, 1.0);
-
-            builder.pop();
-
-            builder.push("gameplay");
-
-            fallDamageMode = builder
-                    .comment("Fall damage in The End and Sable dimensions: 0 = vanilla, 1 = disabled.")
-                    .defineInRange("fallDamageMode", 1, 0, 1);
-
-            enableBlockGravity = builder
-                    .comment("Falling blocks (sand, gravel, anvils, dragon eggs) fall slower in The End.")
-                    .define("enableBlockGravity", true);
-            blockGravityOffset = builder
-                    .comment("Upward impulse per tick for falling blocks.")
-                    .defineInRange("blockGravityOffset", 0.035, 0.0, 0.1);
-
-            builder.pop();
-
-            builder.push("sable");
-
-            endSableGravity = builder
-                    .comment("Master switch for the End Sable physics pack. Off = Sable falls back to its own defaults.")
-                    .define("endSableGravity", true);
-
-            sableGravityY = builder
-                    .comment("Downward pull in The End. Negative = down; the more negative, the stronger.")
-                    .defineInRange("sableGravityY", -4.0, -20.0, 0.0);
-            sablePressure = builder
-                    .comment("Air pressure in The End. 0 = vacuum.")
-                    .defineInRange("sablePressure", 0.0, 0.0, 10.0);
-            sableDrag = builder
-                    .comment("Air drag in The End. 0 = no resistance.")
-                    .defineInRange("sableDrag", 0.05, 0.0, 10.0);
-            sableDatapackPriority = builder
-                    .comment("Datapack priority for the End pack. Sable's built-ins sit at 1000, so anything above that wins.")
-                    .defineInRange("sableDatapackPriority", 9999, 1, 9999);
-
-            builder.pop();
-
-            builder.push("sable_overworld");
-
-            overworldSableGravity = builder
-                    .comment("Master switch for the Overworld Sable physics pack. Off = Sable reuses its own defaults.")
-                    .define("overworldSableGravity", true);
-
-            overworldSableDatapackPriority = builder
-                    .comment("Datapack priority for the Overworld pack. Must beat Sable's built-in 1000.")
-                    .defineInRange("overworldSableDatapackPriority", 2000, 1, 9999);
-
-            builder.pop();
-
-            builder.push("atmosphere");
-
-            enableAtmosphere = builder
-                    .comment("Turns on the Overworld's altitude physics: gravity eases off above Y=64 and fades to vacuum by Y=3500. Also applies inside Sable sub-levels.")
-                    .define("enableAtmosphere", true);
-            overworldEntityGravity = builder
-                    .comment("Master switch for the atmosphere's effect on entities. Off = full vanilla gravity at every altitude.")
-                    .define("overworldEntityGravity", true);
-            atmosphereGravityMax = builder
-                    .comment("Upward impulse per tick at deep space, ramped from 0 at Y=64. Keep under 0.08 so a residual pull always remains - never perfect zero-G.")
-                    .defineInRange("atmosphereGravityMax", 0.075, 0.0, 0.1);
-            noFallDamageAltitude = builder
-                    .comment("Above this Y, fall damage is cancelled in the Overworld (and Sable sub-levels). 400 = the air is already thin enough that falls stop hurting; 3500 = only at the top of the atmosphere.")
-                    .defineInRange("noFallDamageAltitude", 400.0, 64.0, 3500.0);
-            atmosphereMuffleGain = builder
-                    .comment("Low-pass gain at deep space, interpolated from 1.0 at the base. 0.01 is effectively silence.")
-                    .defineInRange("atmosphereMuffleGain", 0.01, 0.0, 1.0);
-            atmosphereMuffleGainHF = builder
-                    .comment("High-frequency gain at deep space, same interpolation as the gain above.")
-                    .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
-            atmosphereLayers = builder
-                    .comment("\"altitude:pressure\" pairs defining the pressure curve - 1.0 = full atmosphere, 0.0 = vacuum. Gravity, muffling and the Sable datapack all read this curve. Defaults: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
-                    .defineListAllowEmpty("atmosphereLayers",
-                            List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0"),
-                            obj -> obj instanceof String);
-
-            builder.pop();
-        }
+        public final BoolValue enableAtmosphere = add(new BoolValue("enableAtmosphere", true));
+        public final BoolValue overworldEntityGravity = add(new BoolValue("overworldEntityGravity", true));
+        public final DoubleValue atmosphereGravityMax = add(new DoubleValue("atmosphereGravityMax", 0.075));
+        public final DoubleValue noFallDamageAltitude = add(new DoubleValue("noFallDamageAltitude", 400.0));
+        public final DoubleValue atmosphereMuffleGain = add(new DoubleValue("atmosphereMuffleGain", 0.01));
+        public final DoubleValue atmosphereMuffleGainHF = add(new DoubleValue("atmosphereMuffleGainHF", 0.005));
+        public final StringListValue atmosphereLayers = add(new StringListValue("atmosphereLayers",
+                List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0")));
     }
 }

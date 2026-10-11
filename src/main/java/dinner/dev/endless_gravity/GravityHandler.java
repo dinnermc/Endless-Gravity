@@ -1,30 +1,52 @@
 package dinner.dev.endless_gravity;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.minecraft.server.MinecraftServer;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
-@EventBusSubscriber(modid = EndlessGravity.MODID)
 public class GravityHandler {
 
     private static final double VEL_THRESHOLD = 0.005;
+    private static volatile MinecraftServer server;
 
-    @SubscribeEvent
-    public static void onPlayerTick(PlayerTickEvent.Pre event) {
-        Player player = event.getEntity();
-        Level level = player.level();
+    public static void register() {
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> GravityHandler.server = server);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> GravityHandler.server = null);
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (server != null) {
+                for (ServerLevel level : server.getAllLevels()) {
+                    onLevelTick(level);
+                }
+            }
+        });
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register(GravityHandler::onAllowDamage);
+    }
 
+    private static void onLevelTick(ServerLevel level) {
+        // Fabric has no per-entity tick event; walk the level's entities instead.
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof Player player) {
+                applyPlayerGravity(player, level);
+            } else {
+                applyEntityGravity(entity, level);
+            }
+        }
+    }
+
+    private static void applyPlayerGravity(Player player, Level level) {
         if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
         if (player.getAbilities().flying) return;
 
@@ -32,35 +54,24 @@ public class GravityHandler {
 
         if (applyAtmosphereEffects(level, player)) return;
 
-        if (EndlessGravityAPI.isSableManaged(level)) return;
-
-        if (!isEndOrSable(level)) return;
+        if (!isEnd(level)) return;
         if (!Config.COMMON.endEntityGravity.get()) return;
         if (!Config.COMMON.enablePlayerGravity.get()) return;
 
-        double offset = Config.COMMON.playerGravityOffset.get();
-        applyGravity(player, offset);
+        applyGravity(player, Config.COMMON.playerGravityOffset.get());
     }
 
-    @SubscribeEvent
-    public static void onEntityTick(EntityTickEvent.Pre event) {
-        Entity entity = event.getEntity();
-
-        if (entity instanceof Player) return;
-
-        Level level = entity.level();
+    private static void applyEntityGravity(Entity entity, Level level) {
         if (entity.onGround() || entity.isInWater()) return;
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
         if (applyAtmosphereEffects(level, entity)) return;
 
-        if (EndlessGravityAPI.isSableManaged(level)) return;
-
         double velY = entity.getDeltaMovement().y;
         if (Math.abs(velY) < VEL_THRESHOLD) return;
 
-        if (!isEndOrSable(level)) return;
+        if (!isEnd(level)) return;
         if (!Config.COMMON.endEntityGravity.get()) return;
 
         double offset;
@@ -86,20 +97,13 @@ public class GravityHandler {
     }
 
     private static boolean applyAtmosphereEffects(Level level, Entity entity) {
-        if (EndlessGravityAPI.isCosmonauticsInstalled()) {
-            return false;
-        }
-        if (!EndlessGravityAPI.isOverworldOrSable(level)) {
+        if (!isOverworld(level)) {
             return false;
         }
         if (!Config.COMMON.overworldEntityGravity.get()) {
             return false;
         }
         if (!Config.COMMON.enableAtmosphere.get()) {
-            return false;
-        }
-
-        if (EndlessGravityAPI.isSableManaged(level)) {
             return false;
         }
 
@@ -126,34 +130,37 @@ public class GravityHandler {
         return true;
     }
 
-    private static boolean isEndOrSable(Level level) {
-        if (level.dimension() == Level.END) return true;
-        return level.dimension().location().getNamespace().equals("sable");
+    /**
+     * Fall-damage cancellation. The NeoForge port zeroes LivingFallEvent's distance;
+     * Fabric instead vetoes the resulting damage before it is applied.
+     */
+    private static boolean onAllowDamage(LivingEntity entity, DamageSource source, float amount) {
+        if (!(entity instanceof ServerPlayer player)) return true;
+        if (!source.is(DamageTypeTags.IS_FALL)) return true;
+
+        Level level = player.level();
+
+        if (Config.COMMON.enableAtmosphere.get()
+                && isOverworld(level)
+                && EndlessGravityAPI.getRealY(player) > Config.COMMON.noFallDamageAltitude.get()) {
+            return false;
+        }
+
+        if (isEnd(level) && Config.COMMON.fallDamageMode.get() == 1) {
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean isEnd(Level level) {
+        return level.dimension() == Level.END;
+    }
+
+    private static boolean isOverworld(Level level) {
+        return level.dimension() == Level.OVERWORLD;
     }
 
     private static void applyGravity(Entity entity, double offset) {
         entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public static void onFallDamage(LivingFallEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) return;
-
-        Level level = player.level();
-
-        if (!EndlessGravityAPI.isCosmonauticsInstalled()
-                && Config.COMMON.enableAtmosphere.get()
-                && EndlessGravityAPI.isOverworldOrSable(level)
-                && EndlessGravityAPI.getRealY(player) > Config.COMMON.noFallDamageAltitude.get()) {
-            event.setDamageMultiplier(0.0F);
-            event.setDistance(0.0F);
-            return;
-        }
-
-        if (!isEndOrSable(level)) return;
-        if (Config.COMMON.fallDamageMode.get() == 1) {
-            event.setDamageMultiplier(0.0F);
-            event.setDistance(0.0F);
-        }
     }
 }

@@ -1,4 +1,4 @@
-package dinner.dev.endless_gravity;
+package dinner.dev.endless_gravity.client;
 
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
@@ -6,8 +6,8 @@ import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import dinner.dev.endless_gravity.AtmosphereLayers;
+import dinner.dev.endless_gravity.Config;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,6 @@ public class EndlessGravityConfigScreen {
     private static final int TEXT_BLUE = 0x66CCFF;
     private static final int TEXT_GREEN = 0x55FF55;
     private static final int TEXT_RED = 0xFF5555;
-    private static final int TEXT_AMBER = 0xFFAA00;
 
     private EndlessGravityConfigScreen() {}
 
@@ -42,12 +41,10 @@ public class EndlessGravityConfigScreen {
 
     private static final class Factory {
         private final Screen parent;
-        private final boolean sableLoaded;
         private final List<AtmosphereLayers.Layer> layers = new ArrayList<>();
 
         Factory(Screen parent) {
             this.parent = parent;
-            this.sableLoaded = ModList.get().isLoaded("sable");
             loadLayers();
         }
 
@@ -96,22 +93,6 @@ public class EndlessGravityConfigScreen {
             cat.addEntry(audio.build());
             allEnd.add(audio.build());
 
-            if (sableLoaded) {
-                SubCategoryBuilder sable = group(entry, "endless_gravity.config.group.sable_end");
-                sable.add(entry.startTextDescription(colored("endless_gravity.config.restartWarning", TEXT_AMBER)).build());
-                addToggle(sable, entry, "endless_gravity.config.endSableGravity", Config.COMMON.endSableGravity, true);
-                addDouble(sable, entry, "endless_gravity.config.sableGravityY", Config.COMMON.sableGravityY,
-                        -20.0, 0.0, -4.0, TEXT_WHITE);
-                addDouble(sable, entry, "endless_gravity.config.sablePressure", Config.COMMON.sablePressure,
-                        0.0, 10.0, 0.0, TEXT_GRAY);
-                addDouble(sable, entry, "endless_gravity.config.sableDrag", Config.COMMON.sableDrag,
-                        0.0, 10.0, 0.05, TEXT_GRAY);
-                addIntSlider(sable, entry, "endless_gravity.config.sableDatapackPriority", Config.COMMON.sableDatapackPriority,
-                        1, 9999, 9999, TEXT_GRAY);
-                cat.addEntry(sable.build());
-                allEnd.add(sable.build());
-            }
-
             all.addEntry(allEnd.build());
         }
 
@@ -158,16 +139,6 @@ public class EndlessGravityConfigScreen {
             cat.addEntry(layersSub.build());
             allOverworld.add(layersSub.build());
 
-            if (sableLoaded) {
-                SubCategoryBuilder sable = group(entry, "endless_gravity.config.group.sable_overworld");
-                sable.add(entry.startTextDescription(colored("endless_gravity.config.restartWarning", TEXT_AMBER)).build());
-                addToggle(sable, entry, "endless_gravity.config.overworldSableGravity", Config.COMMON.overworldSableGravity, true);
-                addIntSlider(sable, entry, "endless_gravity.config.overworldSableDatapackPriority", Config.COMMON.overworldSableDatapackPriority,
-                        1, 9999, 2000, TEXT_GRAY);
-                cat.addEntry(sable.build());
-                allOverworld.add(sable.build());
-            }
-
             all.addEntry(allOverworld.build());
         }
 
@@ -191,7 +162,7 @@ public class EndlessGravityConfigScreen {
         }
 
         private void addToggle(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                               ModConfigSpec.BooleanValue value, boolean defaultValue) {
+                               Config.BoolValue value, boolean defaultValue) {
             group.add(entry.startBooleanToggle(text(key), value.get())
                     .setDefaultValue(defaultValue)
                     .setSaveConsumer(value::set)
@@ -200,17 +171,9 @@ public class EndlessGravityConfigScreen {
         }
 
         private void addDouble(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                               ModConfigSpec.DoubleValue value, double min, double max, double defaultValue, int color) {
+                               Config.DoubleValue value, double min, double max, double defaultValue, int color) {
             group.add(entry.startDoubleField(colored(key, color), value.get())
                     .setMin(min).setMax(max).setDefaultValue(defaultValue)
-                    .setSaveConsumer(value::set)
-                    .build());
-        }
-
-        private void addIntSlider(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                                  ModConfigSpec.IntValue value, int min, int max, int defaultValue, int color) {
-            group.add(entry.startIntSlider(colored(key, color), value.get(), min, max)
-                    .setDefaultValue(defaultValue)
                     .setSaveConsumer(value::set)
                     .build());
         }
@@ -225,9 +188,7 @@ public class EndlessGravityConfigScreen {
 
         private void finishSave() {
             Config.COMMON.atmosphereLayers.set(AtmosphereLayers.serialize(layers));
-            if (sableLoaded) {
-                SableDatapackHandler.generateDatapack();
-            }
+            Config.save();
         }
 
         private static SubCategoryBuilder group(ConfigEntryBuilder entry, String key) {
@@ -243,7 +204,8 @@ public class EndlessGravityConfigScreen {
         }
 
         private static Component colored(String key, int color, Object... args) {
-            return Component.translatable(key, args).withColor(color);
+            return Component.translatable(key, args)
+                    .withStyle(style -> style.withColor(net.minecraft.network.chat.TextColor.fromRgb(color)));
         }
     }
 }
