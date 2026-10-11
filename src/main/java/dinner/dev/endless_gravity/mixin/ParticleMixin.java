@@ -32,10 +32,8 @@ public abstract class ParticleMixin {
 
             offset = EndlessGravityAPI.getAtmosphereOffset(this.y);
         }
-        if (offset > 0.0) {
-            // Apply a subtle fraction of the offset for slow motion effect
-            // This makes particles move slowly without reversing direction
-            this.yd += offset * 0.3;
-        }
+        // Apply gravity offset: 0.0 = slow fall, 0.08 = neutral float, >0.08 = slow rise
+        // Formula: yd += 0.1875 * offset + 0.015
+        this.yd += 0.1875 * offset + 0.015;
     }
 }
