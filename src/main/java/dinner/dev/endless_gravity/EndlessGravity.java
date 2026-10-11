@@ -7,10 +7,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
-import net.minecraft.core.particles.SimpleParticleType;
-import net.minecraft.core.particles.ParticleType;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
@@ -19,7 +15,7 @@ public class EndlessGravity implements ModInitializer {
     public static final String MODID = "endless_gravity";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    
+
     @Override
     public void onInitialize() {
         Config.load();
