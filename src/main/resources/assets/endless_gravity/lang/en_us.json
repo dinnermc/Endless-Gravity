@@ -34,5 +34,7 @@
   "endless_gravity.config.atmosphereLayers.tooltip": "The altitude-to-pressure curve drives gravity and muffled audio. Pressure 1.0 = full atmosphere at sea level, 0.0 = vacuum.",
   "endless_gravity.config.columnAltitude": "Altitude",
   "endless_gravity.config.columnPressure": "Pressure",
-  "endless_gravity.config.layerShort": "Layer %s"
+  "endless_gravity.config.layerShort": "Layer %s",
+  "endless_gravity.config.true": "ON",
+  "endless_gravity.config.false": "OFF"
 }

@@ -34,5 +34,7 @@
   "endless_gravity.config.atmosphereLayers.tooltip": "La curva altitud-presión controla la gravedad y la atenuación de audio. Presión 1.0 = atmósfera completa al nivel del mar, 0.0 = vacío.",
   "endless_gravity.config.columnAltitude": "Altitud",
   "endless_gravity.config.columnPressure": "Presión",
-  "endless_gravity.config.layerShort": "Capa %s"
+  "endless_gravity.config.layerShort": "Capa %s",
+  "endless_gravity.config.true": "SÍ",
+  "endless_gravity.config.false": "NO"
 }
