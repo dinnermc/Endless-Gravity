@@ -26,10 +26,10 @@ public abstract class ItemEntityMixin {
         if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
 
         if (!GravityHandler.isEnd(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-        if (!Config.COMMON.enableItemGravity.get()) return;
+        if (!GravityHandler.isEndEntityGravity()) return;
+        if (!GravityHandler.isEnableItemGravity()) return;
 
-        double offset = Config.COMMON.itemGravityOffset.get();
+        double offset = GravityHandler.getItemGravityOffset();
         applyGravity(entity, offset);
     }
 

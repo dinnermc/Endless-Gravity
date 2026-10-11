@@ -17,6 +17,26 @@ public class GravityHandler {
 
     private static volatile MinecraftServer server;
 
+    /** Valores de config cacheados por tick (actualizados en onLevelTick). */
+    private static boolean cacheEndEntityGravity;
+    private static boolean cacheEnablePlayerGravity;
+    private static double cachePlayerGravityOffset;
+    private static boolean cacheOverworldEntityGravity;
+    private static boolean cacheEnableAtmosphere;
+    private static double cacheAtmosphereGravityMax;
+    private static double cacheNoFallDamageAltitude;
+    private static double cacheAtmosphereMuffleGain;
+    private static double cacheAtmosphereMuffleGainHF;
+    private static boolean cacheEnableItemGravity;
+    private static double cacheItemGravityOffset;
+    private static boolean cacheEnableArrowGravity;
+    private static double cacheArrowGravityOffset;
+    private static boolean cacheEnableThrownGravity;
+    private static double cacheThrownGravityOffset;
+    private static boolean cacheEnableBlockGravity;
+    private static double cacheBlockGravityOffset;
+    private static int cacheFallDamageMode;
+
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTING.register(server -> GravityHandler.server = server);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> GravityHandler.server = null);
@@ -31,9 +51,32 @@ public class GravityHandler {
     }
 
     private static void onLevelTick(ServerLevel level) {
+        refreshConfigCache();
+
         for (ServerPlayer player : level.players()) {
             applyPlayerGravity(player, level);
         }
+    }
+
+    private static void refreshConfigCache() {
+        cacheEndEntityGravity = Config.COMMON.endEntityGravity.get();
+        cacheEnablePlayerGravity = Config.COMMON.enablePlayerGravity.get();
+        cachePlayerGravityOffset = Config.COMMON.playerGravityOffset.get();
+        cacheOverworldEntityGravity = Config.COMMON.overworldEntityGravity.get();
+        cacheEnableAtmosphere = Config.COMMON.enableAtmosphere.get();
+        cacheAtmosphereGravityMax = Config.COMMON.atmosphereGravityMax.get();
+        cacheNoFallDamageAltitude = Config.COMMON.noFallDamageAltitude.get();
+        cacheAtmosphereMuffleGain = Config.COMMON.atmosphereMuffleGain.get();
+        cacheAtmosphereMuffleGainHF = Config.COMMON.atmosphereMuffleGainHF.get();
+        cacheEnableItemGravity = Config.COMMON.enableItemGravity.get();
+        cacheItemGravityOffset = Config.COMMON.itemGravityOffset.get();
+        cacheEnableArrowGravity = Config.COMMON.enableArrowGravity.get();
+        cacheArrowGravityOffset = Config.COMMON.arrowGravityOffset.get();
+        cacheEnableThrownGravity = Config.COMMON.enableThrownGravity.get();
+        cacheThrownGravityOffset = Config.COMMON.thrownGravityOffset.get();
+        cacheEnableBlockGravity = Config.COMMON.enableBlockGravity.get();
+        cacheBlockGravityOffset = Config.COMMON.blockGravityOffset.get();
+        cacheFallDamageMode = Config.COMMON.fallDamageMode.get();
     }
 
     private static void applyPlayerGravity(Player player, Level level) {
@@ -45,27 +88,20 @@ public class GravityHandler {
         if (applyAtmosphereEffects(level, player)) return;
 
         if (!isEnd(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-        if (!Config.COMMON.enablePlayerGravity.get()) return;
+        if (!cacheEndEntityGravity) return;
+        if (!cacheEnablePlayerGravity) return;
 
-        applyGravity(player, Config.COMMON.playerGravityOffset.get());
+        applyGravity(player, cachePlayerGravityOffset);
     }
 
-    /**
-     * Aplica efectos de atmósfera (gravedad reducida por altitud) a cualquier entidad.
-     * Llamada desde mixins comunes (ItemEntity, AbstractArrow, FallingBlock, ThrowableProjectile)
-     * y desde GravityHandler (jugadores servidor).
-     *
-     * @return true si se aplicó offset atmosférico y se debe saltar gravedad normal
-     */
     public static boolean applyAtmosphereEffects(Level level, Entity entity) {
         if (!isOverworld(level)) {
             return false;
         }
-        if (!Config.COMMON.overworldEntityGravity.get()) {
+        if (!cacheOverworldEntityGravity) {
             return false;
         }
-        if (!Config.COMMON.enableAtmosphere.get()) {
+        if (!cacheEnableAtmosphere) {
             return false;
         }
 
@@ -79,7 +115,6 @@ public class GravityHandler {
             return false;
         }
 
-        // Cap the lift at the entity's own gravity or items would fly up.
         double entityGravity = entity.getGravity();
         if (offset > entityGravity) {
             offset = entityGravity;
@@ -92,22 +127,19 @@ public class GravityHandler {
         return true;
     }
 
-    /**
-     * Fall-damage cancellation. Fabric vetoes the resulting damage before it is applied.
-     */
     private static boolean onAllowDamage(LivingEntity entity, DamageSource source, float amount) {
         if (!(entity instanceof ServerPlayer player)) return true;
         if (!source.is(DamageTypeTags.IS_FALL)) return true;
 
         Level level = player.level();
 
-        if (Config.COMMON.enableAtmosphere.get()
+        if (cacheEnableAtmosphere
                 && isOverworld(level)
-                && EndlessGravityAPI.getRealY(player) > Config.COMMON.noFallDamageAltitude.get()) {
+                && EndlessGravityAPI.getRealY(player) > cacheNoFallDamageAltitude) {
             return false;
         }
 
-        if (isEnd(level) && Config.COMMON.fallDamageMode.get() == 1) {
+        if (isEnd(level) && cacheFallDamageMode == 1) {
             return false;
         }
         return true;
@@ -124,4 +156,22 @@ public class GravityHandler {
     static void applyGravity(Entity entity, double offset) {
         entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
     }
+
+    // Getters para mixins (evitan reflejo/boxeo repetido)
+    public static boolean isEndEntityGravity() { return cacheEndEntityGravity; }
+    public static boolean isOverworldEntityGravity() { return cacheOverworldEntityGravity; }
+    public static boolean isEnableAtmosphere() { return cacheEnableAtmosphere; }
+    public static double getAtmosphereGravityMax() { return cacheAtmosphereGravityMax; }
+    public static double getNoFallDamageAltitude() { return cacheNoFallDamageAltitude; }
+    public static double getAtmosphereMuffleGain() { return cacheAtmosphereMuffleGain; }
+    public static double getAtmosphereMuffleGainHF() { return cacheAtmosphereMuffleGainHF; }
+    public static boolean isEnableItemGravity() { return cacheEnableItemGravity; }
+    public static double getItemGravityOffset() { return cacheItemGravityOffset; }
+    public static boolean isEnableArrowGravity() { return cacheEnableArrowGravity; }
+    public static double getArrowGravityOffset() { return cacheArrowGravityOffset; }
+    public static boolean isEnableThrownGravity() { return cacheEnableThrownGravity; }
+    public static double getThrownGravityOffset() { return cacheThrownGravityOffset; }
+    public static boolean isEnableBlockGravity() { return cacheEnableBlockGravity; }
+    public static double getBlockGravityOffset() { return cacheBlockGravityOffset; }
+    public static int getFallDamageMode() { return cacheFallDamageMode; }
 }

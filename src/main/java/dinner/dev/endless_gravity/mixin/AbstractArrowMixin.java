@@ -30,10 +30,10 @@ public class AbstractArrowMixin {
         if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
 
         if (!GravityHandler.isEnd(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-        if (!Config.COMMON.enableArrowGravity.get()) return;
+        if (!GravityHandler.isEndEntityGravity()) return;
+        if (!GravityHandler.isEnableArrowGravity()) return;
 
-        double offset = Config.COMMON.arrowGravityOffset.get();
+        double offset = GravityHandler.getArrowGravityOffset();
         applyGravity(entity, offset);
     }
 

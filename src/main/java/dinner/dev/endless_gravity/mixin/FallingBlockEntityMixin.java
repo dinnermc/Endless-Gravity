@@ -26,10 +26,10 @@ public abstract class FallingBlockEntityMixin {
         if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
 
         if (!GravityHandler.isEnd(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-        if (!Config.COMMON.enableBlockGravity.get()) return;
+        if (!GravityHandler.isEndEntityGravity()) return;
+        if (!GravityHandler.isEnableBlockGravity()) return;
 
-        double offset = Config.COMMON.blockGravityOffset.get();
+        double offset = GravityHandler.getBlockGravityOffset();
         applyGravity(entity, offset);
     }
 
