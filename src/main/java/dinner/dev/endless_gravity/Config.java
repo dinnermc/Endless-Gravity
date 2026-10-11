@@ -179,7 +179,7 @@ public class Config {
         public final DoubleValue lowPassGainHF = add(new DoubleValue("lowPassGainHF", 0.25));
 
         // Particles
-        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.01));
+        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.1));
 
         // Gameplay
         public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1));

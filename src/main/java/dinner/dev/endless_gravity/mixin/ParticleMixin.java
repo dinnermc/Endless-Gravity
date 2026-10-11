@@ -16,7 +16,6 @@ public abstract class ParticleMixin {
     @Shadow @Final protected ClientLevel level;
     @Shadow protected double y;
     @Shadow protected double yd;
-    @Shadow protected float gravity;
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void endless_gravity$reduceGravity(CallbackInfo ci) {
@@ -33,10 +32,10 @@ public abstract class ParticleMixin {
 
             offset = EndlessGravityAPI.getAtmosphereOffset(this.y);
         }
-        if (offset > 0.0 && this.gravity != 0.0f) {
-            // Apply offset directly as upward acceleration for intuitive control
-            // This reduces net downward acceleration (slowing fall)
-            this.yd += offset;
+        if (offset > 0.0) {
+            // Apply a subtle fraction of the offset for slow motion effect
+            // This makes particles move slowly without reversing direction
+            this.yd += offset * 0.3;
         }
     }
 }
