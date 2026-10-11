@@ -84,6 +84,8 @@ public class EndlessGravityConfigScreen {
             addToggle(gravity, entry, "endless_gravity.config.enableBlockGravity", Config.COMMON.enableBlockGravity, true);
             addDouble(gravity, entry, "endless_gravity.config.blockGravityOffset", Config.COMMON.blockGravityOffset,
                     0.0, 0.1, 0.035, TEXT_GRAY);
+            addDouble(gravity, entry, "endless_gravity.config.particleGravityOffset", Config.COMMON.particleGravityOffset,
+                    0.0, 0.5, 0.01, TEXT_WHITE);
             cat.addEntry(gravity.build());
             allEnd.add(gravity.build());
 

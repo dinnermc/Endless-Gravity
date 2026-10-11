@@ -21,6 +21,7 @@
   "endless_gravity.config.itemGravityOffset": "Compensación de gravedad de objetos",
   "endless_gravity.config.arrowGravityOffset": "Compensación de gravedad de flechas",
   "endless_gravity.config.thrownGravityOffset": "Compensación de gravedad de proyectiles lanzados",
+  "endless_gravity.config.particleGravityOffset": "Compensación de gravedad de partículas",
   "endless_gravity.config.lowPassGain": "Volumen del filtro",
   "endless_gravity.config.lowPassGainHF": "Filtro de frecuencias altas",
   "endless_gravity.config.blockGravityOffset": "Compensación de gravedad de bloques en caída",
