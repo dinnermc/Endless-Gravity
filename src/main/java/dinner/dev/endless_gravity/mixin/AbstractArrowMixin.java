@@ -22,13 +22,24 @@ public abstract class AbstractArrowMixin {
         if (level == null || !level.isClientSide()) return;
         if (entity.onGround() || entity.isInWater()) return;
 
-        // Detectar flecha "clavada": velocidad muy baja + colisionando con bloque sólido
+        // Múltiples checks para detectar flecha "clavada/estática":
+        // 1. shakeTime > 0 = flecha golpeó bloque recientemente (vanilla la usa para animación de vibración)
+        boolean hitSomething = entity.shakeTime > 0;
+        
+        // 2. Velocidad casi nula
         Vec3 vel = entity.getDeltaMovement();
         boolean verySlow = Math.abs(vel.x) < 0.01 && Math.abs(vel.y) < 0.01 && Math.abs(vel.z) < 0.01;
-        boolean colliding = !level.getBlockState(BlockPos.containing(entity.position())).getCollisionShape(level, BlockPos.containing(entity.position())).isEmpty();
+        
+        // 3. Colisionando con bloque sólido en su posición
+        BlockPos pos = BlockPos.containing(entity.position());
+        boolean colliding = !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
+        
+        // 4. Lleva un tiempo en el mundo sin moverse (tick count)
+        boolean oldEnough = entity.tickCount > 20;
 
-        if (verySlow && colliding) {
-            return; // flecha quieta dentro/pegada a bloque = no aplicar gravedad
+        // Si CUALQUIERA de estas condiciones sugiere que está clavada, no aplicar gravedad
+        if ((hitSomething || (verySlow && colliding)) && oldEnough) {
+            return;
         }
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
