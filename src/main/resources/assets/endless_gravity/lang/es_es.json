@@ -30,6 +30,7 @@
   "endless_gravity.config.noFallDamageAltitude": "Sin daño de caída por encima de",
   "endless_gravity.config.atmosphereMuffleGain": "Volumen de la atenuación",
   "endless_gravity.config.atmosphereMuffleGainHF": "Atenuación de frecuencias altas",
+  "endless_gravity.config.particleGravityOffset": "Compensación de gravedad de partículas",
   "endless_gravity.config.atmosphereLayers": "Capas de atmósfera",
   "endless_gravity.config.atmosphereLayers.tooltip": "La curva altitud-presión controla la gravedad y la atenuación de audio. Presión 1.0 = atmósfera completa al nivel del mar, 0.0 = vacío.",
   "endless_gravity.config.columnAltitude": "Altitud",

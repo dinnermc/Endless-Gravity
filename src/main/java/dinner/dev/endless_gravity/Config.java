@@ -178,6 +178,9 @@ public class Config {
         public final DoubleValue lowPassGain = add(new DoubleValue("lowPassGain", 0.35));
         public final DoubleValue lowPassGainHF = add(new DoubleValue("lowPassGainHF", 0.25));
 
+        // Particles
+        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.01));
+
         // Gameplay
         public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1));
         public final BoolValue enableBlockGravity = add(new BoolValue("enableBlockGravity", true));
