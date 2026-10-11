@@ -8,9 +8,9 @@
     "Dinner"
   ],
   "contact": {
-    "homepage": "https://github.com/dinner-dev/Endless-Gravity",
-    "sources": "https://github.com/dinner-dev/Endless-Gravity",
-    "issues": "https://github.com/dinner-dev/Endless-Gravity/issues"
+    "homepage": "https://github.com/dinnermc/Endless-Gravity",
+    "sources": "https://github.com/dinnermc/Endless-Gravity",
+    "issues": "https://github.com/dinnermc/Endless-Gravity/issues"
   },
   "license": "Apache-2.0",
   "icon": "assets/endless_gravity/icon.png",
