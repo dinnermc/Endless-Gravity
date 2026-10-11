@@ -31,11 +31,8 @@ public class GravityHandler {
     }
 
     private static void onLevelTick(ServerLevel level) {
-        // Solo gravedad de jugador en servidor (items/flechas/bloques los manejan mixins en ambos lados)
-        for (Entity entity : level.getAllEntities()) {
-            if (entity instanceof Player player) {
-                applyPlayerGravity(player, level);
-            }
+        for (ServerPlayer player : level.players()) {
+            applyPlayerGravity(player, level);
         }
     }
 
@@ -54,7 +51,14 @@ public class GravityHandler {
         applyGravity(player, Config.COMMON.playerGravityOffset.get());
     }
 
-    private static boolean applyAtmosphereEffects(Level level, Entity entity) {
+    /**
+     * Aplica efectos de atmósfera (gravedad reducida por altitud) a cualquier entidad.
+     * Llamada desde mixins comunes (ItemEntity, AbstractArrow, FallingBlock, ThrowableProjectile)
+     * y desde GravityHandler (jugadores servidor).
+     *
+     * @return true si se aplicó offset atmosférico y se debe saltar gravedad normal
+     */
+    public static boolean applyAtmosphereEffects(Level level, Entity entity) {
         if (!isOverworld(level)) {
             return false;
         }

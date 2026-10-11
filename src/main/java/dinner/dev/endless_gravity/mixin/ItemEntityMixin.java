@@ -23,7 +23,7 @@ public abstract class ItemEntityMixin {
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
-        if (applyAtmosphereEffects(level, entity)) return;
+        if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
 
         if (!GravityHandler.isEnd(level)) return;
         if (!Config.COMMON.endEntityGravity.get()) return;
@@ -31,39 +31,6 @@ public abstract class ItemEntityMixin {
 
         double offset = Config.COMMON.itemGravityOffset.get();
         applyGravity(entity, offset);
-    }
-
-    private static boolean applyAtmosphereEffects(Level level, ItemEntity entity) {
-        if (!GravityHandler.isOverworld(level)) {
-            return false;
-        }
-        if (!Config.COMMON.overworldEntityGravity.get()) {
-            return false;
-        }
-        if (!Config.COMMON.enableAtmosphere.get()) {
-            return false;
-        }
-
-        double realY = EndlessGravityAPI.getRealY(entity);
-        if (realY <= EndlessGravityAPI.BASE) {
-            return false;
-        }
-
-        double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
-        if (offset <= 0) {
-            return false;
-        }
-
-        double entityGravity = entity.getGravity();
-        if (offset > entityGravity) {
-            offset = entityGravity;
-        }
-        if (offset <= 0) {
-            return false;
-        }
-
-        applyGravity(entity, offset);
-        return true;
     }
 
     private static void applyGravity(ItemEntity entity, double offset) {
