@@ -13,8 +13,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = EndlessGravity.MODID)
 public class GravityHandler {
@@ -49,8 +49,7 @@ public class GravityHandler {
     private static int cacheOverworldSableDatapackPriority;
 
     @SubscribeEvent
-    public static void onLevelTick(LevelTickEvent event) {
-        if (event.getLevel().isClientSide()) return;
+    public static void onServerTick(ServerTickEvent event) {
         refreshConfigCache();
     }
 
