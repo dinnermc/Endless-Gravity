@@ -49,7 +49,7 @@ public class GravityHandler {
     private static int cacheOverworldSableDatapackPriority;
 
     @SubscribeEvent
-    public static void onServerTick(ServerTickEvent event) {
+    public static void onServerTick(ServerTickEvent.Pre event) {
         refreshConfigCache();
     }
 
