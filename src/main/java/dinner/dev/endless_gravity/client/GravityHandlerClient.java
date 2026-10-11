@@ -5,7 +5,6 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.AABB;
 import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
 import dinner.dev.endless_gravity.GravityHandler;
