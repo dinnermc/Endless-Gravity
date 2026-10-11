@@ -12,8 +12,17 @@ import dinner.dev.endless_gravity.GravityHandler;
 @Environment(EnvType.CLIENT)
 public class GravityHandlerClient {
 
+    /** Cache de config cliente-side (actualizado cada tick). */
+    private static boolean cacheEndEntityGravity;
+    private static boolean cacheEnablePlayerGravity;
+    private static double cachePlayerGravityOffset;
+    private static boolean cacheOverworldEntityGravity;
+    private static boolean cacheEnableAtmosphere;
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            refreshConfigCache();
+
             var level = client.level;
             if (level == null) return;
 
@@ -22,6 +31,14 @@ public class GravityHandlerClient {
                 applyPlayerGravity(player, level);
             }
         });
+    }
+
+    private static void refreshConfigCache() {
+        cacheEndEntityGravity = Config.COMMON.endEntityGravity.get();
+        cacheEnablePlayerGravity = Config.COMMON.enablePlayerGravity.get();
+        cachePlayerGravityOffset = Config.COMMON.playerGravityOffset.get();
+        cacheOverworldEntityGravity = Config.COMMON.overworldEntityGravity.get();
+        cacheEnableAtmosphere = Config.COMMON.enableAtmosphere.get();
     }
 
     private static void applyPlayerGravity(Player player, net.minecraft.client.multiplayer.ClientLevel level) {
@@ -33,20 +50,20 @@ public class GravityHandlerClient {
         if (applyAtmosphereEffects(level, player)) return;
 
         if (!GravityHandler.isEnd(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-        if (!Config.COMMON.enablePlayerGravity.get()) return;
+        if (!cacheEndEntityGravity) return;
+        if (!cacheEnablePlayerGravity) return;
 
-        applyGravity(player, Config.COMMON.playerGravityOffset.get());
+        applyGravity(player, cachePlayerGravityOffset);
     }
 
     private static boolean applyAtmosphereEffects(net.minecraft.client.multiplayer.ClientLevel level, Player player) {
         if (!GravityHandler.isOverworld(level)) {
             return false;
         }
-        if (!Config.COMMON.overworldEntityGravity.get()) {
+        if (!cacheOverworldEntityGravity) {
             return false;
         }
-        if (!Config.COMMON.enableAtmosphere.get()) {
+        if (!cacheEnableAtmosphere) {
             return false;
         }
 

@@ -26,10 +26,10 @@ public abstract class ProjectileMixin {
         if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
 
         if (!GravityHandler.isEnd(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-        if (!Config.COMMON.enableThrownGravity.get()) return;
+        if (!GravityHandler.isEndEntityGravity()) return;
+        if (!GravityHandler.isEnableThrownGravity()) return;
 
-        double offset = Config.COMMON.thrownGravityOffset.get();
+        double offset = GravityHandler.getThrownGravityOffset();
         applyGravity(entity, offset);
     }
 
