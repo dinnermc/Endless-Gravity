@@ -13,12 +13,46 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber(modid = EndlessGravity.MODID)
 public class GravityHandler {
 
     private static final double VEL_THRESHOLD = 0.005;
+
+    /** Valores de config cacheados por tick (actualizados en onLevelTick). */
+    private static boolean cacheEndEntityGravity;
+    private static boolean cacheEnablePlayerGravity;
+    private static double cachePlayerGravityOffset;
+    private static boolean cacheOverworldEntityGravity;
+    private static boolean cacheEnableAtmosphere;
+    private static double cacheAtmosphereGravityMax;
+    private static double cacheNoFallDamageAltitude;
+    private static double cacheAtmosphereMuffleGain;
+    private static double cacheAtmosphereMuffleGainHF;
+    private static boolean cacheEnableItemGravity;
+    private static double cacheItemGravityOffset;
+    private static boolean cacheEnableArrowGravity;
+    private static double cacheArrowGravityOffset;
+    private static boolean cacheEnableThrownGravity;
+    private static double cacheThrownGravityOffset;
+    private static boolean cacheEnableBlockGravity;
+    private static double cacheBlockGravityOffset;
+    private static int cacheFallDamageMode;
+    private static boolean cacheEnableSableEndGravity;
+    private static double cacheSableGravityY;
+    private static double cacheSablePressure;
+    private static double cacheSableDrag;
+    private static int cacheSableDatapackPriority;
+    private static boolean cacheOverworldSableGravity;
+    private static int cacheOverworldSableDatapackPriority;
+
+    @SubscribeEvent
+    public static void onLevelTick(LevelTickEvent event) {
+        if (event.getLevel().isClientSide()) return;
+        refreshConfigCache();
+    }
 
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Pre event) {
@@ -35,10 +69,10 @@ public class GravityHandler {
         if (EndlessGravityAPI.isSableManaged(level)) return;
 
         if (!isEndOrSable(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
-        if (!Config.COMMON.enablePlayerGravity.get()) return;
+        if (!cacheEndEntityGravity) return;
+        if (!cacheEnablePlayerGravity) return;
 
-        double offset = Config.COMMON.playerGravityOffset.get();
+        double offset = cachePlayerGravityOffset;
         applyGravity(player, offset);
     }
 
@@ -61,23 +95,23 @@ public class GravityHandler {
         if (Math.abs(velY) < VEL_THRESHOLD) return;
 
         if (!isEndOrSable(level)) return;
-        if (!Config.COMMON.endEntityGravity.get()) return;
+        if (!cacheEndEntityGravity) return;
 
         double offset;
         if (entity instanceof ItemEntity) {
-            if (!Config.COMMON.enableItemGravity.get()) return;
-            offset = Config.COMMON.itemGravityOffset.get();
+            if (!cacheEnableItemGravity) return;
+            offset = cacheItemGravityOffset;
         } else if (entity instanceof Projectile projectile) {
             if (projectile instanceof AbstractArrow) {
-                if (!Config.COMMON.enableArrowGravity.get()) return;
-                offset = Config.COMMON.arrowGravityOffset.get();
+                if (!cacheEnableArrowGravity) return;
+                offset = cacheArrowGravityOffset;
             } else {
-                if (!Config.COMMON.enableThrownGravity.get()) return;
-                offset = Config.COMMON.thrownGravityOffset.get();
+                if (!cacheEnableThrownGravity) return;
+                offset = cacheThrownGravityOffset;
             }
         } else if (entity instanceof FallingBlockEntity) {
-            if (!Config.COMMON.enableBlockGravity.get()) return;
-            offset = Config.COMMON.blockGravityOffset.get();
+            if (!cacheEnableBlockGravity) return;
+            offset = cacheBlockGravityOffset;
         } else {
             return;
         }
@@ -92,10 +126,10 @@ public class GravityHandler {
         if (!EndlessGravityAPI.isOverworldOrSable(level)) {
             return false;
         }
-        if (!Config.COMMON.overworldEntityGravity.get()) {
+        if (!cacheOverworldEntityGravity) {
             return false;
         }
-        if (!Config.COMMON.enableAtmosphere.get()) {
+        if (!cacheEnableAtmosphere) {
             return false;
         }
 
@@ -113,7 +147,6 @@ public class GravityHandler {
             return false;
         }
 
-        // Cap the lift at the entity's own gravity or items would fly up.
         double entityGravity = entity.getGravity();
         if (offset > entityGravity) {
             offset = entityGravity;
@@ -142,18 +175,46 @@ public class GravityHandler {
         Level level = player.level();
 
         if (!EndlessGravityAPI.isCosmonauticsInstalled()
-                && Config.COMMON.enableAtmosphere.get()
+                && cacheEnableAtmosphere
                 && EndlessGravityAPI.isOverworldOrSable(level)
-                && EndlessGravityAPI.getRealY(player) > Config.COMMON.noFallDamageAltitude.get()) {
+                && EndlessGravityAPI.getRealY(player) > cacheNoFallDamageAltitude) {
             event.setDamageMultiplier(0.0F);
             event.setDistance(0.0F);
             return;
         }
 
         if (!isEndOrSable(level)) return;
-        if (Config.COMMON.fallDamageMode.get() == 1) {
+        if (cacheFallDamageMode == 1) {
             event.setDamageMultiplier(0.0F);
             event.setDistance(0.0F);
         }
+    }
+
+    private static void refreshConfigCache() {
+        cacheEndEntityGravity = Config.COMMON.endEntityGravity.get();
+        cacheEnablePlayerGravity = Config.COMMON.enablePlayerGravity.get();
+        cachePlayerGravityOffset = Config.COMMON.playerGravityOffset.get();
+        cacheOverworldEntityGravity = Config.COMMON.overworldEntityGravity.get();
+        cacheEnableAtmosphere = Config.COMMON.enableAtmosphere.get();
+        cacheAtmosphereGravityMax = Config.COMMON.atmosphereGravityMax.get();
+        cacheNoFallDamageAltitude = Config.COMMON.noFallDamageAltitude.get();
+        cacheAtmosphereMuffleGain = Config.COMMON.atmosphereMuffleGain.get();
+        cacheAtmosphereMuffleGainHF = Config.COMMON.atmosphereMuffleGainHF.get();
+        cacheEnableItemGravity = Config.COMMON.enableItemGravity.get();
+        cacheItemGravityOffset = Config.COMMON.itemGravityOffset.get();
+        cacheEnableArrowGravity = Config.COMMON.enableArrowGravity.get();
+        cacheArrowGravityOffset = Config.COMMON.arrowGravityOffset.get();
+        cacheEnableThrownGravity = Config.COMMON.enableThrownGravity.get();
+        cacheThrownGravityOffset = Config.COMMON.thrownGravityOffset.get();
+        cacheEnableBlockGravity = Config.COMMON.enableBlockGravity.get();
+        cacheBlockGravityOffset = Config.COMMON.blockGravityOffset.get();
+        cacheFallDamageMode = Config.COMMON.fallDamageMode.get();
+        cacheEnableSableEndGravity = Config.COMMON.endSableGravity.get();
+        cacheSableGravityY = Config.COMMON.sableGravityY.get();
+        cacheSablePressure = Config.COMMON.sablePressure.get();
+        cacheSableDrag = Config.COMMON.sableDrag.get();
+        cacheSableDatapackPriority = Config.COMMON.sableDatapackPriority.get();
+        cacheOverworldSableGravity = Config.COMMON.overworldSableGravity.get();
+        cacheOverworldSableDatapackPriority = Config.COMMON.overworldSableDatapackPriority.get();
     }
 }
