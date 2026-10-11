@@ -40,6 +40,7 @@ public class GravityHandler {
     private static int cacheSableDatapackPriority;
     private static boolean cacheOverworldSableGravity;
     private static int cacheOverworldSableDatapackPriority;
+    private static double cacheParticleGravityOffset;
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Pre event) {
@@ -173,6 +174,7 @@ public class GravityHandler {
         cacheSableDatapackPriority = Config.COMMON.sableDatapackPriority.get();
         cacheOverworldSableGravity = Config.COMMON.overworldSableGravity.get();
         cacheOverworldSableDatapackPriority = Config.COMMON.overworldSableDatapackPriority.get();
+        cacheParticleGravityOffset = Config.COMMON.particleGravityOffset.get();
     }
 
     // Public getters for mixins
@@ -201,4 +203,5 @@ public class GravityHandler {
     public static int getSableDatapackPriority() { return cacheSableDatapackPriority; }
     public static boolean isOverworldSableGravity() { return cacheOverworldSableGravity; }
     public static int getOverworldSableDatapackPriority() { return cacheOverworldSableDatapackPriority; }
+    public static double getParticleGravityOffset() { return cacheParticleGravityOffset; }
 }
