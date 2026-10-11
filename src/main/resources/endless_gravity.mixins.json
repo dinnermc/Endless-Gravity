@@ -11,8 +11,7 @@
   ],
   "client": [
     "SoundEngineMixin",
-    "ChannelMixin",
-    "ParticleMixin"
+    "ChannelMixin"
   ],
   "injectors": {
     "defaultRequire": 1
