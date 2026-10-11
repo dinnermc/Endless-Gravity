@@ -3,8 +3,10 @@ package dinner.dev.endless_gravity.mixin;
 import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
 import dinner.dev.endless_gravity.GravityHandler;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,11 +22,13 @@ public abstract class AbstractArrowMixin {
         if (level == null || !level.isClientSide()) return;
         if (entity.onGround() || entity.isInWater()) return;
 
-        // Detectar si la flecha está "stuck" en un bloque (velocidad ~0 por varios ticks)
-        // Si la velocidad Y es casi 0 y X/Z también, asumimos que está clavada.
-        var vel = entity.getDeltaMovement();
-        if (Math.abs(vel.x) < 0.001 && Math.abs(vel.y) < 0.001 && Math.abs(vel.z) < 0.001) {
-            return; // flecha quieta = no aplicar gravedad
+        // Detectar flecha "clavada": velocidad muy baja + colisionando con bloque sólido
+        Vec3 vel = entity.getDeltaMovement();
+        boolean verySlow = Math.abs(vel.x) < 0.01 && Math.abs(vel.y) < 0.01 && Math.abs(vel.z) < 0.01;
+        boolean colliding = !level.getBlockState(BlockPos.containing(entity.position())).getCollisionShape(level, BlockPos.containing(entity.position())).isEmpty();
+
+        if (verySlow && colliding) {
+            return; // flecha quieta dentro/pegada a bloque = no aplicar gravedad
         }
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
