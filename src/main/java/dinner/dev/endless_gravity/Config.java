@@ -179,7 +179,8 @@ public class Config {
         public final DoubleValue lowPassGainHF = add(new DoubleValue("lowPassGainHF", 0.25));
 
         // Particles
-        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.1));
+        // Upward acceleration per tick for particles in The End. 0.08 = neutral gravity (float), <0.08 = slow fall, >0.08 = slow rise
+        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.5));
 
         // Gameplay
         public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1));

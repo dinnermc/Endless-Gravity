@@ -71,7 +71,7 @@ public class EndlessGravityConfigScreen {
             SubCategoryBuilder gravity = group(entry, "endless_gravity.config.group.gravity");
             addToggle(gravity, entry, "endless_gravity.config.endEntityGravity", Config.COMMON.endEntityGravity, true);
             addDouble(gravity, entry, "endless_gravity.config.particleGravityOffset", Config.COMMON.particleGravityOffset,
-                    0.0, 0.5, 0.01, TEXT_WHITE);
+                    0.0, 0.5, 0.5, TEXT_WHITE);
             addDouble(gravity, entry, "endless_gravity.config.playerGravityOffset", Config.COMMON.playerGravityOffset,
                     0.0, 0.07, 0.055, TEXT_WHITE);
             addDouble(gravity, entry, "endless_gravity.config.itemGravityOffset", Config.COMMON.itemGravityOffset,
@@ -113,8 +113,6 @@ public class EndlessGravityConfigScreen {
                     0.0, 1.0, 0.01, TEXT_WHITE);
             addDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGainHF", Config.COMMON.atmosphereMuffleGainHF,
                     0.0, 1.0, 0.005, TEXT_GRAY);
-            addDouble(atmosphere, entry, "endless_gravity.config.particleGravityOffset", Config.COMMON.particleGravityOffset,
-                    0.0, 0.1, 0.01, TEXT_GRAY);
             cat.addEntry(atmosphere.build());
             allOverworld.add(atmosphere.build());
 
