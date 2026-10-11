@@ -23,7 +23,7 @@ public abstract class FallingBlockEntityMixin {
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
-        if (applyAtmosphereEffects(level, entity)) return;
+        if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
 
         if (!GravityHandler.isEnd(level)) return;
         if (!Config.COMMON.endEntityGravity.get()) return;
@@ -31,39 +31,6 @@ public abstract class FallingBlockEntityMixin {
 
         double offset = Config.COMMON.blockGravityOffset.get();
         applyGravity(entity, offset);
-    }
-
-    private static boolean applyAtmosphereEffects(Level level, FallingBlockEntity entity) {
-        if (!GravityHandler.isOverworld(level)) {
-            return false;
-        }
-        if (!Config.COMMON.overworldEntityGravity.get()) {
-            return false;
-        }
-        if (!Config.COMMON.enableAtmosphere.get()) {
-            return false;
-        }
-
-        double realY = EndlessGravityAPI.getRealY(entity);
-        if (realY <= EndlessGravityAPI.BASE) {
-            return false;
-        }
-
-        double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
-        if (offset <= 0) {
-            return false;
-        }
-
-        double entityGravity = entity.getGravity();
-        if (offset > entityGravity) {
-            offset = entityGravity;
-        }
-        if (offset <= 0) {
-            return false;
-        }
-
-        applyGravity(entity, offset);
-        return true;
     }
 
     private static void applyGravity(FallingBlockEntity entity, double offset) {
