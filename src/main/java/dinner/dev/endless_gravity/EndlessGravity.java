@@ -19,8 +19,7 @@ public class EndlessGravity implements ModInitializer {
     public static final String MODID = "endless_gravity";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public static final SimpleParticleType LOW_GRAVITY_PARTICLE = FabricParticleTypes.simple();
-
+    
     @Override
     public void onInitialize() {
         Config.load();
