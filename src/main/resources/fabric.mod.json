@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "endless_gravity",
+  "version": "${version}",
+  "name": "Endless Gravity",
+  "description": "Endless Gravity adds low gravity to The End and layered gravity to the Overworld. Features configurable gravity, muffled audio filters, Overworld height-based space layers with continuous gravity.",
+  "authors": [
+    "Dinner"
+  ],
+  "contact": {
+    "homepage": "https://github.com/dinner-dev/Endless-Gravity",
+    "sources": "https://github.com/dinner-dev/Endless-Gravity",
+    "issues": "https://github.com/dinner-dev/Endless-Gravity/issues"
+  },
+  "license": "Apache-2.0",
+  "icon": "assets/endless_gravity/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dinner.dev.endless_gravity.EndlessGravity"
+    ],
+    "client": [
+      "dinner.dev.endless_gravity.client.EndlessGravityClient"
+    ],
+    "modmenu": [
+      "dinner.dev.endless_gravity.client.ModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    "endless_gravity.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "cloth-config": "*",
+    "modmenu": "*"
+  }
+}

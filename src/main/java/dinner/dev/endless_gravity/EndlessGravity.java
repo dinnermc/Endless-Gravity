@@ -1,45 +1,31 @@
 package dinner.dev.endless_gravity;
 
-import dinner.dev.endless_gravity.compat.sable.AtmosphereForceGroups;
 import dinner.dev.endless_gravity.network.ConfigSyncPayload;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
-@Mod(EndlessGravity.MODID)
-public class EndlessGravity {
+public class EndlessGravity implements ModInitializer {
     public static final String MODID = "endless_gravity";
-    private static final Logger LOGGER = LogUtils.getLogger();
+    public static final Logger LOGGER = LogUtils.getLogger();
 
-    public EndlessGravity(IEventBus modEventBus, ModContainer modContainer) {
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.COMMON_SPEC);
-        if (ModList.get().isLoaded("sable")) {
-            AtmosphereForceGroups.init(modEventBus);
-        }
-        modEventBus.addListener(RegisterPayloadHandlersEvent.class, event -> {
-            PayloadRegistrar registrar = event.registrar("1");
-            registrar.playToClient(
-                    ConfigSyncPayload.ID,
-                    ConfigSyncPayload.STREAM_CODEC,
-                    ConfigSyncPayload::handle
-            );
-        });
+    @Override
+    public void onInitialize() {
+        PayloadTypeRegistry.playS2C().register(ConfigSyncPayload.ID, ConfigSyncPayload.STREAM_CODEC);
 
-        NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedInEvent.class, event -> {
-            if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-                PacketDistributor.sendToPlayer(serverPlayer, ConfigSyncPayload.fromConfig());
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayer player = handler.player;
+            if (player != null) {
+                ServerPlayNetworking.send(player, ConfigSyncPayload.fromConfig());
             }
         });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> Config.saveIfDirty());
 
         LOGGER.info("Endless Gravity loaded");
     }
