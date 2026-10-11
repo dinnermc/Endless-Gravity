@@ -6,7 +6,8 @@
   "client": [
     "SoundEngineMixin",
     "ChannelMixin",
-    "ItemEntityMixin"
+    "ItemEntityMixin",
+    "AbstractArrowMixin"
   ],
   "injectors": {
     "defaultRequire": 1
