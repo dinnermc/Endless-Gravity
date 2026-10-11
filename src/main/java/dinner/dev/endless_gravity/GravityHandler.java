@@ -2,26 +2,19 @@ package dinner.dev.endless_gravity;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.FallingBlockEntity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 @EventBusSubscriber(modid = EndlessGravity.MODID)
 public class GravityHandler {
 
-    private static final double VEL_THRESHOLD = 0.005;
-
-    /** Valores de config cacheados por tick (actualizados en onLevelTick). */
+    /** Valores de config cacheados por tick (actualizados en onServerTick). */
     private static boolean cacheEndEntityGravity;
     private static boolean cacheEnablePlayerGravity;
     private static double cachePlayerGravityOffset;
@@ -75,50 +68,7 @@ public class GravityHandler {
         applyGravity(player, offset);
     }
 
-    @SubscribeEvent
-    public static void onEntityTick(EntityTickEvent.Pre event) {
-        Entity entity = event.getEntity();
-
-        if (entity instanceof Player) return;
-
-        Level level = entity.level();
-        if (entity.onGround() || entity.isInWater()) return;
-
-        if (EndlessGravityAPI.isGravityImmune(entity)) return;
-
-        if (applyAtmosphereEffects(level, entity)) return;
-
-        if (EndlessGravityAPI.isSableManaged(level)) return;
-
-        double velY = entity.getDeltaMovement().y;
-        if (Math.abs(velY) < VEL_THRESHOLD) return;
-
-        if (!isEndOrSable(level)) return;
-        if (!cacheEndEntityGravity) return;
-
-        double offset;
-        if (entity instanceof ItemEntity) {
-            if (!cacheEnableItemGravity) return;
-            offset = cacheItemGravityOffset;
-        } else if (entity instanceof Projectile projectile) {
-            if (projectile instanceof AbstractArrow) {
-                if (!cacheEnableArrowGravity) return;
-                offset = cacheArrowGravityOffset;
-            } else {
-                if (!cacheEnableThrownGravity) return;
-                offset = cacheThrownGravityOffset;
-            }
-        } else if (entity instanceof FallingBlockEntity) {
-            if (!cacheEnableBlockGravity) return;
-            offset = cacheBlockGravityOffset;
-        } else {
-            return;
-        }
-
-        applyGravity(entity, offset);
-    }
-
-    private static boolean applyAtmosphereEffects(Level level, Entity entity) {
+    public static boolean applyAtmosphereEffects(Level level, Entity entity) {
         if (EndlessGravityAPI.isCosmonauticsInstalled()) {
             return false;
         }
@@ -158,12 +108,20 @@ public class GravityHandler {
         return true;
     }
 
-    private static boolean isEndOrSable(Level level) {
+    public static boolean isEndOrSable(Level level) {
         if (level.dimension() == Level.END) return true;
         return level.dimension().location().getNamespace().equals("sable");
     }
 
-    private static void applyGravity(Entity entity, double offset) {
+    public static boolean isEnd(Level level) {
+        return level.dimension() == Level.END;
+    }
+
+    public static boolean isOverworld(Level level) {
+        return level.dimension() == Level.OVERWORLD;
+    }
+
+    static void applyGravity(Entity entity, double offset) {
         entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
     }
 
@@ -216,4 +174,31 @@ public class GravityHandler {
         cacheOverworldSableGravity = Config.COMMON.overworldSableGravity.get();
         cacheOverworldSableDatapackPriority = Config.COMMON.overworldSableDatapackPriority.get();
     }
+
+    // Public getters for mixins
+    public static boolean isEndEntityGravity() { return cacheEndEntityGravity; }
+    public static boolean isEnablePlayerGravity() { return cacheEnablePlayerGravity; }
+    public static double getPlayerGravityOffset() { return cachePlayerGravityOffset; }
+    public static boolean isOverworldEntityGravity() { return cacheOverworldEntityGravity; }
+    public static boolean isEnableAtmosphere() { return cacheEnableAtmosphere; }
+    public static double getAtmosphereGravityMax() { return cacheAtmosphereGravityMax; }
+    public static double getNoFallDamageAltitude() { return cacheNoFallDamageAltitude; }
+    public static double getAtmosphereMuffleGain() { return cacheAtmosphereMuffleGain; }
+    public static double getAtmosphereMuffleGainHF() { return cacheAtmosphereMuffleGainHF; }
+    public static boolean isEnableItemGravity() { return cacheEnableItemGravity; }
+    public static double getItemGravityOffset() { return cacheItemGravityOffset; }
+    public static boolean isEnableArrowGravity() { return cacheEnableArrowGravity; }
+    public static double getArrowGravityOffset() { return cacheArrowGravityOffset; }
+    public static boolean isEnableThrownGravity() { return cacheEnableThrownGravity; }
+    public static double getThrownGravityOffset() { return cacheThrownGravityOffset; }
+    public static boolean isEnableBlockGravity() { return cacheEnableBlockGravity; }
+    public static double getBlockGravityOffset() { return cacheBlockGravityOffset; }
+    public static int getFallDamageMode() { return cacheFallDamageMode; }
+    public static boolean isEnableSableEndGravity() { return cacheEnableSableEndGravity; }
+    public static double getSableGravityY() { return cacheSableGravityY; }
+    public static double getSablePressure() { return cacheSablePressure; }
+    public static double getSableDrag() { return cacheSableDrag; }
+    public static int getSableDatapackPriority() { return cacheSableDatapackPriority; }
+    public static boolean isOverworldSableGravity() { return cacheOverworldSableGravity; }
+    public static int getOverworldSableDatapackPriority() { return cacheOverworldSableDatapackPriority; }
 }
