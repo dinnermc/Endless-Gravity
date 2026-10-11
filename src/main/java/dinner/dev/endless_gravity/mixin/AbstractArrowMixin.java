@@ -6,7 +6,6 @@ import dinner.dev.endless_gravity.GravityHandler;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -14,15 +13,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(AbstractArrow.class)
 public abstract class AbstractArrowMixin {
 
-    @Accessor("inGround")
-    protected abstract boolean isInGround();
-
     @Inject(method = "tick", at = @At("TAIL"))
     private void endlessgravity$applyGravity(CallbackInfo ci) {
         AbstractArrow entity = (AbstractArrow) (Object) this;
         Level level = entity.level();
         if (level == null || !level.isClientSide()) return;
-        if (entity.onGround() || entity.isInWater() || isInGround()) return;
+        if (entity.onGround() || entity.isInWater()) return;
+
+        // Detectar si la flecha está "stuck" en un bloque (velocidad ~0 por varios ticks)
+        // Si la velocidad Y es casi 0 y X/Z también, asumimos que está clavada.
+        var vel = entity.getDeltaMovement();
+        if (Math.abs(vel.x) < 0.001 && Math.abs(vel.y) < 0.001 && Math.abs(vel.z) < 0.001) {
+            return; // flecha quieta = no aplicar gravedad
+        }
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
 
