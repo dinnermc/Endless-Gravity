@@ -59,6 +59,7 @@ public class Config {
         public final ModConfigSpec.DoubleValue noFallDamageAltitude;
         public final ModConfigSpec.DoubleValue atmosphereMuffleGain;
         public final ModConfigSpec.DoubleValue atmosphereMuffleGainHF;
+        public final ModConfigSpec.DoubleValue particleGravityOffset;
         public final ModConfigSpec.ConfigValue<List<? extends String>> atmosphereLayers;
 
         public Common(ModConfigSpec.Builder builder) {
@@ -180,6 +181,9 @@ public class Config {
             atmosphereMuffleGainHF = builder
                     .comment("High-frequency gain at deep space, same interpolation as the gain above.")
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
+            particleGravityOffset = builder
+                    .comment("Upward impulse per tick for atmospheric particles. Scales with altitude progress.")
+                    .defineInRange("particleGravityOffset", 0.01, 0.0, 0.1);
             atmosphereLayers = builder
                     .comment("\"altitude:pressure\" pairs defining the pressure curve - 1.0 = full atmosphere, 0.0 = vacuum. Gravity, muffling and the Sable datapack all read this curve. Defaults: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
                     .defineListAllowEmpty("atmosphereLayers",
