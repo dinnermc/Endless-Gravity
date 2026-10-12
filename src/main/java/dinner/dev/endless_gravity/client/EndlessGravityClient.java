@@ -13,7 +13,6 @@ public class EndlessGravityClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         GravityHandlerClient.register();
-        ParticleGravityHandler.register();
 
         ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID, (payload, context) ->
                 context.client().execute(() -> {
