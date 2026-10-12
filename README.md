@@ -63,9 +63,11 @@ Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity
 - `getAtmosphereOffset(y)`, `getAtmosphereMuffleGain(y)`, `getAtmosphereMuffleGainHF(y)` — derived atmosphere values
 - `getRealY(entity)`, `getRealY(level, pos)` — project positions out of Sable sub-levels into global space
 - `isSableLoaded()`, `isSableManaged(level)`, `isOverworldOrSable(level)` — dimension/Sable helpers
-- `GRAVITY_IMMUNE` tag — add entity types to `data/endless_gravity/tags/entity/gravity_immune.json` to make them ignore low gravity in The End
+- `GRAVITY_IMMUNE` tag — add entity types to `data/endless_gravity/tags/entity_type/gravity_immune.json` to make them ignore low gravity in The End
 
 All gameplay-affecting config values are synced from server to client on login via `ConfigSyncPayload`.
+
+Some client-only settings are **not** synced and always come from your local config: atmospheric audio muffling, particle gravity, and custom dimensions (`config/endless_gravity/dimensions.json`). While connected to a remote server, the server's values are applied in memory for that session and your own values are restored on disconnect — synced values are never written to your config file.
 
 ## Requirements
 
