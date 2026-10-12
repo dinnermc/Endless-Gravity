@@ -4,6 +4,7 @@ import dinner.dev.endless_gravity.EndlessGravityAPI;
 import dinner.dev.endless_gravity.GravityHandler;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
+import net.minecraft.client.particle.TerrainParticle;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -20,6 +21,9 @@ public abstract class ParticleMixin {
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void endless_gravity$reduceGravity(CallbackInfo ci) {
+        // Only affect block-breaking particles (TerrainParticle == block dust), never other particle types.
+        if (!((Object) this instanceof TerrainParticle)) return;
+
         double offset = 0.0;
         if (EndlessGravityAPI.isEnd(this.level)) {
             if (!GravityHandler.isEndEntityGravity()) return;
