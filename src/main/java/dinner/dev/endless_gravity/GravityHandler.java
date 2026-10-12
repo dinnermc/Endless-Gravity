@@ -61,6 +61,10 @@ public class GravityHandler {
 
         Level level = entity.level();
 
+        // Server-authoritative: skip on the logical client. The local player's reduced gravity
+        // is applied client-side by ClientGravityHandler, so singleplayer must not apply it twice.
+        if (level.isClientSide()) return;
+
         // Skip gravity when paused (prevents velocity accumulation during pause)
         MinecraftServer server = level.getServer();
         if (server != null && server.isPaused()) return;
