@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.particle.ParticleRenderType;
+import net.minecraft.client.particle.TerrainParticle;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 import java.lang.reflect.Field;
@@ -60,6 +61,9 @@ public class ParticleGravityHandler {
 
             for (Queue<Particle> queue : map.values()) {
                 for (Particle particle : queue) {
+                    // Only affect block-breaking particles (block dust), never other particle types.
+                    if (!(particle instanceof TerrainParticle)) continue;
+
                     float g = particleGravityField.getFloat(particle);
                     // Only adjust if gravity is positive and non-negligible to avoid affecting particles that already have zero or negative gravity
                     if (g > 0.001f) {

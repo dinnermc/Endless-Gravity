@@ -104,6 +104,22 @@ public class GravityHandler {
         applyGravity(player, cachePlayerGravityOffset);
     }
 
+    /**
+     * Applies gravity for custom dimensions with custom config (mirrors the NeoForge handler).
+     */
+    public static void applyCustomDimensionGravity(Entity entity, Level level) {
+        String dimId = level.dimension().location().toString();
+        Config.getCustomDimConfig(dimId).ifPresent(config -> {
+            if (config.isEnableCustomGravity()) {
+                if (!(entity instanceof LivingEntity living)) return;
+                if (!living.onGround() && !living.isInWater() && !living.isFallFlying()) {
+                    if (living instanceof Player player && player.getAbilities().flying) return;
+                    applyGravity(living, config.getMobGravityOffset());
+                }
+            }
+        });
+    }
+
     public static boolean applyAtmosphereEffects(Level level, Entity entity) {
         // Check custom dimension atmosphere first
         String dimId = level.dimension().location().toString();
