@@ -21,7 +21,8 @@ public record ConfigSyncPayload(
         boolean enableAtmosphere, boolean overworldEntityGravity, double atmosphereGravityMax,
         double noFallDamageAltitude,
         double atmosphereMuffleGain, double atmosphereMuffleGainHF,
-        List<String> atmosphereLayers
+        List<String> atmosphereLayers,
+        boolean enableMobGravity, double mobGravityOffset
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<ConfigSyncPayload> ID =
@@ -52,6 +53,8 @@ public record ConfigSyncPayload(
             for (String layer : p.atmosphereLayers()) {
                 ByteBufCodecs.STRING_UTF8.encode(buf, layer);
             }
+            buf.writeBoolean(p.enableMobGravity());
+            buf.writeDouble(p.mobGravityOffset());
         }
 
         @Override
@@ -79,6 +82,8 @@ public record ConfigSyncPayload(
             for (int i = 0; i < layerCount; i++) {
                 atmosphereLayers.add(ByteBufCodecs.STRING_UTF8.decode(buf));
             }
+            boolean enableMobGravity = buf.readBoolean();
+            double mobGravityOffset = buf.readDouble();
             return new ConfigSyncPayload(
                     endEntityGravity,
                     enablePlayerGravity, playerGravityOffset,
@@ -90,7 +95,8 @@ public record ConfigSyncPayload(
                     enableAtmosphere, overworldEntityGravity, atmosphereGravityMax,
                     noFallDamageAltitude,
                     atmosphereMuffleGain, atmosphereMuffleGainHF,
-                    atmosphereLayers
+                    atmosphereLayers,
+                    enableMobGravity, mobGravityOffset
             );
         }
     };
@@ -112,29 +118,40 @@ public record ConfigSyncPayload(
                 Config.COMMON.enableAtmosphere.get(), Config.COMMON.overworldEntityGravity.get(), Config.COMMON.atmosphereGravityMax.get(),
                 Config.COMMON.noFallDamageAltitude.get(),
                 Config.COMMON.atmosphereMuffleGain.get(), Config.COMMON.atmosphereMuffleGainHF.get(),
-                List.copyOf(Config.COMMON.atmosphereLayers.get())
+                List.copyOf(Config.COMMON.atmosphereLayers.get()),
+                Config.COMMON.enableMobGravity.get(), Config.COMMON.mobGravityOffset.get()
         );
     }
 
+    /**
+     * Applies synced values in memory for this session only. Uses the non-dirty
+     * setter so a server's config never gets written over the player's local file,
+     * and it is fully restored on disconnect (see {@code client.EndlessGravityClient}).
+     *
+     * <p>Not synced on purpose, these always use the client's own config: particle
+     * offset, the low-pass audio filter, Sable and custom dimensions.
+     */
     public void applyToConfig() {
-        Config.COMMON.endEntityGravity.set(endEntityGravity);
-        Config.COMMON.enablePlayerGravity.set(enablePlayerGravity);
-        Config.COMMON.playerGravityOffset.set(playerGravityOffset);
-        Config.COMMON.enableItemGravity.set(enableItemGravity);
-        Config.COMMON.itemGravityOffset.set(itemGravityOffset);
-        Config.COMMON.enableArrowGravity.set(enableArrowGravity);
-        Config.COMMON.arrowGravityOffset.set(arrowGravityOffset);
-        Config.COMMON.enableThrownGravity.set(enableThrownGravity);
-        Config.COMMON.thrownGravityOffset.set(thrownGravityOffset);
-        Config.COMMON.fallDamageMode.set(fallDamageMode);
-        Config.COMMON.enableBlockGravity.set(enableBlockGravity);
-        Config.COMMON.blockGravityOffset.set(blockGravityOffset);
-        Config.COMMON.enableAtmosphere.set(enableAtmosphere);
-        Config.COMMON.overworldEntityGravity.set(overworldEntityGravity);
-        Config.COMMON.atmosphereGravityMax.set(atmosphereGravityMax);
-        Config.COMMON.noFallDamageAltitude.set(noFallDamageAltitude);
-        Config.COMMON.atmosphereMuffleGain.set(atmosphereMuffleGain);
-        Config.COMMON.atmosphereMuffleGainHF.set(atmosphereMuffleGainHF);
-        Config.COMMON.atmosphereLayers.set(atmosphereLayers);
+        Config.COMMON.endEntityGravity.setSynced(endEntityGravity);
+        Config.COMMON.enablePlayerGravity.setSynced(enablePlayerGravity);
+        Config.COMMON.playerGravityOffset.setSynced(playerGravityOffset);
+        Config.COMMON.enableItemGravity.setSynced(enableItemGravity);
+        Config.COMMON.itemGravityOffset.setSynced(itemGravityOffset);
+        Config.COMMON.enableArrowGravity.setSynced(enableArrowGravity);
+        Config.COMMON.arrowGravityOffset.setSynced(arrowGravityOffset);
+        Config.COMMON.enableThrownGravity.setSynced(enableThrownGravity);
+        Config.COMMON.thrownGravityOffset.setSynced(thrownGravityOffset);
+        Config.COMMON.fallDamageMode.setSynced(fallDamageMode);
+        Config.COMMON.enableBlockGravity.setSynced(enableBlockGravity);
+        Config.COMMON.blockGravityOffset.setSynced(blockGravityOffset);
+        Config.COMMON.enableAtmosphere.setSynced(enableAtmosphere);
+        Config.COMMON.overworldEntityGravity.setSynced(overworldEntityGravity);
+        Config.COMMON.atmosphereGravityMax.setSynced(atmosphereGravityMax);
+        Config.COMMON.noFallDamageAltitude.setSynced(noFallDamageAltitude);
+        Config.COMMON.atmosphereMuffleGain.setSynced(atmosphereMuffleGain);
+        Config.COMMON.atmosphereMuffleGainHF.setSynced(atmosphereMuffleGainHF);
+        Config.COMMON.atmosphereLayers.setSynced(atmosphereLayers);
+        Config.COMMON.enableMobGravity.setSynced(enableMobGravity);
+        Config.COMMON.mobGravityOffset.setSynced(mobGravityOffset);
     }
 }

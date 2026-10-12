@@ -29,6 +29,7 @@ public class Config {
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("endless_gravity.json");
 
     private static boolean dirty;
+    private static boolean serverSyncActive;
 
     public static void load() {
         try {
@@ -46,6 +47,11 @@ public class Config {
     }
 
     public static void save() {
+        // Never persist a remote server's synced values over the player's own config.
+        if (serverSyncActive) {
+            dirty = false;
+            return;
+        }
         try {
             JsonObject obj = new JsonObject();
             for (Value<?> value : COMMON.all) {
@@ -63,6 +69,15 @@ public class Config {
         if (dirty) {
             save();
         }
+    }
+
+    /**
+     * Marks whether a remote server's config is currently applied over the local one.
+     * While active, {@link #save()} refuses to write so synced values are never persisted;
+     * the player's own values are restored (and this cleared) on disconnect.
+     */
+    public static void setServerSyncActive(boolean active) {
+        serverSyncActive = active;
     }
 
     public abstract static class Value<T> {
@@ -85,6 +100,11 @@ public class Config {
                 value = newValue;
                 dirty = true;
             }
+        }
+
+        /** Sets the value without touching the dirty flag (used for server-synced values). */
+        public void setSynced(T newValue) {
+            this.value = newValue;
         }
 
         abstract void read(JsonObject obj);
