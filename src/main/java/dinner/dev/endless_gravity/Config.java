@@ -205,7 +205,7 @@ public class Config {
 
         // Particles
         // Upward acceleration per tick for particles in The End. 0.08 = neutral gravity (float), <0.08 = slow fall, >0.08 = slow rise
-        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.5));
+        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.1));
 
         // Gameplay
         public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1));

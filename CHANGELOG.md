@@ -3,6 +3,7 @@
 ## Unreleased
 
 - block-breaking particles now get the reduced-gravity effect from a Particle.tick mixin (every tick, End and Overworld) instead of a reflection pass every 4 ticks, so the effect no longer compounds over a particle's lifetime
+- lower the default particle gravity offset to 0.1 (Fabric). A config that already saved 0.5 keeps 0.5, so delete the entry or hit the reset button to pick up the new default
 
 ## 1.2.5
 
