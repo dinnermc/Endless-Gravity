@@ -1,5 +1,6 @@
 package dinner.dev.endless_gravity;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -51,6 +52,10 @@ public class GravityHandler {
     public static void onPlayerTick(PlayerTickEvent.Pre event) {
         Player player = event.getEntity();
         Level level = player.level();
+
+        // Skip gravity when paused (prevents velocity accumulation during pause)
+        MinecraftServer server = level.getServer();
+        if (server != null && server.isPaused()) return;
 
         if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
         if (player.getAbilities().flying) return;
