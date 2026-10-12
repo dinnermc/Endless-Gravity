@@ -295,36 +295,51 @@ public class Config {
         }
 
         try {
-            String json = Files.readString(configPath);
-            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            JsonArray dimensions = root.getAsJsonArray("dimensions");
-            if (dimensions != null) {
-                Gson gson = new GsonBuilder().create();
-                for (JsonElement element : dimensions) {
-                    JsonObject obj = element.getAsJsonObject();
-                    String dimId = obj.get("dimension").getAsString();
-
-                    CustomDimConfig config = new CustomDimConfig(
-                            dimId,
-                            obj.get("enableCustomGravity").getAsBoolean(),
-                            obj.get("mobGravityOffset").getAsDouble(),
-                            obj.get("enableAtmosphere").getAsBoolean(),
-                            obj.get("atmosphereGravityMax").getAsDouble(),
-                            obj.get("atmosphereBaseAltitude").getAsDouble(),
-                            obj.get("atmosphereMaxAltitude").getAsDouble(),
-                            obj.get("atmosphereMuffleGain").getAsDouble(),
-                            obj.get("atmosphereMuffleGainHF").getAsDouble(),
-                            obj.get("enableMobGravity").getAsBoolean(),
-                            obj.get("mobGravityOffsetCustom").getAsDouble(),
-                            gson.fromJson(obj.get("atmosphereLayers"), new com.google.gson.reflect.TypeToken<List<String>>() {}.getType())
-                    );
-                    CUSTOM_DIMENSIONS.put(dimId, config);
-                }
-            }
+            parseDimensionsFile(configPath);
             customDimensionsLoaded = true;
-        } catch (IOException e) {
-            // Log error but don't crash
-            System.err.println("[Endless Gravity] Failed to load custom dimensions config: " + e.getMessage());
+        } catch (Exception e) {
+            // Corrupt or truncated file: back it up, regenerate the default, retry once.
+            System.err.println("[Endless Gravity] Failed to load custom dimensions config (" + e.getMessage() + "); regenerating default.");
+            try {
+                Files.move(configPath, configPath.resolveSibling(configPath.getFileName() + ".bak"), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ignored) {}
+            createDefaultDimensionsConfig(configPath);
+            try {
+                parseDimensionsFile(configPath);
+                customDimensionsLoaded = true;
+            } catch (Exception e2) {
+                System.err.println("[Endless Gravity] Failed to load regenerated custom dimensions config: " + e2.getMessage());
+                customDimensionsLoaded = true;
+            }
+        }
+    }
+
+    private static void parseDimensionsFile(Path configPath) throws IOException {
+        String json = Files.readString(configPath);
+        JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+        JsonArray dimensions = root.getAsJsonArray("dimensions");
+        if (dimensions != null) {
+            Gson gson = new GsonBuilder().create();
+            for (JsonElement element : dimensions) {
+                JsonObject obj = element.getAsJsonObject();
+                String dimId = obj.get("dimension").getAsString();
+
+                CustomDimConfig config = new CustomDimConfig(
+                        dimId,
+                        obj.get("enableCustomGravity").getAsBoolean(),
+                        obj.get("mobGravityOffset").getAsDouble(),
+                        obj.get("enableAtmosphere").getAsBoolean(),
+                        obj.get("atmosphereGravityMax").getAsDouble(),
+                        obj.get("atmosphereBaseAltitude").getAsDouble(),
+                        obj.get("atmosphereMaxAltitude").getAsDouble(),
+                        obj.get("atmosphereMuffleGain").getAsDouble(),
+                        obj.get("atmosphereMuffleGainHF").getAsDouble(),
+                        obj.get("enableMobGravity").getAsBoolean(),
+                        obj.get("mobGravityOffsetCustom").getAsDouble(),
+                        gson.fromJson(obj.get("atmosphereLayers"), new com.google.gson.reflect.TypeToken<List<String>>() {}.getType())
+                );
+                CUSTOM_DIMENSIONS.put(dimId, config);
+            }
         }
     }
 
