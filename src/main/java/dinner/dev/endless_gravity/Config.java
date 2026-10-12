@@ -8,10 +8,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * JSON-backed config (Fabric has no ForgeConfigSpec). Mirrors the value-based
@@ -187,7 +191,7 @@ public class Config {
         public final BoolValue enableBlockGravity = add(new BoolValue("enableBlockGravity", true));
         public final DoubleValue blockGravityOffset = add(new DoubleValue("blockGravityOffset", 0.035));
 
-        // Atmosphere
+// Atmosphere
         public final BoolValue enableAtmosphere = add(new BoolValue("enableAtmosphere", true));
         public final BoolValue overworldEntityGravity = add(new BoolValue("overworldEntityGravity", true));
         public final DoubleValue atmosphereGravityMax = add(new DoubleValue("atmosphereGravityMax", 0.075));
@@ -195,6 +199,220 @@ public class Config {
         public final DoubleValue atmosphereMuffleGain = add(new DoubleValue("atmosphereMuffleGain", 0.01));
         public final DoubleValue atmosphereMuffleGainHF = add(new DoubleValue("atmosphereMuffleGainHF", 0.005));
         public final StringListValue atmosphereLayers = add(new StringListValue("atmosphereLayers",
-                List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0")));
+                java.util.Arrays.asList("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0")));
+
+        // Mob gravity (new section)
+        public final BoolValue enableMobGravity = add(new BoolValue("enableMobGravity", true));
+        public final DoubleValue mobGravityOffset = add(new DoubleValue("mobGravityOffset", 0.025));
+
+    }
+
+    // Custom dimension configuration loaded from JSON file.
+    // Allows modpack authors to define custom gravity/atmosphere per dimension.
+    public static class CustomDimConfig {
+        private final String dimensionId;
+        private final boolean enableCustomGravity;
+        private final double mobGravityOffset;
+        private final boolean enableAtmosphere;
+        private final double atmosphereGravityMax;
+        private final double atmosphereBaseAltitude;
+        private final double atmosphereMaxAltitude;
+        private final double atmosphereMuffleGain;
+        private final double atmosphereMuffleGainHF;
+        private final boolean enableMobGravity;
+        private final double mobGravityOffsetCustom;
+        private final List<String> atmosphereLayers;
+
+        public CustomDimConfig(
+                String dimensionId,
+                boolean enableCustomGravity,
+                double mobGravityOffset,
+                boolean enableAtmosphere,
+                double atmosphereGravityMax,
+                double atmosphereBaseAltitude,
+                double atmosphereMaxAltitude,
+                double atmosphereMuffleGain,
+                double atmosphereMuffleGainHF,
+                boolean enableMobGravity,
+                double mobGravityOffsetCustom,
+                List<String> atmosphereLayers) {
+            this.dimensionId = dimensionId;
+            this.enableCustomGravity = enableCustomGravity;
+            this.mobGravityOffset = mobGravityOffset;
+            this.enableAtmosphere = enableAtmosphere;
+            this.atmosphereGravityMax = atmosphereGravityMax;
+            this.atmosphereBaseAltitude = atmosphereBaseAltitude;
+            this.atmosphereMaxAltitude = atmosphereMaxAltitude;
+            this.atmosphereMuffleGain = atmosphereMuffleGain;
+            this.atmosphereMuffleGainHF = atmosphereMuffleGainHF;
+            this.enableMobGravity = enableMobGravity;
+            this.mobGravityOffsetCustom = mobGravityOffsetCustom;
+            this.atmosphereLayers = atmosphereLayers;
+        }
+
+        public String getDimensionId() { return dimensionId; }
+        public boolean isEnableCustomGravity() { return enableCustomGravity; }
+        public double getMobGravityOffset() { return mobGravityOffset; }
+        public boolean isEnableAtmosphere() { return enableAtmosphere; }
+        public double getAtmosphereGravityMax() { return atmosphereGravityMax; }
+        public double getAtmosphereBaseAltitude() { return atmosphereBaseAltitude; }
+        public double getAtmosphereMaxAltitude() { return atmosphereMaxAltitude; }
+        public double getAtmosphereMuffleGain() { return atmosphereMuffleGain; }
+        public double getAtmosphereMuffleGainHF() { return atmosphereMuffleGainHF; }
+        public boolean isEnableMobGravity() { return enableMobGravity; }
+        public double getMobGravityOffsetCustom() { return mobGravityOffsetCustom; }
+        public List<String> getAtmosphereLayers() { return atmosphereLayers; }
+
+        public static CustomDimConfig vanilla() {
+            return new CustomDimConfig(
+                    "minecraft:overworld",
+                    false, 0.0, false, 0.075, 64.0, 3500.0, 0.01, 0.005,
+                    false, 0.025, List.of()
+            );
+        }
+
+        public static CustomDimConfig endDefault() {
+            return new CustomDimConfig(
+                    "minecraft:the_end",
+                    true, 0.025, false, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    true, 0.025, List.of()
+            );
+        }
+    }
+
+    // Runtime cache for custom dimensions
+    private static final Map<String, CustomDimConfig> CUSTOM_DIMENSIONS = new java.util.HashMap<>();
+    private static boolean customDimensionsLoaded = false;
+
+    public static void loadCustomDimensions() {
+        if (customDimensionsLoaded) return;
+        CUSTOM_DIMENSIONS.clear();
+
+        Path configPath = FabricLoader.getInstance().getConfigDir().resolve("endless_gravity").resolve("dimensions.json");
+        if (!Files.exists(configPath)) {
+            createDefaultDimensionsConfig(configPath);
+        }
+
+        try {
+            String json = Files.readString(configPath);
+            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+            JsonArray dimensions = root.getAsJsonArray("dimensions");
+            if (dimensions != null) {
+                Gson gson = new GsonBuilder().create();
+                for (JsonElement element : dimensions) {
+                    JsonObject obj = element.getAsJsonObject();
+                    String dimId = obj.get("dimension").getAsString();
+
+                    CustomDimConfig config = new CustomDimConfig(
+                            dimId,
+                            obj.get("enableCustomGravity").getAsBoolean(),
+                            obj.get("mobGravityOffset").getAsDouble(),
+                            obj.get("enableAtmosphere").getAsBoolean(),
+                            obj.get("atmosphereGravityMax").getAsDouble(),
+                            obj.get("atmosphereBaseAltitude").getAsDouble(),
+                            obj.get("atmosphereMaxAltitude").getAsDouble(),
+                            obj.get("atmosphereMuffleGain").getAsDouble(),
+                            obj.get("atmosphereMuffleGainHF").getAsDouble(),
+                            obj.get("enableMobGravity").getAsBoolean(),
+                            obj.get("mobGravityOffsetCustom").getAsDouble(),
+                            gson.fromJson(obj.get("atmosphereLayers"), new com.google.gson.reflect.TypeToken<List<String>>() {}.getType())
+                    );
+                    CUSTOM_DIMENSIONS.put(dimId, config);
+                }
+            }
+            customDimensionsLoaded = true;
+        } catch (IOException e) {
+            // Log error but don't crash
+            System.err.println("[Endless Gravity] Failed to load custom dimensions config: " + e.getMessage());
+        }
+    }
+
+    private static void createDefaultDimensionsConfig(Path configPath) {
+        try {
+            Files.createDirectories(configPath.getParent());
+            String defaultJson = """
+                {
+                  "dimensions": [
+                    {
+                      "dimension": "minecraft:the_end",
+                      "enableCustomGravity": true,
+                      "mobGravityOffset": 0.025,
+                      "enableAtmosphere": false,
+                      "atmosphereGravityMax": 0.0,
+                      "atmosphereBaseAltitude": 0.0,
+                      "atmosphereMaxAltitude": 0.0,
+                      "atmosphereMuffleGain": 0.0,
+                      "atmosphereMuffleGainHF": 0.0,
+                      "enableMobGravity": true,
+                      "mobGravityOffsetCustom": 0.025,
+                      "atmosphereLayers": []
+                    },
+                    {
+                      "dimension": "minecraft:overworld",
+                      "enableCustomGravity": false,
+                      "mobGravityOffset": 0.0,
+                      "enableAtmosphere": true,
+                      "atmosphereGravityMax": 0.075,
+                      "atmosphereBaseAltitude": 64.0,
+                      "atmosphereMaxAltitude": 3500.0,
+                      "atmosphereMuffleGain": 0.01,
+                      "atmosphereMuffleGainHF": 0.005,
+                      "enableMobGravity": false,
+                      "mobGravityOffsetCustom": 0.0,
+                      "atmosphereLayers": [
+                        "-64:1.25",
+                        "64:1.0",
+                        "400:0.5",
+                        "900:0.2",
+                        "1200:0.08",
+                        "1800:0.01",
+                        "2500:0.001",
+                        "3500:0.0"
+                      ]
+                    }
+                  ]
+                """;
+            Files.writeString(configPath, defaultJson);
+        } catch (IOException e) {
+            System.err.println("[Endless Gravity] Failed to create default dimensions config: " + e.getMessage());
+        }
+    }
+
+    public static void reloadCustomDimensions() {
+        customDimensionsLoaded = false;
+        loadCustomDimensions();
+    }
+
+    public static Optional<CustomDimConfig> getCustomDimConfig(String dimensionId) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        return Optional.ofNullable(CUSTOM_DIMENSIONS.get(dimensionId));
+    }
+
+    public static boolean hasCustomGravity(String dimensionId) {
+        return getCustomDimConfig(dimensionId).map(CustomDimConfig::isEnableCustomGravity).orElse(false);
+    }
+
+    public static boolean hasCustomAtmosphere(String dimensionId) {
+        return getCustomDimConfig(dimensionId).map(CustomDimConfig::isEnableAtmosphere).orElse(false);
+    }
+
+    public static double getMobGravityOffsetForDimension(String dimensionId) {
+        return getCustomDimConfig(dimensionId)
+                .map(c -> c.isEnableCustomGravity() ? c.getMobGravityOffset() : 0.0)
+                .orElse(0.0);
+    }
+
+    public static double getMobGravityOffsetCustom(String dimensionId) {
+        return getCustomDimConfig(dimensionId)
+                .map(c -> c.isEnableMobGravity() ? c.getMobGravityOffsetCustom() : 0.0)
+                .orElse(0.0);
+    }
+
+    public static boolean hasMobGravity(String dimensionId) {
+        return getCustomDimConfig(dimensionId).map(CustomDimConfig::isEnableMobGravity).orElse(false);
+    }
+
+    public static Optional<CustomDimConfig> getCustomDimConfigByKey(net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension) {
+        return getCustomDimConfig(dimension.location().toString());
     }
 }

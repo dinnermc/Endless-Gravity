@@ -36,6 +36,10 @@ processResources {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << "--enable-preview"
+}
+
 modrinth {
     token = System.getenv("MODRINTH_TOKEN")
     projectId = "endless-gravity"
