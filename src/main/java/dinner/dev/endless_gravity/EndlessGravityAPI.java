@@ -8,8 +8,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import dinner.dev.endless_gravity.CustomDimConfig;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * Public API for Endless Gravity: atmosphere queries, dimension/Sable helpers,
@@ -153,5 +155,84 @@ public final class EndlessGravityAPI {
         ResourceKey<Level> dim = level.dimension();
         if (dim == Level.OVERWORLD) return true;
         return dim.location().getNamespace().equals("sable");
+    }
+
+    // ========== Custom Dimension Support ==========
+
+    /**
+     * Checks if a dimension has custom gravity configuration.
+     */
+    public static boolean hasCustomGravity(ResourceKey<Level> dimension) {
+        return Config.hasCustomGravity(dimension.location().toString());
+    }
+
+    /**
+     * Checks if a dimension has custom atmosphere configuration.
+     */
+    public static boolean hasCustomAtmosphere(ResourceKey<Level> dimension) {
+        return Config.hasCustomAtmosphere(dimension.location().toString());
+    }
+
+    /**
+     * Checks if a dimension has custom gravity configuration (by ID string).
+     */
+    public static boolean hasCustomGravity(String dimensionId) {
+        return Config.hasCustomGravity(dimensionId);
+    }
+
+    /**
+     * Gets the custom dimension configuration for a dimension.
+     */
+    public static Optional<CustomDimConfig> getCustomDimConfig(ResourceKey<Level> dimension) {
+        return Config.getCustomDimConfig(dimension.location().toString());
+    }
+
+    /**
+     * Gets the custom dimension configuration for a dimension by ID string.
+     */
+    public static Optional<CustomDimConfig> getCustomDimConfig(String dimensionId) {
+        return Config.getCustomDimConfig(dimensionId);
+    }
+
+    /**
+     * Checks if a dimension has custom gravity enabled.
+     */
+    public static boolean hasCustomGravityEnabled(ResourceKey<Level> dimension) {
+        return Config.hasCustomGravity(dimension.location().toString());
+    }
+
+    /**
+     * Checks if a dimension has custom atmosphere enabled.
+     */
+    public static boolean hasCustomAtmosphereEnabled(ResourceKey<Level> dimension) {
+        return Config.hasCustomAtmosphere(dimension.location().toString());
+    }
+
+    /**
+     * Gets the mob gravity offset for a custom dimension.
+     */
+    public static double getMobGravityOffsetForDimension(ResourceKey<Level> dimension) {
+        return Config.getMobGravityOffsetForDimension(dimension.location().toString());
+    }
+
+    /**
+     * Gets the custom mob gravity offset for a dimension.
+     */
+    public static double getMobGravityOffsetCustom(ResourceKey<Level> dimension) {
+        return Config.getMobGravityOffsetCustom(dimension.location().toString());
+    }
+
+    /**
+     * Checks if a dimension has mob gravity enabled.
+     */
+    public static boolean hasMobGravityEnabled(ResourceKey<Level> dimension) {
+        return Config.hasMobGravity(dimension.location().toString());
+    }
+
+    /**
+     * Gets the custom dimension configuration for a dimension by ResourceKey.
+     */
+    public static Optional<CustomDimConfig> getCustomDimConfigByKey(ResourceKey<Level> dimension) {
+        return Config.getCustomDimConfig(dimension.location().toString());
     }
 }
