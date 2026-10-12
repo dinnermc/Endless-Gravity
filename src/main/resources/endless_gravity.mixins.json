@@ -11,6 +11,7 @@
     "LivingEntityMixin"
   ],
   "client": [
+    "ParticleMixin",
     "SoundEngineMixin",
     "ChannelMixin"
   ],

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- block-breaking particles now get the reduced-gravity effect from a Particle.tick mixin (every tick, End and Overworld) instead of a reflection pass every 4 ticks, so the effect no longer compounds over a particle's lifetime
+
 ## 1.2.5
 
 - fall damage is disabled by default in the end and sable sub-levels
