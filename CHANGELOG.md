@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- lower the default particle gravity offset to 0.1 (NeoForge). A config that already saved 0.5 keeps 0.5, so delete the entry or hit the reset button to pick up the new default
+
 ## 1.2.5
 
 - fall damage is disabled by default in the end and sable sub-levels
