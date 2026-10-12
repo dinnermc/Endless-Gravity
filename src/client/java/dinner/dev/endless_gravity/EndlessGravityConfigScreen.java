@@ -1,5 +1,6 @@
 package dinner.dev.endless_gravity;
 
+import dinner.dev.endless_gravity.client.ConfigSyncClient;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
@@ -229,6 +230,11 @@ public class EndlessGravityConfigScreen {
             Config.COMMON.atmosphereLayers.set(AtmosphereLayers.serialize(layers));
             if (sableLoaded) {
                 SableDatapackHandler.generateDatapack();
+            }
+            // NeoForge does not autosave; persist the player's edits explicitly. Skip while a remote
+            // server's synced config is applied, so we never overwrite the player's own config file.
+            if (!ConfigSyncClient.isServerSyncActive()) {
+                Config.COMMON_SPEC.save();
             }
         }
 

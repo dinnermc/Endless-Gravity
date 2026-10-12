@@ -22,8 +22,18 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 public final class ConfigSyncClient {
 
     private static ConfigSyncPayload localBackup;
+    private static boolean serverSyncActive;
 
     private ConfigSyncClient() {}
+
+    /**
+     * True while a remote server's synced config is applied over the local one. While active,
+     * the config screen must not persist anything, or the server's values would overwrite the
+     * player's own config file.
+     */
+    public static boolean isServerSyncActive() {
+        return serverSyncActive;
+    }
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
@@ -38,11 +48,13 @@ public final class ConfigSyncClient {
         if (localBackup == null) {
             localBackup = ConfigSyncPayload.fromConfig();
         }
+        serverSyncActive = true;
         payload.applyToConfig();
     }
 
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        serverSyncActive = false;
         if (localBackup != null) {
             localBackup.applyToConfig();
             localBackup = null;
