@@ -1,10 +1,12 @@
 package dinner.dev.endless_gravity;
 
+import dinner.dev.endless_gravity.client.ParticleSpawnerClient;
 import dinner.dev.endless_gravity.compat.sable.AtmosphereForceGroups;
 import dinner.dev.endless_gravity.network.ConfigSyncPayload;
+import dinner.dev.endless_gravity.particle.LowGravityParticle;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
@@ -28,6 +30,8 @@ public class EndlessGravity {
     public static final String MODID = "endless_gravity";
     private static final Logger LOGGER = LogUtils.getLogger();
 
+    public static final net.minecraft.core.particles.SimpleParticleType LOW_GRAVITY_PARTICLE = new net.minecraft.core.particles.SimpleParticleType(true);
+
     public EndlessGravity(net.neoforged.bus.api.IEventBus modEventBus, net.neoforged.fml.ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.COMMON_SPEC);
         if (ModList.get().isLoaded("sable")) {
@@ -46,6 +50,21 @@ public class EndlessGravity {
             if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
                 net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(serverPlayer, ConfigSyncPayload.fromConfig());
             }
+        });
+
+        // Register particle type
+        net.neoforged.neoforge.registries.DeferredRegister<ParticleType<?>> particles = DeferredRegister.create(Registries.PARTICLE_TYPE, MODID);
+        particles.register("low_gravity_particle", () -> LOW_GRAVITY_PARTICLE);
+        particles.register(modEventBus);
+
+        // Register particle factory on client
+        modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent.class, event -> {
+            event.registerSpriteSet(LOW_GRAVITY_PARTICLE, LowGravityParticle.Provider::new);
+        });
+
+        // Register client-side particle spawner
+        modEventBus.addListener(net.neoforged.neoforge.client.event.ClientTickEvent.class, event -> {
+            ParticleSpawnerClient.register();
         });
 
         LOGGER.info("Endless Gravity loaded");
