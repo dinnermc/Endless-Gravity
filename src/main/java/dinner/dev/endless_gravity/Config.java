@@ -12,6 +12,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -218,8 +219,6 @@ public class Config {
                             obj -> obj instanceof String);
 
             builder.pop();
-
-            builder.pop();
         }
     }
 
@@ -237,85 +236,109 @@ public class Config {
         }
 
         try {
-            String json = Files.readString(configPath);
-            JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-            JsonArray dimensions = root.getAsJsonArray("dimensions");
-            if (dimensions != null) {
-                Gson gson = new GsonBuilder().create();
-                for (JsonElement element : dimensions) {
-                    JsonObject obj = element.getAsJsonObject();
-                    String dimId = obj.get("dimension").getAsString();
-
-                    CustomDimConfig config = new CustomDimConfig(
-                            dimId,
-                            obj.get("enableCustomGravity").getAsBoolean(),
-                            obj.get("mobGravityOffset").getAsDouble(),
-                            obj.get("enableAtmosphere").getAsBoolean(),
-                            obj.get("atmosphereGravityMax").getAsDouble(),
-                            obj.get("atmosphereBaseAltitude").getAsDouble(),
-                            obj.get("atmosphereMaxAltitude").getAsDouble(),
-                            obj.get("atmosphereMuffleGain").getAsDouble(),
-                            obj.get("atmosphereMuffleGainHF").getAsDouble(),
-                            obj.get("enableMobGravity").getAsBoolean(),
-                            obj.get("mobGravityOffsetCustom").getAsDouble(),
-                            gson.fromJson(obj.get("atmosphereLayers"), new com.google.gson.reflect.TypeToken<List<String>>() {}.getType())
-                    );
-                    CUSTOM_DIMENSIONS.put(dimId, config);
-                }
-            }
+            parseDimensionsFile(configPath);
             customDimensionsLoaded = true;
-        } catch (IOException e) {
-            // Log error but don't crash
-            System.err.println("[Endless Gravity] Failed to load custom dimensions config: " + e.getMessage());
+        } catch (Exception e) {
+            // Corrupt or truncated file: back it up, regenerate the default, retry once.
+            System.err.println("[Endless Gravity] Failed to load custom dimensions config (" + e.getMessage() + "); regenerating default.");
+            try {
+                Files.move(configPath, configPath.resolveSibling(configPath.getFileName() + ".bak"), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ignored) {}
+            createDefaultDimensionsConfig(configPath);
+            try {
+                parseDimensionsFile(configPath);
+                customDimensionsLoaded = true;
+            } catch (Exception e2) {
+                System.err.println("[Endless Gravity] Failed to load regenerated custom dimensions config: " + e2.getMessage());
+                customDimensionsLoaded = true;
+            }
+        }
+    }
+
+    private static void parseDimensionsFile(Path configPath) throws IOException {
+        String json = Files.readString(configPath);
+        JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+        JsonArray dimensions = root.getAsJsonArray("dimensions");
+        if (dimensions != null) {
+            Gson gson = new GsonBuilder().create();
+            for (JsonElement element : dimensions) {
+                JsonObject obj = element.getAsJsonObject();
+                String dimId = obj.get("dimension").getAsString();
+
+                CustomDimConfig config = new CustomDimConfig(
+                        dimId,
+                        obj.get("enableCustomGravity").getAsBoolean(),
+                        obj.get("mobGravityOffset").getAsDouble(),
+                        obj.get("enableAtmosphere").getAsBoolean(),
+                        obj.get("atmosphereGravityMax").getAsDouble(),
+                        obj.get("atmosphereBaseAltitude").getAsDouble(),
+                        obj.get("atmosphereMaxAltitude").getAsDouble(),
+                        obj.get("atmosphereMuffleGain").getAsDouble(),
+                        obj.get("atmosphereMuffleGainHF").getAsDouble(),
+                        obj.get("enableMobGravity").getAsBoolean(),
+                        obj.get("mobGravityOffsetCustom").getAsDouble(),
+                        gson.fromJson(obj.get("atmosphereLayers"), new com.google.gson.reflect.TypeToken<List<String>>() {}.getType())
+                );
+                CUSTOM_DIMENSIONS.put(dimId, config);
+            }
         }
     }
 
     private static void createDefaultDimensionsConfig(Path configPath) {
         try {
             Files.createDirectories(configPath.getParent());
-            String defaultJson = """
-                {
-                  "dimensions": [
-                    {
-                      "dimension": "minecraft:the_end",
-                      "enableCustomGravity": true,
-                      "mobGravityOffset": 0.025,
-                      "enableAtmosphere": false,
-                      "atmosphereGravityMax": 0.0,
-                      "atmosphereBaseAltitude": 0.0,
-                      "atmosphereMaxAltitude": 0.0,
-                      "atmosphereMuffleGain": 0.0,
-                      "atmosphereMuffleGainHF": 0.0,
-                      "enableMobGravity": true,
-                      "mobGravityOffsetCustom": 0.025,
-                      "atmosphereLayers": []
-                    },
-                    {
-                      "dimension": "minecraft:overworld",
-                      "enableCustomGravity": false,
-                      "mobGravityOffset": 0.0,
-                      "enableAtmosphere": true,
-                      "atmosphereGravityMax": 0.075,
-                      "atmosphereBaseAltitude": 64.0,
-                      "atmosphereMaxAltitude": 3500.0,
-                      "atmosphereMuffleGain": 0.01,
-                      "atmosphereMuffleGainHF": 0.005,
-                      "enableMobGravity": false,
-                      "mobGravityOffsetCustom": 0.0,
-                      "atmosphereLayers": [
-                        "-64:1.25",
-                        "64:1.0",
-                        "400:0.5",
-                        "900:0.2",
-                        "1200:0.08",
-                        "1800:0.01",
-                        "2500:0.001",
-                        "3500:0.0"
-                      ]
-                    }
-                  ]
-                """;
-            Files.writeString(configPath, defaultJson);
+
+            JsonObject endDim = new JsonObject();
+            endDim.addProperty("dimension", "minecraft:the_end");
+            endDim.addProperty("enableCustomGravity", true);
+            endDim.addProperty("mobGravityOffset", 0.025);
+            endDim.addProperty("enableAtmosphere", false);
+            endDim.addProperty("atmosphereGravityMax", 0.0);
+            endDim.addProperty("atmosphereBaseAltitude", 0.0);
+            endDim.addProperty("atmosphereMaxAltitude", 0.0);
+            endDim.addProperty("atmosphereMuffleGain", 0.0);
+            endDim.addProperty("atmosphereMuffleGainHF", 0.0);
+            endDim.addProperty("enableMobGravity", true);
+            endDim.addProperty("mobGravityOffsetCustom", 0.025);
+            endDim.add("atmosphereLayers", new JsonArray());
+
+            JsonObject overworldDim = new JsonObject();
+            overworldDim.addProperty("dimension", "minecraft:overworld");
+            overworldDim.addProperty("enableCustomGravity", false);
+            overworldDim.addProperty("mobGravityOffset", 0.0);
+            overworldDim.addProperty("enableAtmosphere", true);
+            overworldDim.addProperty("atmosphereGravityMax", 0.075);
+            overworldDim.addProperty("atmosphereBaseAltitude", 64.0);
+            overworldDim.addProperty("atmosphereMaxAltitude", 3500.0);
+            overworldDim.addProperty("atmosphereMuffleGain", 0.01);
+            overworldDim.addProperty("atmosphereMuffleGainHF", 0.005);
+            overworldDim.addProperty("enableMobGravity", false);
+            overworldDim.addProperty("mobGravityOffsetCustom", 0.0);
+
+            JsonArray layers = new JsonArray();
+            layers.add("-64:1.25");
+            layers.add("64:1.0");
+            layers.add("400:0.5");
+            layers.add("900:0.2");
+            layers.add("1200:0.08");
+            layers.add("1800:0.01");
+            layers.add("2500:0.001");
+            layers.add("3500:0.0");
+            overworldDim.add("atmosphereLayers", layers);
+
+            JsonArray dimensions = new JsonArray();
+            dimensions.add(endDim);
+            dimensions.add(overworldDim);
+
+            JsonObject root = new JsonObject();
+            root.add("dimensions", dimensions);
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            String defaultJson = gson.toJson(root);
+
+            Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
+            Files.writeString(tempPath, defaultJson);
+            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
             System.err.println("[Endless Gravity] Failed to create default dimensions config: " + e.getMessage());
         }
