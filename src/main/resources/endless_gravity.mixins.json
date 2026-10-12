@@ -7,12 +7,12 @@
     "ItemEntityMixin",
     "AbstractArrowMixin",
     "FallingBlockEntityMixin",
-    "ProjectileMixin",
-    "ParticleMixin"
+    "ProjectileMixin"
   ],
   "client": [
     "SoundEngineMixin",
-    "ChannelMixin"
+    "ChannelMixin",
+    "ParticleMixin"
   ],
   "injectors": {
     "defaultRequire": 1
