@@ -22,7 +22,8 @@ public record ConfigSyncPayload(
         boolean enableAtmosphere, boolean overworldEntityGravity, double atmosphereGravityMax,
         double noFallDamageAltitude,
         double atmosphereMuffleGain, double atmosphereMuffleGainHF,
-        List<String> atmosphereLayers
+        List<String> atmosphereLayers,
+        boolean enableMobGravity, double mobGravityOffset
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<ConfigSyncPayload> ID =
@@ -53,6 +54,8 @@ public record ConfigSyncPayload(
             for (String layer : p.atmosphereLayers()) {
                 ByteBufCodecs.STRING_UTF8.encode(buf, layer);
             }
+            buf.writeBoolean(p.enableMobGravity());
+            buf.writeDouble(p.mobGravityOffset());
         }
 
         @Override
@@ -80,6 +83,8 @@ public record ConfigSyncPayload(
             for (int i = 0; i < layerCount; i++) {
                 atmosphereLayers.add(ByteBufCodecs.STRING_UTF8.decode(buf));
             }
+            boolean enableMobGravity = buf.readBoolean();
+            double mobGravityOffset = buf.readDouble();
             return new ConfigSyncPayload(
                     endEntityGravity,
                     enablePlayerGravity, playerGravityOffset,
@@ -91,7 +96,8 @@ public record ConfigSyncPayload(
                     enableAtmosphere, overworldEntityGravity, atmosphereGravityMax,
                     noFallDamageAltitude,
                     atmosphereMuffleGain, atmosphereMuffleGainHF,
-                    atmosphereLayers
+                    atmosphereLayers,
+                    enableMobGravity, mobGravityOffset
             );
         }
     };
@@ -113,10 +119,19 @@ public record ConfigSyncPayload(
                 Config.COMMON.enableAtmosphere.get(), Config.COMMON.overworldEntityGravity.get(), Config.COMMON.atmosphereGravityMax.get(),
                 Config.COMMON.noFallDamageAltitude.get(),
                 Config.COMMON.atmosphereMuffleGain.get(), Config.COMMON.atmosphereMuffleGainHF.get(),
-                List.copyOf(Config.COMMON.atmosphereLayers.get())
+                List.copyOf(Config.COMMON.atmosphereLayers.get()),
+                Config.COMMON.enableMobGravity.get(), Config.COMMON.mobGravityOffset.get()
         );
     }
 
+    /**
+     * Applies the synced gameplay values in memory for this session only, and never
+     * marks the config dirty (NeoForge's {@code ConfigValue#set} does not write to disk).
+     * The player's local values are restored on disconnect (see {@code client.ConfigSyncClient}).
+     *
+     * <p>Not synced on purpose, these always use the client's own config: particle
+     * offset, the low-pass audio filter, Sable and custom dimensions.
+     */
     public void applyToConfig() {
         Config.COMMON.endEntityGravity.set(endEntityGravity);
         Config.COMMON.enablePlayerGravity.set(enablePlayerGravity);
@@ -137,9 +152,19 @@ public record ConfigSyncPayload(
         Config.COMMON.atmosphereMuffleGain.set(atmosphereMuffleGain);
         Config.COMMON.atmosphereMuffleGainHF.set(atmosphereMuffleGainHF);
         Config.COMMON.atmosphereLayers.set(atmosphereLayers);
+        Config.COMMON.enableMobGravity.set(enableMobGravity);
+        Config.COMMON.mobGravityOffset.set(mobGravityOffset);
     }
 
     public static void handle(ConfigSyncPayload payload, IPayloadContext ctx) {
-        ctx.enqueueWork(() -> payload.applyToConfig());
+        ctx.enqueueWork(() -> clientApplier.accept(payload));
     }
+
+    /**
+     * Client-only interceptor for applying a synced config. The client source set
+     * replaces this during client setup (see {@code client.ConfigSyncClient}) so it
+     * can snapshot/restore the player's local values and skip the integrated server.
+     * On a dedicated server this stays as the plain applier and is never invoked.
+     */
+    public static java.util.function.Consumer<ConfigSyncPayload> clientApplier = ConfigSyncPayload::applyToConfig;
 }
