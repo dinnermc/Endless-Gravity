@@ -52,6 +52,10 @@ public class GravityHandler {
     }
 
     private static void onLevelTick(ServerLevel level) {
+        // Skip gravity when paused (prevents velocity accumulation during pause)
+        MinecraftServer server = level.getServer();
+        if (server != null && server.isPaused()) return;
+
         refreshConfigCache();
 
         for (ServerPlayer player : level.players()) {
