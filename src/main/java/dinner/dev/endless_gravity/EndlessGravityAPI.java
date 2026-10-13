@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import dinner.dev.endless_gravity.CustomDimConfig;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -34,6 +35,10 @@ public final class EndlessGravityAPI {
 
     public static boolean isGravityImmune(Entity entity) {
         if (entity.getType().is(GRAVITY_IMMUNE)) return true;
+        // The gravityImmuneEntities config list only travels on the server. Restrict it
+        // to living entities so the shared item/arrow/block/projectile paths stay
+        // consistent on the client, which relies on the (synced) tag only.
+        if (!(entity instanceof LivingEntity)) return false;
         ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
         return id != null && Config.COMMON.gravityImmuneEntities.get().contains(id.toString());
     }
