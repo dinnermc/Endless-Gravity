@@ -166,18 +166,17 @@ public class GravityHandler {
         applyGravity(entity, offset);
         return true;
     }
-
     private static boolean onAllowDamage(LivingEntity entity, DamageSource source, float amount) {
-        if (!(entity instanceof ServerPlayer player)) return true;
         if (!source.is(DamageTypeTags.IS_FALL)) return true;
 
-        Level level = player.level();
+        boolean isPlayer = entity instanceof Player;
+        Level level = entity.level();
 
         // Custom dimension fall damage
         String dimId = level.dimension().location().toString();
         if (Config.hasCustomAtmosphere(dimId)) {
             Config.CustomDimConfig config = Config.getCustomDimConfig(dimId).orElse(null);
-            if (config != null && config.isEnableAtmosphere() && EndlessGravityAPI.getRealY(player) > config.getAtmosphereMaxAltitude()) {
+            if (config != null && config.isEnableAtmosphere() && EndlessGravityAPI.getRealY(entity) > config.getAtmosphereMaxAltitude()) {
                 return false;
             }
         }
@@ -185,12 +184,15 @@ public class GravityHandler {
         // Vanilla fall damage
         if (Config.COMMON.enableAtmosphere.get()
                 && EndlessGravityAPI.isOverworld(level)
-                && EndlessGravityAPI.getRealY(player) > Config.COMMON.noFallDamageAltitude.get()) {
+                && EndlessGravityAPI.getRealY(entity) > Config.COMMON.noFallDamageAltitude.get()) {
             return false;
         }
 
-        if (isEnd(level) && Config.COMMON.fallDamageMode.get() == 1) {
-            return false;
+        if (isEnd(level)) {
+            int mode = isPlayer ? Config.COMMON.fallDamageMode.get() : Config.COMMON.mobFallDamageMode.get();
+            if (mode == 1) {
+                return false;
+            }
         }
         return true;
     }
