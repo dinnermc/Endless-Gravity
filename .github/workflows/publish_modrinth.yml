@@ -21,12 +21,22 @@ jobs:
 
       - run: chmod +x gradlew
 
+      - name: Read mod version
+        id: ver
+        run: |
+          VER=$(awk -F= '/^mod_version=/{gsub(/[ \r]/,"",$2); print $2}' gradle.properties)
+          if [ -z "$VER" ]; then
+            echo "::error::mod_version not found in gradle.properties"
+            exit 1
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
       - name: Check if version already published
         id: check
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
-          VER="${GITHUB_REF_NAME#v}"
+          VER="${{ steps.ver.outputs.version }}"
           VID=$(curl -fsS -H "Authorization: Bearer $MODRINTH_TOKEN" \
             "https://api.modrinth.com/v2/project/endless-gravity/version" \
             | jq -r --arg v "$VER" '.[] | select(.version_number == $v) | .id' | head -n1)
@@ -46,7 +56,7 @@ jobs:
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
-          VER="${GITHUB_REF_NAME#v}"
+          VER="${{ steps.ver.outputs.version }}"
           VID=$(curl -fsS -H "Authorization: Bearer $MODRINTH_TOKEN" \
             "https://api.modrinth.com/v2/project/endless-gravity/version" \
             | jq -r --arg v "$VER" '.[] | select(.version_number == $v) | .id' | head -n1)
@@ -60,18 +70,37 @@ jobs:
               -H "Content-Type: application/json" -d @- \
               "https://api.modrinth.com/v2/version/$VID"
 
+      # The release is created once, on the loader-agnostic tag (not the -fabric one),
+      # so both jars end up on a single GitHub Release. The Fabric jar is built from the
+      # fabric branch; if that build fails the release is still created with the other jar.
+      - name: Build other loader jar (Fabric)
+        if: ${{ !endsWith(github.ref_name, '-fabric') }}
+        continue-on-error: true
+        run: |
+          git fetch --depth 1 origin fabric-1.21.1
+          git worktree add ../fabric-build origin/fabric-1.21.1
+          cd ../fabric-build
+          chmod +x gradlew
+          ./gradlew build
+
       - name: Create or update GitHub Release
+        if: ${{ !endsWith(github.ref_name, '-fabric') }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          NOTES="See [Modrinth](https://modrinth.com/project/endless-gravity/version/$GITHUB_REF_NAME) for changelog."
+          VERSION="${{ steps.ver.outputs.version }}"
+          NOTES="See [Modrinth](https://modrinth.com/project/endless-gravity/version/$VERSION) for the changelog."
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --title "Endless Gravity v$VERSION" --notes "$NOTES"
+            gh release edit "$GITHUB_REF_NAME" --title "Endless Gravity $VERSION" --notes "$NOTES"
           else
-            gh release create "$GITHUB_REF_NAME" --title "Endless Gravity v$VERSION" --notes "$NOTES"
+            gh release create "$GITHUB_REF_NAME" --title "Endless Gravity $VERSION" --notes "$NOTES"
           fi
-          JAR="build/libs/endless_gravity-${VERSION}.jar"
-          if [ -f "$JAR" ]; then
-            gh release upload "$GITHUB_REF_NAME" "$JAR" --clobber
-          fi
+          attach() {
+            for JAR in "$1"/*.jar; do
+              [ -e "$JAR" ] || continue
+              case "$JAR" in *-dev.jar|*-sources.jar) continue;; esac
+              gh release upload "$GITHUB_REF_NAME" "$JAR" --clobber
+            done
+          }
+          attach build/libs
+          attach ../fabric-build/build/libs
