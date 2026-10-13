@@ -21,6 +21,10 @@ public class GravityHandlerClient {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // The client tick events keep firing while the integrated server is paused, but the
+            // player does not tick, so applying gravity here would accumulate velocity.
+            if (client.isPaused()) return;
+
             refreshConfigCache();
 
             var level = client.level;
