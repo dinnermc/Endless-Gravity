@@ -36,6 +36,8 @@
   "endless_gravity.config.columnAltitude": "Altitude",
   "endless_gravity.config.columnPressure": "Pressure",
   "endless_gravity.config.layerShort": "Layer %s",
+  "endless_gravity.config.gravityImmuneEntities": "Extra Immune Entities",
+  "endless_gravity.config.gravityImmuneEntities.tooltip": "Entity IDs (e.g. minecraft:zombie) excluded from reduced gravity, in addition to the gravity_immune tag.",
   "endless_gravity.config.true": "ON",
   "endless_gravity.config.false": "OFF"
 }

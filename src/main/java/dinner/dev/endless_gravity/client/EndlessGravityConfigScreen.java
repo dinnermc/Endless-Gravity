@@ -160,6 +160,16 @@ public class EndlessGravityConfigScreen {
                     .build();
             cat.addEntry(mode);
             allGeneral.add(mode);
+
+            var immune = entry.startStrList(text("endless_gravity.config.gravityImmuneEntities"),
+                            new ArrayList<>(Config.COMMON.gravityImmuneEntities.get()))
+                    .setDefaultValue(List.of())
+                    .setTooltip(text("endless_gravity.config.gravityImmuneEntities.tooltip"))
+                    .setSaveConsumer(Config.COMMON.gravityImmuneEntities::set)
+                    .build();
+            cat.addEntry(immune);
+            allGeneral.add(immune);
+
             all.addEntry(allGeneral.build());
         }
 

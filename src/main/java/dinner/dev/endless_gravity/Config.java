@@ -321,6 +321,10 @@ public class Config {
         public final BoolValue enableMobGravity = add(new BoolValue("enableMobGravity", true));
         public final DoubleValue mobGravityOffset = add(new DoubleValue("mobGravityOffset", 0.025, 0.0, 0.035));
 
+        // Extra entity IDs excluded from reduced gravity, in addition to the gravity_immune tag.
+        // The tag needs a datapack; this is the convenient per-player alternative.
+        public final StringListValue gravityImmuneEntities = add(new StringListValue("gravityImmuneEntities", java.util.List.of()));
+
     }
 
     // Custom dimension configuration loaded from JSON file.
