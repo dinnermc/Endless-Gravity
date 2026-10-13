@@ -8,7 +8,7 @@
       <img src="https://img.shields.io/modrinth/dt/endless-gravity?logo=modrinth&label=Downloads&style=flat&color=242629&labelColor=5CA424&logoColor=fff" alt="Modrinth Downloads" />
     </a>
     <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?logo=minecraft" alt="Minecraft Version" />
-    <img src="https://img.shields.io/badge/Loader-NeoForge-orange" alt="NeoForge" />
+    <img src="https://img.shields.io/badge/Loader-Fabric-blue" alt="Fabric" />
     <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License" />
   </p>
 
@@ -27,7 +27,7 @@
 
 ## Configuration
 
-Open the mod settings from the NeoForge mod list (or *Config → Endless Gravity*). Changes apply live where possible; the audio filter and Sable datapack need a restart.
+Open the mod settings from Mod Menu (or *Config → Endless Gravity*). Changes apply live where possible; the audio filter and Sable datapack need a restart.
 
 ### The End
 
@@ -69,13 +69,22 @@ All gameplay-affecting config values are synced from server to client on login v
 
 Some client-only settings are **not** synced and always come from your local config: atmospheric audio muffling, particle gravity, and custom dimensions (`config/endless_gravity/dimensions.json`). While connected to a remote server, the server's values are applied in memory for that session and your own values are restored on disconnect — synced values are never written to your config file.
 
+## Loader differences
+
+Both builds share the same config and behavior for The End and the Overworld. These are the only known gaps:
+
+| Feature | NeoForge | Fabric |
+|---|---|---|
+| Create: Cosmonautics integration | Overworld gravity backs off when it is installed | Not supported |
+| Sable sub-level physics and datapacks | Supported | Not supported |
+| Custom dimensions — players | Reduced gravity applied | Not applied (mobs only) |
+
 ## Requirements
 
 - Minecraft 1.21.1
-- NeoForge 21.1+
+- Fabric Loader 0.16.10+
 - Cloth Config — bundled (via Jar-in-Jar), no manual install
-- Sable (optional — the mod runs without it; only the Sable sub-level physics and datapacks are skipped)
-- Create: Cosmonautics — **not supported on this Fabric build.** The NeoForge build backs off Overworld gravity when Cosmonautics is installed; that integration is intentionally omitted on Fabric.
+- Create: Cosmonautics and Sable — **not supported on this build** (see *Loader differences*)
 
 ## License
 

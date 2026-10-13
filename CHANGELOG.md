@@ -1,9 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
 
+- new `mobFallDamageMode`: mob fall damage in The End and Sable sub-levels is disabled by default, separate from the player `fallDamageMode`
+- new `gravityImmuneEntities` list in the config screen: extra entity IDs that ignore low gravity without a datapack. It only affects living entities, in addition to the `gravity_immune` tag
+- mobs now fall with reduced gravity on Fabric too. Flying and anchored mobs (ghast, bat, allay, armor stands...) are skipped automatically so they don't float away
+- the default `gravity_immune` tag now ships with the ender dragon, wither, allay, bat, bee, blaze, ghast, phantom, vex, parrot, armor stands and anything tagged `#c:bosses`. If your datapack replaces that tag file, your file wins and the default list is not applied
 - block-breaking particles now get the reduced-gravity effect from a Particle.tick mixin (every tick, End and Overworld) instead of a reflection pass every 4 ticks, so the effect no longer compounds over a particle's lifetime
-- lower the default particle gravity offset to 0.1 (Fabric). A config that already saved 0.5 keeps 0.5, so delete the entry or hit the reset button to pick up the new default
+- lower the default particle gravity offset to 0.1. A config that already saved 0.5 keeps 0.5, so delete the entry or hit the reset button to pick up the new default
+- fix: the config screen showed 0.5 as the particle offset default instead of 0.1
+- fix: the `gravityImmuneEntities` list could desync items and arrows when listing one; it is now limited to living entities
 
 ## 1.2.5
 
