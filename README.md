@@ -75,7 +75,7 @@ Some client-only settings are **not** synced and always come from your local con
 - NeoForge 21.1+
 - Cloth Config — bundled (via Jar-in-Jar), no manual install
 - Sable (optional — the mod runs without it; only the Sable sub-level physics and datapacks are skipped)
-- Create: Cosmonautics (optional — when installed, it owns Overworld gravity and Endless Gravity backs off)
+- Create: Cosmonautics — **not supported on this Fabric build.** The NeoForge build backs off Overworld gravity when Cosmonautics is installed; that integration is intentionally omitted on Fabric.
 
 ## License
 
