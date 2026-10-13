@@ -191,6 +191,20 @@ public class EndlessGravityConfigScreen {
             cat.addEntry(mode);
             allGeneral.add(mode);
 
+            var mobMode = entry.startEnumSelector(text("endless_gravity.config.mobFallDamageMode"), FallDamageMode.class,
+                            FallDamageMode.fromInt(Config.COMMON.mobFallDamageMode.get()))
+                    .setDefaultValue(FallDamageMode.DISABLED)
+                    .setEnumNameProvider(e -> colored("endless_gravity.config.fallDamageMode."
+                                    + ((FallDamageMode) e).name().toLowerCase(Locale.ROOT),
+                            switch ((FallDamageMode) e) {
+                                case DISABLED -> TEXT_RED;
+                                default -> TEXT_WHITE;
+                            }))
+                    .setSaveConsumer(m -> Config.COMMON.mobFallDamageMode.set(m.ordinal()))
+                    .build();
+            cat.addEntry(mobMode);
+            allGeneral.add(mobMode);
+
             var immune = entry.startStrList(text("endless_gravity.config.gravityImmuneEntities"),
                             new ArrayList<String>(Config.COMMON.gravityImmuneEntities.get()))
                     .setDefaultValue(List.of())

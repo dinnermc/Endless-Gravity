@@ -1,7 +1,6 @@
 package dinner.dev.endless_gravity;
 
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.FlyingMob;
 import net.minecraft.world.entity.LivingEntity;
@@ -40,6 +39,7 @@ public class GravityHandler {
     private static boolean cacheEnableBlockGravity;
     private static double cacheBlockGravityOffset;
     private static int cacheFallDamageMode;
+    private static int cacheMobFallDamageMode;
     private static boolean cacheEnableSableEndGravity;
     private static double cacheSableGravityY;
     private static double cacheSablePressure;
@@ -230,15 +230,16 @@ public class GravityHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onFallDamage(LivingFallEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        LivingEntity entity = event.getEntity();
+        boolean isPlayer = entity instanceof Player;
 
-        Level level = player.level();
+        Level level = entity.level();
 
         // Custom dimension fall damage
         String dimId = level.dimension().location().toString();
         Config.getCustomDimConfig(dimId).ifPresent(config -> {
             if (config.isEnableAtmosphere() && 
-                EndlessGravityAPI.getRealY(player) > config.getAtmosphereMaxAltitude()) {
+                EndlessGravityAPI.getRealY(entity) > config.getAtmosphereMaxAltitude()) {
                 event.setDamageMultiplier(0.0F);
                 event.setDistance(0.0F);
                 return;
@@ -249,14 +250,15 @@ public class GravityHandler {
         if (!EndlessGravityAPI.isCosmonauticsInstalled()
                 && cacheEnableAtmosphere
                 && EndlessGravityAPI.isOverworldOrSable(level)
-                && EndlessGravityAPI.getRealY(player) > cacheNoFallDamageAltitude) {
+                && EndlessGravityAPI.getRealY(entity) > cacheNoFallDamageAltitude) {
             event.setDamageMultiplier(0.0F);
             event.setDistance(0.0F);
             return;
         }
 
         if (!isEndOrSable(level)) return;
-        if (cacheFallDamageMode == 1) {
+        int mode = isPlayer ? cacheFallDamageMode : cacheMobFallDamageMode;
+        if (mode == 1) {
             event.setDamageMultiplier(0.0F);
             event.setDistance(0.0F);
         }
@@ -281,6 +283,7 @@ public class GravityHandler {
         cacheEnableBlockGravity = Config.COMMON.enableBlockGravity.get();
         cacheBlockGravityOffset = Config.COMMON.blockGravityOffset.get();
         cacheFallDamageMode = Config.COMMON.fallDamageMode.get();
+        cacheMobFallDamageMode = Config.COMMON.mobFallDamageMode.get();
         cacheEnableSableEndGravity = Config.COMMON.endSableGravity.get();
         cacheSableGravityY = Config.COMMON.sableGravityY.get();
         cacheSablePressure = Config.COMMON.sablePressure.get();

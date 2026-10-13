@@ -49,5 +49,6 @@
   "endless_gravity.config.columnPressure": "Presión",
   "endless_gravity.config.layerShort": "Capa %s",
   "endless_gravity.config.gravityImmuneEntities": "Entidades inmunes extra",
-  "endless_gravity.config.gravityImmuneEntities.tooltip": "IDs de entidad (p. ej. minecraft:zombie) excluidas de la gravedad reducida, además del tag gravity_immune."
+  "endless_gravity.config.gravityImmuneEntities.tooltip": "IDs de entidad (p. ej. minecraft:zombie) excluidas de la gravedad reducida, además del tag gravity_immune.",
+  "endless_gravity.config.mobFallDamageMode": "Daño por caída de mobs"
 }
