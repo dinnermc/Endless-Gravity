@@ -54,6 +54,7 @@ public class Config {
 
         // Gameplay
         public final ModConfigSpec.IntValue fallDamageMode;
+        public final ModConfigSpec.IntValue mobFallDamageMode;
         public final ModConfigSpec.BooleanValue enableBlockGravity;
         public final ModConfigSpec.DoubleValue blockGravityOffset;
 
@@ -153,6 +154,10 @@ public class Config {
             fallDamageMode = builder
                     .comment("Fall damage in The End and Sable dimensions: 0 = vanilla, 1 = disabled.")
                     .defineInRange("fallDamageMode", 1, 0, 1);
+
+            mobFallDamageMode = builder
+                    .comment("Fall damage for mobs in The End and Sable dimensions: 0 = vanilla, 1 = disabled.")
+                    .defineInRange("mobFallDamageMode", 1, 0, 1);
 
             enableBlockGravity = builder
                     .comment("Falling blocks (sand, gravel, anvils, dragon eggs) fall slower in The End.")
