@@ -17,6 +17,7 @@ public record ConfigSyncPayload(
         boolean enableArrowGravity, double arrowGravityOffset,
         boolean enableThrownGravity, double thrownGravityOffset,
         int fallDamageMode,
+        int mobFallDamageMode,
         boolean enableBlockGravity, double blockGravityOffset,
         boolean enableAtmosphere, boolean overworldEntityGravity, double atmosphereGravityMax,
         double noFallDamageAltitude,
@@ -42,6 +43,7 @@ public record ConfigSyncPayload(
             buf.writeBoolean(p.enableThrownGravity());
             buf.writeDouble(p.thrownGravityOffset());
             buf.writeInt(p.fallDamageMode());
+            buf.writeInt(p.mobFallDamageMode());
             buf.writeBoolean(p.enableBlockGravity());
             buf.writeDouble(p.blockGravityOffset());
             buf.writeBoolean(p.enableAtmosphere());
@@ -74,6 +76,7 @@ public record ConfigSyncPayload(
             boolean enableThrownGravity = buf.readBoolean();
             double thrownGravityOffset = buf.readDouble();
             int fallDamageMode = buf.readInt();
+            int mobFallDamageMode = buf.readInt();
             boolean enableBlockGravity = buf.readBoolean();
             double blockGravityOffset = buf.readDouble();
             boolean enableAtmosphere = buf.readBoolean();
@@ -101,6 +104,7 @@ public record ConfigSyncPayload(
                     enableArrowGravity, arrowGravityOffset,
                     enableThrownGravity, thrownGravityOffset,
                     fallDamageMode,
+                    mobFallDamageMode,
                     enableBlockGravity, blockGravityOffset,
                     enableAtmosphere, overworldEntityGravity, atmosphereGravityMax,
                     noFallDamageAltitude,
@@ -125,6 +129,7 @@ public record ConfigSyncPayload(
                 Config.COMMON.enableArrowGravity.get(), Config.COMMON.arrowGravityOffset.get(),
                 Config.COMMON.enableThrownGravity.get(), Config.COMMON.thrownGravityOffset.get(),
                 Config.COMMON.fallDamageMode.get(),
+                Config.COMMON.mobFallDamageMode.get(),
                 Config.COMMON.enableBlockGravity.get(), Config.COMMON.blockGravityOffset.get(),
                 Config.COMMON.enableAtmosphere.get(), Config.COMMON.overworldEntityGravity.get(), Config.COMMON.atmosphereGravityMax.get(),
                 Config.COMMON.noFallDamageAltitude.get(),
@@ -154,6 +159,7 @@ public record ConfigSyncPayload(
         Config.COMMON.enableThrownGravity.setSynced(enableThrownGravity);
         Config.COMMON.thrownGravityOffset.setSynced(thrownGravityOffset);
         Config.COMMON.fallDamageMode.setSynced(fallDamageMode);
+        Config.COMMON.mobFallDamageMode.setSynced(mobFallDamageMode);
         Config.COMMON.enableBlockGravity.setSynced(enableBlockGravity);
         Config.COMMON.blockGravityOffset.setSynced(blockGravityOffset);
         Config.COMMON.enableAtmosphere.setSynced(enableAtmosphere);

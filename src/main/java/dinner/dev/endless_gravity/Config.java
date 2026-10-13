@@ -304,6 +304,7 @@ public class Config {
 
         // Gameplay
         public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1, 0, 1));
+        public final IntValue mobFallDamageMode = add(new IntValue("mobFallDamageMode", 1, 0, 1));
         public final BoolValue enableBlockGravity = add(new BoolValue("enableBlockGravity", true));
         public final DoubleValue blockGravityOffset = add(new DoubleValue("blockGravityOffset", 0.035, 0.0, 0.1));
 
