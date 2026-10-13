@@ -31,6 +31,7 @@ public abstract class LivingEntityMixin {
         if (entity.onGround() || entity.isInWater() || entity.isFallFlying()) return;
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
+        if (GravityHandler.isFlightOrImmobile(entity)) return;
 
         String dimId = level.dimension().location().toString();
         if (Config.hasCustomGravity(dimId)) {

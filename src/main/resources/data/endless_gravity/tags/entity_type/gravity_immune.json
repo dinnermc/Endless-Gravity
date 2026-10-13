@@ -1,4 +1,17 @@
 {
   "replace": false,
-  "values": []
+  "values": [
+    "minecraft:ender_dragon",
+    "minecraft:wither",
+    "minecraft:allay",
+    "minecraft:bat",
+    "minecraft:bee",
+    "minecraft:blaze",
+    "minecraft:ghast",
+    "minecraft:phantom",
+    "minecraft:vex",
+    "minecraft:parrot",
+    "minecraft:armor_stand",
+    { "id": "#c:bosses", "required": false }
+  ]
 }
