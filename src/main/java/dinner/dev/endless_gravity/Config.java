@@ -32,17 +32,39 @@ public class Config {
     private static boolean serverSyncActive;
 
     public static void load() {
+        if (!Files.exists(PATH)) {
+            save();
+            return;
+        }
+        String json;
         try {
-            if (!Files.exists(PATH)) {
-                save();
-                return;
+            json = Files.readString(PATH);
+        } catch (IOException e) {
+            System.err.println("[Endless Gravity] Could not read config (" + e.getMessage() + "); using defaults.");
+            return;
+        }
+        JsonObject obj;
+        try {
+            JsonElement root = JsonParser.parseString(json);
+            if (!root.isJsonObject()) {
+                throw new IllegalStateException("root is not a JSON object");
             }
-            JsonObject obj = JsonParser.parseString(Files.readString(PATH)).getAsJsonObject();
+            obj = root.getAsJsonObject();
+        } catch (RuntimeException e) {
+            // Only when the whole file is unreadable: back it up and regenerate defaults.
+            // A single bad field is handled per-field in read(), not here.
+            System.err.println("[Endless Gravity] Config is corrupt (" + e.getMessage() + "); backing up to .bak and regenerating defaults.");
+            try {
+                Files.move(PATH, PATH.resolveSibling(PATH.getFileName() + ".bak"), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ignored) {}
             for (Value<?> value : COMMON.all) {
-                value.read(obj);
+                value.reset();
             }
-        } catch (Exception e) {
-            // Malformed or unreadable file: keep defaults.
+            save();
+            return;
+        }
+        for (Value<?> value : COMMON.all) {
+            value.read(obj);
         }
     }
 
@@ -96,15 +118,26 @@ public class Config {
         }
 
         public void set(T newValue) {
-            if (!newValue.equals(value)) {
-                value = newValue;
+            T fixed = sanitize(newValue);
+            if (!(fixed == null ? value == null : fixed.equals(value))) {
+                value = fixed;
                 dirty = true;
             }
         }
 
         /** Sets the value without touching the dirty flag (used for server-synced values). */
         public void setSynced(T newValue) {
-            this.value = newValue;
+            this.value = sanitize(newValue);
+        }
+
+        /** Restores the field default (used when the whole config file is corrupt). */
+        public void reset() {
+            value = defaultValue;
+        }
+
+        /** Clamps/validates a value before it is stored (set/setSynced/read). Default is identity. */
+        protected T sanitize(T newValue) {
+            return newValue;
         }
 
         abstract void read(JsonObject obj);
@@ -118,7 +151,13 @@ public class Config {
         @Override
         void read(JsonObject obj) {
             JsonElement e = obj.get(key);
-            if (e != null && e.isJsonPrimitive()) value = e.getAsBoolean();
+            if (e == null) return;
+            if (e.isJsonPrimitive() && e.getAsJsonPrimitive().isBoolean()) {
+                value = e.getAsBoolean();
+            } else {
+                System.err.println("[Endless Gravity] config '" + key + "' is not a boolean; using default " + defaultValue);
+                value = defaultValue;
+            }
         }
 
         @Override
@@ -128,12 +167,40 @@ public class Config {
     }
 
     public static class DoubleValue extends Value<Double> {
-        DoubleValue(String key, double def) { super(key, def); }
+        private final double min;
+        private final double max;
+
+        DoubleValue(String key, double def) {
+            this(key, def, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+        }
+
+        DoubleValue(String key, double def, double min, double max) {
+            super(key, def);
+            this.min = min;
+            this.max = max;
+        }
+
+        @Override
+        protected Double sanitize(Double newValue) {
+            if (newValue == null || newValue.isNaN() || newValue.isInfinite()) return defaultValue;
+            return Math.max(min, Math.min(max, newValue));
+        }
 
         @Override
         void read(JsonObject obj) {
             JsonElement e = obj.get(key);
-            if (e != null && e.isJsonPrimitive()) value = e.getAsDouble();
+            if (e == null) return;
+            if (!e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) {
+                System.err.println("[Endless Gravity] config '" + key + "' is not a number; using default " + defaultValue);
+                value = defaultValue;
+                return;
+            }
+            double raw = e.getAsDouble();
+            Double fixed = sanitize(raw);
+            if (fixed != raw) {
+                System.err.println("[Endless Gravity] config '" + key + "'=" + raw + " is not finite or outside [" + min + ", " + max + "]; using " + fixed);
+            }
+            value = fixed;
         }
 
         @Override
@@ -143,12 +210,40 @@ public class Config {
     }
 
     public static class IntValue extends Value<Integer> {
-        IntValue(String key, int def) { super(key, def); }
+        private final int min;
+        private final int max;
+
+        IntValue(String key, int def) {
+            this(key, def, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        }
+
+        IntValue(String key, int def, int min, int max) {
+            super(key, def);
+            this.min = min;
+            this.max = max;
+        }
+
+        @Override
+        protected Integer sanitize(Integer newValue) {
+            if (newValue == null) return defaultValue;
+            return Math.max(min, Math.min(max, newValue));
+        }
 
         @Override
         void read(JsonObject obj) {
             JsonElement e = obj.get(key);
-            if (e != null && e.isJsonPrimitive()) value = e.getAsInt();
+            if (e == null) return;
+            if (!e.isJsonPrimitive() || !e.getAsJsonPrimitive().isNumber()) {
+                System.err.println("[Endless Gravity] config '" + key + "' is not a number; using default " + defaultValue);
+                value = defaultValue;
+                return;
+            }
+            int raw = e.getAsInt();
+            int fixed = sanitize(raw);
+            if (fixed != raw) {
+                System.err.println("[Endless Gravity] config '" + key + "' value " + raw + " is out of range [" + min + ", " + max + "]; using " + fixed);
+            }
+            value = fixed;
         }
 
         @Override
@@ -190,41 +285,41 @@ public class Config {
         // Gravity
         public final BoolValue endEntityGravity = add(new BoolValue("endEntityGravity", true));
         public final BoolValue enablePlayerGravity = add(new BoolValue("enablePlayerGravity", true));
-        public final DoubleValue playerGravityOffset = add(new DoubleValue("playerGravityOffset", 0.055));
+        public final DoubleValue playerGravityOffset = add(new DoubleValue("playerGravityOffset", 0.055, 0.0, 0.07));
         public final BoolValue enableItemGravity = add(new BoolValue("enableItemGravity", true));
-        public final DoubleValue itemGravityOffset = add(new DoubleValue("itemGravityOffset", 0.025));
+        public final DoubleValue itemGravityOffset = add(new DoubleValue("itemGravityOffset", 0.025, 0.0, 0.035));
         public final BoolValue enableArrowGravity = add(new BoolValue("enableArrowGravity", true));
-        public final DoubleValue arrowGravityOffset = add(new DoubleValue("arrowGravityOffset", 0.03));
+        public final DoubleValue arrowGravityOffset = add(new DoubleValue("arrowGravityOffset", 0.03, 0.0, 0.04));
         public final BoolValue enableThrownGravity = add(new BoolValue("enableThrownGravity", true));
-        public final DoubleValue thrownGravityOffset = add(new DoubleValue("thrownGravityOffset", 0.018));
+        public final DoubleValue thrownGravityOffset = add(new DoubleValue("thrownGravityOffset", 0.018, 0.0, 0.025));
 
         // Effects
         public final BoolValue enableLowPassFilter = add(new BoolValue("enableLowPassFilter", true));
-        public final DoubleValue lowPassGain = add(new DoubleValue("lowPassGain", 0.35));
-        public final DoubleValue lowPassGainHF = add(new DoubleValue("lowPassGainHF", 0.25));
+        public final DoubleValue lowPassGain = add(new DoubleValue("lowPassGain", 0.35, 0.0, 1.0));
+        public final DoubleValue lowPassGainHF = add(new DoubleValue("lowPassGainHF", 0.25, 0.0, 1.0));
 
         // Particles
         // Upward acceleration per tick for particles in The End. 0.08 = neutral gravity (float), <0.08 = slow fall, >0.08 = slow rise
-        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.1));
+        public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.1, 0.0, 0.5));
 
         // Gameplay
-        public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1));
+        public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1, 0, 1));
         public final BoolValue enableBlockGravity = add(new BoolValue("enableBlockGravity", true));
-        public final DoubleValue blockGravityOffset = add(new DoubleValue("blockGravityOffset", 0.035));
+        public final DoubleValue blockGravityOffset = add(new DoubleValue("blockGravityOffset", 0.035, 0.0, 0.1));
 
 // Atmosphere
         public final BoolValue enableAtmosphere = add(new BoolValue("enableAtmosphere", true));
         public final BoolValue overworldEntityGravity = add(new BoolValue("overworldEntityGravity", true));
-        public final DoubleValue atmosphereGravityMax = add(new DoubleValue("atmosphereGravityMax", 0.075));
-        public final DoubleValue noFallDamageAltitude = add(new DoubleValue("noFallDamageAltitude", 400.0));
-        public final DoubleValue atmosphereMuffleGain = add(new DoubleValue("atmosphereMuffleGain", 0.01));
-        public final DoubleValue atmosphereMuffleGainHF = add(new DoubleValue("atmosphereMuffleGainHF", 0.005));
+        public final DoubleValue atmosphereGravityMax = add(new DoubleValue("atmosphereGravityMax", 0.075, 0.0, 0.1));
+        public final DoubleValue noFallDamageAltitude = add(new DoubleValue("noFallDamageAltitude", 400.0, 64.0, 3500.0));
+        public final DoubleValue atmosphereMuffleGain = add(new DoubleValue("atmosphereMuffleGain", 0.01, 0.0, 1.0));
+        public final DoubleValue atmosphereMuffleGainHF = add(new DoubleValue("atmosphereMuffleGainHF", 0.005, 0.0, 1.0));
         public final StringListValue atmosphereLayers = add(new StringListValue("atmosphereLayers",
                 java.util.Arrays.asList("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0")));
 
         // Mob gravity (new section)
         public final BoolValue enableMobGravity = add(new BoolValue("enableMobGravity", true));
-        public final DoubleValue mobGravityOffset = add(new DoubleValue("mobGravityOffset", 0.025));
+        public final DoubleValue mobGravityOffset = add(new DoubleValue("mobGravityOffset", 0.025, 0.0, 0.035));
 
     }
 
