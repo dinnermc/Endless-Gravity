@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
 
-- lower the default particle gravity offset to 0.1 (NeoForge). A config that already saved 0.5 keeps 0.5, so delete the entry or hit the reset button to pick up the new default
+- new `mobFallDamageMode`: mob fall damage in The End and Sable sub-levels is disabled by default, separate from the player `fallDamageMode`
+- new `gravityImmuneEntities` list in the config screen: extra entity IDs that ignore low gravity without a datapack. It only affects living entities, in addition to the `gravity_immune` tag
+- flying and anchored mobs (ghast, bat, allay, armor stands...) are now skipped automatically so they don't float away
+- the default `gravity_immune` tag now ships with the ender dragon, wither, allay, bat, bee, blaze, ghast, phantom, vex, parrot, armor stands and anything tagged `#c:bosses`. If your datapack replaces that tag file, your file wins and the default list is not applied
+- lower the default particle gravity offset to 0.1. A config that already saved 0.5 keeps 0.5, so delete the entry or hit the reset button to pick up the new default
+- fix: players in custom-gravity dimensions used the mob offset instead of `playerGravityOffset`
+- fix: the `gravityImmuneEntities` list is now limited to living entities
 
 ## 1.2.5
 
