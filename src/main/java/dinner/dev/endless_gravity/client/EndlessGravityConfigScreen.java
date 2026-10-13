@@ -71,7 +71,7 @@ public class EndlessGravityConfigScreen {
             SubCategoryBuilder gravity = group(entry, "endless_gravity.config.group.gravity");
             addToggle(gravity, entry, "endless_gravity.config.endEntityGravity", Config.COMMON.endEntityGravity, true);
             addDouble(gravity, entry, "endless_gravity.config.particleGravityOffset", Config.COMMON.particleGravityOffset,
-                    0.0, 0.5, 0.5, TEXT_WHITE);
+                    0.0, 0.5, 0.1, TEXT_WHITE);
             addDouble(gravity, entry, "endless_gravity.config.playerGravityOffset", Config.COMMON.playerGravityOffset,
                     0.0, 0.07, 0.055, TEXT_WHITE);
             addDouble(gravity, entry, "endless_gravity.config.itemGravityOffset", Config.COMMON.itemGravityOffset,
