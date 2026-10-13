@@ -34,9 +34,14 @@ public final class ClientGravityHandler {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        Minecraft client = Minecraft.getInstance();
+
+        // The client tick events keep firing while the integrated server is paused, but the
+        // player does not tick, so applying gravity here would accumulate velocity.
+        if (client.isPaused()) return;
+
         refreshConfigCache();
 
-        Minecraft client = Minecraft.getInstance();
         ClientLevel level = client.level;
         if (level == null) return;
 
