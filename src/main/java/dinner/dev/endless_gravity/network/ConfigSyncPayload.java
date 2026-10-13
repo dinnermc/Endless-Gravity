@@ -23,7 +23,8 @@ public record ConfigSyncPayload(
         double noFallDamageAltitude,
         double atmosphereMuffleGain, double atmosphereMuffleGainHF,
         List<String> atmosphereLayers,
-        boolean enableMobGravity, double mobGravityOffset
+        boolean enableMobGravity, double mobGravityOffset,
+        List<String> gravityImmuneEntities
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<ConfigSyncPayload> ID =
@@ -56,6 +57,10 @@ public record ConfigSyncPayload(
             }
             buf.writeBoolean(p.enableMobGravity());
             buf.writeDouble(p.mobGravityOffset());
+            buf.writeInt(p.gravityImmuneEntities().size());
+            for (String id : p.gravityImmuneEntities()) {
+                ByteBufCodecs.STRING_UTF8.encode(buf, id);
+            }
         }
 
         @Override
@@ -85,6 +90,11 @@ public record ConfigSyncPayload(
             }
             boolean enableMobGravity = buf.readBoolean();
             double mobGravityOffset = buf.readDouble();
+            int immuneCount = buf.readInt();
+            List<String> gravityImmuneEntities = new ArrayList<>(immuneCount);
+            for (int i = 0; i < immuneCount; i++) {
+                gravityImmuneEntities.add(ByteBufCodecs.STRING_UTF8.decode(buf));
+            }
             return new ConfigSyncPayload(
                     endEntityGravity,
                     enablePlayerGravity, playerGravityOffset,
@@ -97,7 +107,8 @@ public record ConfigSyncPayload(
                     noFallDamageAltitude,
                     atmosphereMuffleGain, atmosphereMuffleGainHF,
                     atmosphereLayers,
-                    enableMobGravity, mobGravityOffset
+                    enableMobGravity, mobGravityOffset,
+                    gravityImmuneEntities
             );
         }
     };
@@ -120,7 +131,8 @@ public record ConfigSyncPayload(
                 Config.COMMON.noFallDamageAltitude.get(),
                 Config.COMMON.atmosphereMuffleGain.get(), Config.COMMON.atmosphereMuffleGainHF.get(),
                 List.copyOf(Config.COMMON.atmosphereLayers.get()),
-                Config.COMMON.enableMobGravity.get(), Config.COMMON.mobGravityOffset.get()
+                Config.COMMON.enableMobGravity.get(), Config.COMMON.mobGravityOffset.get(),
+                new ArrayList<String>(Config.COMMON.gravityImmuneEntities.get())
         );
     }
 
@@ -154,6 +166,7 @@ public record ConfigSyncPayload(
         Config.COMMON.atmosphereLayers.set(atmosphereLayers);
         Config.COMMON.enableMobGravity.set(enableMobGravity);
         Config.COMMON.mobGravityOffset.set(mobGravityOffset);
+        Config.COMMON.gravityImmuneEntities.set(gravityImmuneEntities);
     }
 
     public static void handle(ConfigSyncPayload payload, IPayloadContext ctx) {

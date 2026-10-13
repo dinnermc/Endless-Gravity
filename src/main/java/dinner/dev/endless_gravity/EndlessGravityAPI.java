@@ -2,6 +2,7 @@ package dinner.dev.endless_gravity;
 
 import dev.ryanhcode.sable.companion.SableCompanion;
 import dev.ryanhcode.sable.companion.SubLevelAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -32,7 +33,9 @@ public final class EndlessGravityAPI {
     private EndlessGravityAPI() {}
 
     public static boolean isGravityImmune(Entity entity) {
-        return entity.getType().is(GRAVITY_IMMUNE);
+        if (entity.getType().is(GRAVITY_IMMUNE)) return true;
+        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+        return id != null && Config.COMMON.gravityImmuneEntities.get().contains(id.toString());
     }
 
     public static double getPressure(double y) {
