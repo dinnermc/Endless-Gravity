@@ -82,6 +82,9 @@ public class Config {
         public final ModConfigSpec.BooleanValue enableMobGravity;
         public final ModConfigSpec.DoubleValue mobGravityOffset;
 
+        // Extra entity IDs excluded from reduced gravity, in addition to the gravity_immune tag
+        public final ModConfigSpec.ConfigValue<List<? extends String>> gravityImmuneEntities;
+
         public Common(ModConfigSpec.Builder builder) {
             builder.push("gravity");
 
@@ -124,6 +127,10 @@ public class Config {
             mobGravityOffset = builder
                     .comment("Upward impulse per tick for mobs in The End. Lower because mobs have no way to steer.")
                     .defineInRange("mobGravityOffset", 0.025, 0.0, 0.035);
+
+            gravityImmuneEntities = builder
+                    .comment("Entity IDs (e.g. minecraft:zombie) excluded from reduced gravity, in addition to the gravity_immune tag. The tag needs a datapack; this is the per-install alternative.")
+                    .defineListAllowEmpty("gravityImmuneEntities", List.<String>of(), () -> "", o -> o instanceof String);
 
             builder.pop();
 

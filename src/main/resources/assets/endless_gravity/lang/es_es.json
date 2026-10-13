@@ -47,5 +47,7 @@
   "endless_gravity.config.atmosphereLayers.tooltip": "La curva altitud-presión controla la gravedad, la atenuación de audio y el datapack de Sable. Presión 1.0 = atmósfera completa al nivel del mar, 0.0 = vacío.",
   "endless_gravity.config.columnAltitude": "Altitud",
   "endless_gravity.config.columnPressure": "Presión",
-  "endless_gravity.config.layerShort": "Capa %s"
+  "endless_gravity.config.layerShort": "Capa %s",
+  "endless_gravity.config.gravityImmuneEntities": "Entidades inmunes extra",
+  "endless_gravity.config.gravityImmuneEntities.tooltip": "IDs de entidad (p. ej. minecraft:zombie) excluidas de la gravedad reducida, además del tag gravity_immune."
 }
