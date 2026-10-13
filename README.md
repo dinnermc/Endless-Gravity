@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="src/main/resources/icon.png" alt="Endless Gravity Icon" width="180" />
+  <img src="src/main/resources/assets/endless_gravity/icon.png" alt="Endless Gravity Icon" width="180" />
 
   <h1>Endless Gravity</h1>
 
