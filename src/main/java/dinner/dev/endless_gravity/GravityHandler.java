@@ -3,7 +3,11 @@ package dinner.dev.endless_gravity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.FlyingMob;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.control.FlyingMoveControl;
+import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.EventPriority;
@@ -73,6 +77,10 @@ public class GravityHandler {
         if (entity instanceof Player player && player.getAbilities().flying) return;
 
         if (EndlessGravityAPI.isGravityImmune(entity)) return;
+
+        // Flyers and anchored mobs ignore reduced gravity; the tag remains the safety net for
+        // mobs with bespoke move controls (blaze, vex, wither).
+        if (!(entity instanceof Player) && isFlightOrImmobile(living)) return;
 
         // Check for custom dimension config first
         String dimId = entity.level().dimension().location().toString();
@@ -183,6 +191,24 @@ public class GravityHandler {
 
         applyGravity(entity, offset);
         return true;
+    }
+
+    /**
+     * Flying or immobile living entities must not receive reduced-gravity impulses: they hover on
+     * their own, or are anchored (riding, climbing, in lava, asleep). Mobs with bespoke move
+     * controls (blaze, vex, wither) are not covered here, so the gravity_immune tag stays as the
+     * safety net.
+     */
+    public static boolean isFlightOrImmobile(LivingEntity entity) {
+        if (entity.isNoGravity()) return true;
+        if (entity.isPassenger()) return true;
+        if (entity.onClimbable()) return true;
+        if (entity.isInLava()) return true;
+        if (entity.isSleeping()) return true;
+        if (entity instanceof FlyingAnimal) return true;
+        if (entity instanceof FlyingMob) return true;
+        if (entity instanceof Mob mob && mob.getMoveControl() instanceof FlyingMoveControl) return true;
+        return false;
     }
 
     public static boolean isEndOrSable(Level level) {
