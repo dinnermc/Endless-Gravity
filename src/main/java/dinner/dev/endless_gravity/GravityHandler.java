@@ -118,7 +118,9 @@ public class GravityHandler {
                 if (!(entity instanceof LivingEntity living)) return;
                 if (!living.onGround() && !living.isInWater() && !living.isFallFlying()) {
                     if (living instanceof Player player && player.getAbilities().flying) return;
-                    applyGravity(living, config.getMobGravityOffset());
+                    // Players use the global player offset; mobs use the dimension's own offset.
+                    double offset = (entity instanceof Player) ? cachePlayerGravityOffset : config.getMobGravityOffset();
+                    applyGravity(living, offset);
                 }
             }
         });
