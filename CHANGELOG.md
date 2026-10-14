@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.1
+
+- new stable addon API in `dinner.dev.endless_gravity.api`: `GravityApi.getGravityOffset` / `getGravityContext` to ask what gravity the mod would apply, `GravityApi.registerModifier` to change or cancel it (the "calculate gravity" event), and `GravityApi.channelFor` to map an entity to its gravity channel. Identical on Fabric and NeoForge
+- the mod's own gravity resolution now runs through one shared resolver, so `GravityApi.getGravityOffset` and the in-game behaviour can never disagree
+- `EndlessGravityAPI` is no longer the documented addon surface; the versioned `api` package is
+- new `/endlessgravity` command (permission level 2): `reload` re-reads `dimensions.json` and re-syncs clients, `info` prints the gravity resolved for you right now, and `set <key> <value>` changes any scalar setting live (for example `set playerGravityOffset 0.04`)
+- new **Weightlessness** and **Heaviness** status effects, with brewable potions of each (regular, splash, lingering and tipped arrows). Weightlessness lifts entities, Heaviness pulls them down; tune both under the new **Potions** tab. Brew Weightlessness from an awkward potion + phantom membrane, Heaviness from an awkward potion + iron ingot, and add redstone for the longer variants
+- `dimensions.json` entries can now set an optional `playerGravityOffset` to give players a different offset than mobs in that dimension; omit it to inherit the global `playerGravityOffset`
+- new `endlessGravity` game rule: turn the mod's gravity off for a single world without touching the config
+- optional on-screen **Gravity HUD** readout, off by default (enable it on the config screen)
+- fix: Overworld entity gravity now follows the layered atmosphere curve instead of a linear ramp, so gravity, atmospheric audio and the Sable pressure function share the exact same profile. The shipped `minecraft:overworld` entry in `dimensions.json` is ignored
+- fix: the config screen's "Max Gravity Offset" tooltip no longer claims the Overworld entry overrides it
+
 ## 1.3.0
 
 - new `mobFallDamageMode`: mob fall damage in The End and Sable sub-levels is disabled by default, separate from the player `fallDamageMode`
