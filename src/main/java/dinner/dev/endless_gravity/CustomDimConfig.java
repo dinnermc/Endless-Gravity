@@ -10,6 +10,7 @@ public class CustomDimConfig {
     private final String dimensionId;
     private final boolean enableCustomGravity;
     private final double mobGravityOffset;
+    private final Double playerGravityOffset;
     private final boolean enableAtmosphere;
     private final double atmosphereGravityMax;
     private final double atmosphereBaseAltitude;
@@ -24,6 +25,7 @@ public class CustomDimConfig {
             String dimensionId,
             boolean enableCustomGravity,
             double mobGravityOffset,
+            Double playerGravityOffset,
             boolean enableAtmosphere,
             double atmosphereGravityMax,
             double atmosphereBaseAltitude,
@@ -36,6 +38,7 @@ public class CustomDimConfig {
         this.dimensionId = dimensionId;
         this.enableCustomGravity = enableCustomGravity;
         this.mobGravityOffset = mobGravityOffset;
+        this.playerGravityOffset = playerGravityOffset;
         this.enableAtmosphere = enableAtmosphere;
         this.atmosphereGravityMax = atmosphereGravityMax;
         this.atmosphereBaseAltitude = atmosphereBaseAltitude;
@@ -50,6 +53,8 @@ public class CustomDimConfig {
     public String getDimensionId() { return dimensionId; }
     public boolean isEnableCustomGravity() { return enableCustomGravity; }
     public double getMobGravityOffset() { return mobGravityOffset; }
+    /** Optional per-dimension player offset; {@code null} means inherit the global value. */
+    public Double getPlayerGravityOffset() { return playerGravityOffset; }
     public boolean isEnableAtmosphere() { return enableAtmosphere; }
     public double getAtmosphereGravityMax() { return atmosphereGravityMax; }
     public double getAtmosphereBaseAltitude() { return atmosphereBaseAltitude; }
@@ -63,7 +68,7 @@ public class CustomDimConfig {
     public static CustomDimConfig vanilla() {
         return new CustomDimConfig(
                 "minecraft:overworld",
-                false, 0.0, false, 0.075, 64.0, 3500.0, 0.01, 0.005,
+                false, 0.0, null, false, 0.075, 64.0, 3500.0, 0.01, 0.005,
                 false, 0.025, List.of()
         );
     }
@@ -71,7 +76,7 @@ public class CustomDimConfig {
     public static CustomDimConfig endDefault() {
         return new CustomDimConfig(
                 "minecraft:the_end",
-                true, 0.025, false, 0.0, 0.0, 0.0, 0.0, 0.0,
+                true, 0.025, null, false, 0.0, 0.0, 0.0, 0.0, 0.0,
                 true, 0.025, List.of()
         );
     }
