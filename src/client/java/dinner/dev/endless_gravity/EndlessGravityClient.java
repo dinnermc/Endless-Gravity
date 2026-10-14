@@ -19,4 +19,11 @@ public class EndlessGravityClient {
                         (mc, parent) -> EndlessGravityConfigScreen.create(parent)
                 );
     }
+
+    @SubscribeEvent
+    public static void onRegisterGuiLayers(net.neoforged.neoforge.client.event.RegisterGuiLayersEvent event) {
+        event.registerAboveAll(
+                net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(EndlessGravity.MODID, "gravity_hud"),
+                (guiGraphics, deltaTracker) -> dinner.dev.endless_gravity.client.GravityHud.render(guiGraphics));
+    }
 }

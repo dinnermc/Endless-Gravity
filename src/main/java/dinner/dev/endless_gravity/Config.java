@@ -83,6 +83,14 @@ public class Config {
         public final ModConfigSpec.BooleanValue enableMobGravity;
         public final ModConfigSpec.DoubleValue mobGravityOffset;
 
+        // Potion gravity
+        public final ModConfigSpec.BooleanValue enablePotionGravity;
+        public final ModConfigSpec.DoubleValue weightlessnessGravityOffset;
+        public final ModConfigSpec.DoubleValue heavinessGravityOffset;
+
+        // HUD (client-side only)
+        public final ModConfigSpec.BooleanValue enableGravityHud;
+
         // Extra entity IDs excluded from reduced gravity, in addition to the gravity_immune tag
         public final ModConfigSpec.ConfigValue<List<? extends String>> gravityImmuneEntities;
 
@@ -231,6 +239,28 @@ public class Config {
                             obj -> obj instanceof String);
 
             builder.pop();
+
+            builder.push("potions");
+
+            enablePotionGravity = builder
+                    .comment("The Weightlessness (lighter) and Heaviness (heavier) status effects change entity gravity.")
+                    .define("enablePotionGravity", true);
+            weightlessnessGravityOffset = builder
+                    .comment("Upward impulse per tick per amplifier level from the Weightlessness effect.")
+                    .defineInRange("weightlessnessGravityOffset", 0.05, 0.0, 0.07);
+            heavinessGravityOffset = builder
+                    .comment("Extra downward pull per tick per amplifier level from the Heaviness effect.")
+                    .defineInRange("heavinessGravityOffset", 0.02, 0.0, 0.07);
+
+            builder.pop();
+
+            builder.push("hud");
+
+            enableGravityHud = builder
+                    .comment("Draw a small on-screen readout of the player's current gravity offset.")
+                    .define("enableGravityHud", false);
+
+            builder.pop();
         }
     }
 
@@ -277,10 +307,17 @@ public class Config {
                 JsonObject obj = element.getAsJsonObject();
                 String dimId = obj.get("dimension").getAsString();
 
+                Double playerGravityOffset = null;
+                JsonElement playerOffsetElement = obj.get("playerGravityOffset");
+                if (playerOffsetElement != null && !playerOffsetElement.isJsonNull()) {
+                    playerGravityOffset = playerOffsetElement.getAsDouble();
+                }
+
                 CustomDimConfig config = new CustomDimConfig(
                         dimId,
                         obj.get("enableCustomGravity").getAsBoolean(),
                         obj.get("mobGravityOffset").getAsDouble(),
+                        playerGravityOffset,
                         obj.get("enableAtmosphere").getAsBoolean(),
                         obj.get("atmosphereGravityMax").getAsDouble(),
                         obj.get("atmosphereBaseAltitude").getAsDouble(),
@@ -359,6 +396,11 @@ public class Config {
     public static void reloadCustomDimensions() {
         customDimensionsLoaded = false;
         loadCustomDimensions();
+    }
+
+    /** Persists runtime changes made via the config screen or commands to disk. */
+    public static void persist() {
+        COMMON_SPEC.save();
     }
 
     public static Optional<CustomDimConfig> getCustomDimConfig(String dimensionId) {
