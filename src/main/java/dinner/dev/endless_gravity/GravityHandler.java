@@ -1,5 +1,7 @@
 package dinner.dev.endless_gravity;
 
+import dinner.dev.endless_gravity.api.GravityChannel;
+import dinner.dev.endless_gravity.api.GravityContext;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,29 +23,6 @@ public class GravityHandler {
 
     private static volatile MinecraftServer server;
 
-    /** Valores de config cacheados por tick (actualizados en onServerTick). */
-    private static boolean cacheEndEntityGravity;
-    private static boolean cacheEnablePlayerGravity;
-    private static double cachePlayerGravityOffset;
-    private static boolean cacheOverworldEntityGravity;
-    private static boolean cacheEnableAtmosphere;
-    private static double cacheAtmosphereGravityMax;
-    private static double cacheNoFallDamageAltitude;
-    private static double cacheAtmosphereMuffleGain;
-    private static double cacheAtmosphereMuffleGainHF;
-    private static boolean cacheEnableItemGravity;
-    private static double cacheItemGravityOffset;
-    private static boolean cacheEnableArrowGravity;
-    private static double cacheArrowGravityOffset;
-    private static boolean cacheEnableThrownGravity;
-    private static double cacheThrownGravityOffset;
-    private static boolean cacheEnableBlockGravity;
-    private static double cacheBlockGravityOffset;
-    private static int cacheFallDamageMode;
-    private static double cacheParticleGravityOffset;
-    private static boolean cacheEnableMobGravity;
-    private static double cacheMobGravityOffset;
-
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTING.register(server -> GravityHandler.server = server);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> GravityHandler.server = null);
@@ -58,116 +37,20 @@ public class GravityHandler {
     }
 
     private static void onLevelTick(ServerLevel level) {
-        // Skip gravity when paused (prevents velocity accumulation during pause)
-        MinecraftServer server = level.getServer();
-        if (server != null && server.isPaused()) return;
-
-        refreshConfigCache();
-
         for (ServerPlayer player : level.players()) {
-            applyPlayerGravity(player, level);
+            applyPlayerGravity(player);
         }
     }
 
-    private static void refreshConfigCache() {
-        cacheEndEntityGravity = Config.COMMON.endEntityGravity.get();
-        cacheEnablePlayerGravity = Config.COMMON.enablePlayerGravity.get();
-        cachePlayerGravityOffset = Config.COMMON.playerGravityOffset.get();
-        cacheOverworldEntityGravity = Config.COMMON.overworldEntityGravity.get();
-        cacheEnableAtmosphere = Config.COMMON.enableAtmosphere.get();
-        cacheAtmosphereGravityMax = Config.COMMON.atmosphereGravityMax.get();
-        cacheNoFallDamageAltitude = Config.COMMON.noFallDamageAltitude.get();
-        cacheAtmosphereMuffleGain = Config.COMMON.atmosphereMuffleGain.get();
-        cacheAtmosphereMuffleGainHF = Config.COMMON.atmosphereMuffleGainHF.get();
-        cacheEnableItemGravity = Config.COMMON.enableItemGravity.get();
-        cacheItemGravityOffset = Config.COMMON.itemGravityOffset.get();
-        cacheEnableArrowGravity = Config.COMMON.enableArrowGravity.get();
-        cacheArrowGravityOffset = Config.COMMON.arrowGravityOffset.get();
-        cacheEnableThrownGravity = Config.COMMON.enableThrownGravity.get();
-        cacheThrownGravityOffset = Config.COMMON.thrownGravityOffset.get();
-        cacheEnableBlockGravity = Config.COMMON.enableBlockGravity.get();
-        cacheBlockGravityOffset = Config.COMMON.blockGravityOffset.get();
-        cacheFallDamageMode = Config.COMMON.fallDamageMode.get();
-        cacheParticleGravityOffset = Config.COMMON.particleGravityOffset.get();
-        cacheEnableMobGravity = Config.COMMON.enableMobGravity.get();
-        cacheMobGravityOffset = Config.COMMON.mobGravityOffset.get();
-    }
+    private static void applyPlayerGravity(Player player) {
+        if (!GravityResolver.canApply(player, GravityChannel.PLAYER)) return;
 
-    private static void applyPlayerGravity(Player player, Level level) {
-        if (player.onGround() || player.isInWater() || player.isFallFlying()) return;
-        if (player.getAbilities().flying) return;
-
-        if (EndlessGravityAPI.isGravityImmune(player)) return;
-
-        if (applyAtmosphereEffects(level, player)) return;
-
-        if (!isEnd(level)) return;
-        if (!cacheEndEntityGravity) return;
-        if (!cacheEnablePlayerGravity) return;
-
-        applyGravity(player, cachePlayerGravityOffset);
-    }
-
-    /**
-     * Applies gravity for custom dimensions with custom config (mirrors the NeoForge handler).
-     */
-    public static void applyCustomDimensionGravity(Entity entity, Level level) {
-        String dimId = level.dimension().location().toString();
-        Config.getCustomDimConfig(dimId).ifPresent(config -> {
-            if (config.isEnableCustomGravity()) {
-                if (!(entity instanceof LivingEntity living)) return;
-                if (!living.onGround() && !living.isInWater() && !living.isFallFlying()) {
-                    if (living instanceof Player player && player.getAbilities().flying) return;
-                    // Players use the global player offset; mobs use the dimension's own offset.
-                    double offset = (entity instanceof Player) ? cachePlayerGravityOffset : config.getMobGravityOffset();
-                    applyGravity(living, offset);
-                }
-            }
-        });
-    }
-
-    public static boolean applyAtmosphereEffects(Level level, Entity entity) {
-        // Check custom dimension atmosphere first
-        String dimId = level.dimension().location().toString();
-        if (Config.hasCustomAtmosphere(dimId)) {
-            Config.CustomDimConfig config = Config.getCustomDimConfig(dimId).orElse(null);
-            if (config == null || !config.isEnableAtmosphere()) return false;
-
-            double realY = EndlessGravityAPI.getRealY(entity);
-            if (realY <= config.getAtmosphereBaseAltitude()) return false;
-
-            double progress = (realY - config.getAtmosphereBaseAltitude()) / (config.getAtmosphereMaxAltitude() - config.getAtmosphereBaseAltitude());
-            progress = Math.max(0.0, Math.min(1.0, progress));
-
-            double offset = progress * config.getAtmosphereGravityMax();
-            if (offset <= 0) return false;
-
-            double entityGravity = entity.getGravity();
-            if (offset > entityGravity) offset = entityGravity;
-            if (offset <= 0) return false;
-
-            applyGravity(entity, offset);
-            return true;
+        GravityContext context = GravityResolver.compute(player, GravityChannel.PLAYER);
+        if (context.applicable()) {
+            applyGravity(player, context.offset());
         }
-
-        // Vanilla atmosphere (Overworld)
-        if (!isOverworld(level)) return false;
-        if (!Config.COMMON.overworldEntityGravity.get()) return false;
-        if (!Config.COMMON.enableAtmosphere.get()) return false;
-
-        double realY = EndlessGravityAPI.getRealY(entity);
-        if (realY <= EndlessGravityAPI.BASE) return false;
-
-        double offset = EndlessGravityAPI.getAtmosphereOffset(realY);
-        if (offset <= 0) return false;
-
-        double entityGravity = entity.getGravity();
-        if (offset > entityGravity) offset = entityGravity;
-        if (offset <= 0) return false;
-
-        applyGravity(entity, offset);
-        return true;
     }
+
     private static boolean onAllowDamage(LivingEntity entity, DamageSource source, float amount) {
         if (!source.is(DamageTypeTags.IS_FALL)) return true;
 

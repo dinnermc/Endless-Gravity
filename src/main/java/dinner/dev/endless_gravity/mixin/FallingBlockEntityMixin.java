@@ -1,8 +1,8 @@
 package dinner.dev.endless_gravity.mixin;
 
-import dinner.dev.endless_gravity.Config;
-import dinner.dev.endless_gravity.EndlessGravityAPI;
-import dinner.dev.endless_gravity.GravityHandler;
+import dinner.dev.endless_gravity.GravityResolver;
+import dinner.dev.endless_gravity.api.GravityChannel;
+import dinner.dev.endless_gravity.api.GravityContext;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,21 +19,11 @@ public abstract class FallingBlockEntityMixin {
         Level level = entity.level();
         if (level == null) return;
 
-        if (entity.onGround() || entity.isInWater()) return;
+        if (!GravityResolver.canApply(entity, GravityChannel.BLOCK)) return;
 
-        if (EndlessGravityAPI.isGravityImmune(entity)) return;
-
-        if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
-
-        if (!GravityHandler.isEnd(level)) return;
-        if (!GravityHandler.isEndEntityGravity()) return;
-        if (!GravityHandler.isEnableBlockGravity()) return;
-
-        double offset = GravityHandler.getBlockGravityOffset();
-        applyGravity(entity, offset);
-    }
-
-    private static void applyGravity(FallingBlockEntity entity, double offset) {
-        entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
+        GravityContext context = GravityResolver.compute(entity, GravityChannel.BLOCK);
+        if (context.applicable()) {
+            entity.setDeltaMovement(entity.getDeltaMovement().add(0, context.offset(), 0));
+        }
     }
 }

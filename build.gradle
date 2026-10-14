@@ -25,6 +25,9 @@ dependencies {
         exclude(group: "net.fabricmc.fabric-api")
     }
     modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 processResources {
@@ -35,6 +38,10 @@ processResources {
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
 
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs << "--enable-preview"

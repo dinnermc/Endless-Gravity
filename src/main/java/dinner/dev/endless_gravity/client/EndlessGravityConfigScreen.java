@@ -106,7 +106,7 @@ public class EndlessGravityConfigScreen {
             addToggle(atmosphere, entry, "endless_gravity.config.enableAtmosphere", Config.COMMON.enableAtmosphere, true);
             addToggle(atmosphere, entry, "endless_gravity.config.overworldEntityGravity", Config.COMMON.overworldEntityGravity, true);
             addDouble(atmosphere, entry, "endless_gravity.config.atmosphereGravityMax", Config.COMMON.atmosphereGravityMax,
-                    0.0, 0.1, 0.075, TEXT_WHITE);
+                    0.0, 0.1, 0.075, TEXT_WHITE, "endless_gravity.config.atmosphereGravityMax.tooltip");
             addDouble(atmosphere, entry, "endless_gravity.config.noFallDamageAltitude", Config.COMMON.noFallDamageAltitude,
                     64.0, 3500.0, 400.0, TEXT_WHITE);
             addDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGain", Config.COMMON.atmosphereMuffleGain,
@@ -184,6 +184,19 @@ public class EndlessGravityConfigScreen {
             cat.addEntry(immune);
             allGeneral.add(immune);
 
+            SubCategoryBuilder potions = group(entry, "endless_gravity.config.group.potions");
+            addToggle(potions, entry, "endless_gravity.config.enablePotionGravity", Config.COMMON.enablePotionGravity, true);
+            addDouble(potions, entry, "endless_gravity.config.weightlessnessGravityOffset", Config.COMMON.weightlessnessGravityOffset,
+                    0.0, 0.07, 0.05, TEXT_WHITE);
+            addDouble(potions, entry, "endless_gravity.config.heavinessGravityOffset", Config.COMMON.heavinessGravityOffset,
+                    0.0, 0.07, 0.02, TEXT_GRAY);
+            cat.addEntry(potions.build());
+
+            SubCategoryBuilder hud = group(entry, "endless_gravity.config.group.hud");
+            addToggle(hud, entry, "endless_gravity.config.enableGravityHud", Config.COMMON.enableGravityHud, false);
+            cat.addEntry(hud.build());
+            allGeneral.add(potions.build());
+
             all.addEntry(allGeneral.build());
         }
 
@@ -200,6 +213,16 @@ public class EndlessGravityConfigScreen {
                                Config.DoubleValue value, double min, double max, double defaultValue, int color) {
             group.add(entry.startDoubleField(colored(key, color), value.get())
                     .setMin(min).setMax(max).setDefaultValue(defaultValue)
+                    .setSaveConsumer(value::set)
+                    .build());
+        }
+
+        private void addDouble(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
+                               Config.DoubleValue value, double min, double max, double defaultValue, int color,
+                               String tooltipKey) {
+            group.add(entry.startDoubleField(colored(key, color), value.get())
+                    .setMin(min).setMax(max).setDefaultValue(defaultValue)
+                    .setTooltip(text(tooltipKey))
                     .setSaveConsumer(value::set)
                     .build());
         }
