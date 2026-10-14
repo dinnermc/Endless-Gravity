@@ -1,8 +1,8 @@
 package dinner.dev.endless_gravity.mixin;
 
-import dinner.dev.endless_gravity.Config;
-import dinner.dev.endless_gravity.EndlessGravityAPI;
-import dinner.dev.endless_gravity.GravityHandler;
+import dinner.dev.endless_gravity.GravityResolver;
+import dinner.dev.endless_gravity.api.GravityChannel;
+import dinner.dev.endless_gravity.api.GravityContext;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,21 +23,11 @@ public class AbstractArrowMixin {
         if (level == null) return;
 
         if (inGround) return;
-        if (entity.onGround() || entity.isInWater()) return;
+        if (!GravityResolver.canApply(entity, GravityChannel.ARROW)) return;
 
-        if (EndlessGravityAPI.isGravityImmune(entity)) return;
-
-        if (GravityHandler.applyAtmosphereEffects(level, entity)) return;
-
-        if (!GravityHandler.isEnd(level)) return;
-        if (!GravityHandler.isEndEntityGravity()) return;
-        if (!GravityHandler.isEnableArrowGravity()) return;
-
-        double offset = GravityHandler.getArrowGravityOffset();
-        applyGravity(entity, offset);
-    }
-
-    private static void applyGravity(AbstractArrow entity, double offset) {
-        entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
+        GravityContext context = GravityResolver.compute(entity, GravityChannel.ARROW);
+        if (context.applicable()) {
+            entity.setDeltaMovement(entity.getDeltaMovement().add(0, context.offset(), 0));
+        }
     }
 }

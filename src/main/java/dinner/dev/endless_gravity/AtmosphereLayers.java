@@ -1,7 +1,5 @@
 package dinner.dev.endless_gravity;
 
-import net.minecraft.util.Mth;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -53,7 +51,7 @@ public final class AtmosphereLayers {
                 try {
                     double altitude = Double.parseDouble(parts[0].trim());
                     double pressure = Double.parseDouble(parts[1].trim());
-                    layers.add(new Layer(altitude, Mth.clamp(pressure, 0.0, 10.0)));
+                    layers.add(new Layer(altitude, clamp(pressure, 0.0, 10.0)));
                 } catch (NumberFormatException ignored) {}
             }
         }
@@ -72,7 +70,11 @@ public final class AtmosphereLayers {
 
     /** Pressure at the given Y, piecewise linear between layers, clamped outside the curve. */
     public static double getPressure(double y) {
-        List<Layer> layers = parse(Config.COMMON.atmosphereLayers.get());
+        return getPressure(parse(Config.COMMON.atmosphereLayers.get()), y);
+    }
+
+    /** Pure variant of {@link #getPressure(double)}: piecewise linear between the given layers. */
+    public static double getPressure(List<Layer> layers, double y) {
         Layer first = layers.get(0);
         if (y <= first.altitude()) return first.pressure();
         for (int i = 0; i < layers.size() - 1; i++) {
@@ -90,6 +92,18 @@ public final class AtmosphereLayers {
 
     /** Atmosphere progress from 0.0 (full pressure) to 1.0 (no pressure). */
     public static double getProgress(double y) {
-        return Mth.clamp(1.0 - getPressure(y), 0.0, 1.0);
+        return getProgress(parse(Config.COMMON.atmosphereLayers.get()), y);
+    }
+
+    /** Pure variant of {@link #getProgress(double)}: progress from the given layers, clamped to [0, 1]. */
+    public static double getProgress(List<Layer> layers, double y) {
+        return clamp(1.0 - getPressure(layers, y), 0.0, 1.0);
+    }
+
+    /** Clamp helper matching {@code net.minecraft.util.Mth.clamp}. */
+    public static double clamp(double value, double min, double max) {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
     }
 }

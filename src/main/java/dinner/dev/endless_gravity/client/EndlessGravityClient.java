@@ -13,6 +13,8 @@ public class EndlessGravityClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         GravityHandlerClient.register();
+        net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback.EVENT
+                .register((guiGraphics, tickCounter) -> GravityHud.render(guiGraphics));
 
         ClientPlayNetworking.registerGlobalReceiver(ConfigSyncPayload.ID, (payload, context) ->
                 context.client().execute(() -> {
