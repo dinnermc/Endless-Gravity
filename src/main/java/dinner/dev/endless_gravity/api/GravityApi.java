@@ -20,22 +20,6 @@ import net.minecraft.world.entity.EntityType;
  * <p>Addons can read the atmosphere/End values Endless Gravity uses, ask what offset it
  * would apply to an entity ({@link #getGravityOffset(Entity)}), and register
  * {@link GravityModifier}s to change or cancel that offset in a loader-agnostic way.
- *
- * <h2>Adding Endless Gravity as a dependency</h2>
- * <p>Fabric {@code fabric.mod.json}:
- * <pre>{@code "depends": { "endless_gravity": ">=1.3.0" }}</pre>
- * <p>NeoForge {@code neoforge.mods.toml}:
- * <pre>{@code
- * [[dependencies.mymod]]
- * modId = "endless_gravity"
- * type = "required"
- * versionRange = "[1.3.0,)"
- * ordering = "NONE"
- * side = "BOTH"
- * }</pre>
- *
- * <p>For an optional dependency, guard your calls behind a mod-loaded check and keep
- * every reference to this class in a single class you never load otherwise.
  */
 public final class GravityApi {
 
@@ -59,10 +43,6 @@ public final class GravityApi {
     public static final double BASE = 64.0;
 
     private GravityApi() {}
-
-    // ------------------------------------------------------------------
-    // Queries
-    // ------------------------------------------------------------------
 
     /** True if the entity is excluded from reduced gravity (tag or config list). */
     public static boolean isGravityImmune(Entity entity) {
@@ -123,10 +103,6 @@ public final class GravityApi {
     public static GravityChannel channelFor(Entity entity) {
         return GravityResolver.channelFor(entity);
     }
-
-    // ------------------------------------------------------------------
-    // Modifiers ("calculate gravity" event)
-    // ------------------------------------------------------------------
 
     /**
      * Register a global modifier. The same id can be re-registered to replace it.

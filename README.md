@@ -19,10 +19,10 @@
 
 - **The End**: reduced gravity for players, items, arrows, thrown projectiles, and falling blocks, configurable per entity type
 - **Overworld atmosphere**: a continuous pressure curve (8 configurable layers) weakens gravity and muffles audio above Y 64, up to full vacuum at Y 3500
-- **Fall damage** — normal or disabled in The End and Sable sub-levels, and no fall damage above a configurable altitude in the Overworld
-- **Sable integration** — physics datapack (gravity, pressure, drag) generated automatically for The End and the Overworld, with configurable priorities
-- **Modded config screen** — Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs
-- **Addon API** — stable `GravityApi` (query the gravity the mod would apply, register modifiers to change or cancel it) plus the `endless_gravity:gravity_immune` entity type tag
+- **Fall damage**: normal or disabled in The End and Sable sub-levels, and no fall damage above a configurable altitude in the Overworld
+- **Sable integration**: physics datapack (gravity, pressure, drag) generated automatically for The End and the Overworld, with configurable priorities
+- **Modded config screen**: Cloth Config (bundled, no extra install) with *All*, *The End*, *Overworld*, and *General* tabs
+- **Addon API**: stable `GravityApi` (query the gravity the mod would apply, register modifiers to change or cancel it) plus the `endless_gravity:gravity_immune` entity type tag
 - **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
 
 ## Configuration
@@ -61,33 +61,15 @@ The stable public API is `dinner.dev.endless_gravity.api.GravityApi`. Everything
 `dinner.dev.endless_gravity.api` package is versioned by `GravityApi.API_VERSION`; classes outside it
 (`EndlessGravityAPI`, config, mixins) are internal and may change without notice.
 
-- `getGravityOffset(entity)` — the upward offset the mod would apply this tick (`0.0` if none), resolved through the exact same code path the mod itself uses
-- `getGravityContext(entity)` / `channelFor(entity)` — the full calculation (source, offset, cancellation) and the entity's gravity channel (`PLAYER`, `MOB`, `ITEM`, `ARROW`, `THROWN`, `BLOCK`)
-- `getPressure(y)`, `getAtmosphereProgress(y)`, `getAtmosphereOffset(y)`, `getRealY(entity)` — read the configured atmosphere curve and project positions out of Sable sub-levels
-- `registerModifier(id, priority, modifier)` — run custom logic whenever an offset is resolved (the "calculate gravity" event); `ctx.setOffset`, `ctx.addOffset` and `ctx.cancel` control the result. Higher priority runs first, and a per-entity modifier (`setEntityModifier`) runs last
-- `GRAVITY_IMMUNE` tag — add entity types to `data/endless_gravity/tags/entity_type/gravity_immune.json` to make them ignore reduced gravity
+- `getGravityOffset(entity)`: the upward offset the mod would apply this tick (`0.0` if none), resolved through the exact same code path the mod itself uses
+- `getGravityContext(entity)` / `channelFor(entity)`: the full calculation (source, offset, cancellation) and the entity's gravity channel (`PLAYER`, `MOB`, `ITEM`, `ARROW`, `THROWN`, `BLOCK`)
+- `getPressure(y)`, `getAtmosphereProgress(y)`, `getAtmosphereOffset(y)`, `getRealY(entity)`: read the configured atmosphere curve and project positions out of Sable sub-levels
+- `registerModifier(id, priority, modifier)`: run custom logic whenever an offset is resolved (the "calculate gravity" event); `ctx.setOffset`, `ctx.addOffset` and `ctx.cancel` control the result. Higher priority runs first, and a per-entity modifier (`setEntityModifier`) runs last
+- `GRAVITY_IMMUNE` tag: add entity types to `data/endless_gravity/tags/entity_type/gravity_immune.json` to make them ignore reduced gravity
 
 ### Depending on the API
 
-Add the Modrinth Maven repository (files resolve as `maven.modrinth:endless-gravity:<version>`):
-
-```gradle
-repositories {
-    exclusiveContent {
-        forRepository { maven { name = "Modrinth"; url = "https://api.modrinth.com/maven" } }
-        filter { includeGroup "maven.modrinth" }
-    }
-}
-
-dependencies {
-    modImplementation "maven.modrinth:endless-gravity:1.3.1"                  // NeoForge
-    // modImplementation "maven.modrinth:endless-gravity:1.3.1-1.21.1-fabric"  // Fabric
-}
-```
-
-Declare the dependency in your metadata so the loader enforces a compatible version: `depends`
-(`"endless_gravity": ">=1.3.0"`) in `fabric.mod.json`, or a `[[dependencies.mymod]]` entry with
-`versionRange = "[1.3.0,)"` in `neoforge.mods.toml`.
+The artifact is on the Modrinth Maven as `maven.modrinth:endless-gravity` (`1.3.1` for NeoForge, `1.3.1-1.21.1-fabric` for Fabric); see the [Modrinth Maven docs](https://docs.modrinth.com/docs/tutorials/maven/) to add the repository. Declare it as a dependency (`"endless_gravity": ">=1.3.0"` in `fabric.mod.json`, or a `[[dependencies.mymod]]` entry with `versionRange = "[1.3.0,)"` in `neoforge.mods.toml`).
 
 ```java
 GravityApi.registerModifier(ResourceLocation.fromNamespaceAndPath("mymod", "moon"), 0, ctx -> {

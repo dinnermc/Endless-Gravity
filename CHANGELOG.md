@@ -2,27 +2,16 @@
 
 ## 1.3.1
 
-- new stable addon API in `dinner.dev.endless_gravity.api`: `GravityApi.getGravityOffset` / `getGravityContext` to ask what gravity the mod would apply, `GravityApi.registerModifier` to change or cancel it (the "calculate gravity" event), and `GravityApi.channelFor` to map an entity to its gravity channel. Identical on Fabric and NeoForge
-- the mod's own gravity resolution now runs through one shared resolver, so `GravityApi.getGravityOffset` and the in-game behaviour can never disagree
-- `EndlessGravityAPI` is no longer the documented addon surface; the versioned `api` package is
-- new `/endlessgravity` command (permission level 2): `reload` re-reads `dimensions.json` and re-syncs clients, `info` prints the gravity resolved for you right now, and `set <key> <value>` changes any scalar setting live (for example `set playerGravityOffset 0.04`)
-- new **Weightlessness** and **Heaviness** status effects, with brewable potions of each (regular, splash, lingering and tipped arrows). Weightlessness lifts entities, Heaviness pulls them down; tune both under the new **Potions** tab. Brew Weightlessness from an awkward potion + phantom membrane, Heaviness from an awkward potion + iron ingot, and add redstone for the longer variants
-- `dimensions.json` entries can now set an optional `playerGravityOffset` to give players a different offset than mobs in that dimension; omit it to inherit the global `playerGravityOffset`
-- new `endlessGravity` game rule: turn the mod's gravity off for a single world without touching the config
-- optional on-screen **Gravity HUD** readout, off by default (enable it on the config screen)
-- fix: Overworld entity gravity now follows the layered atmosphere curve instead of a linear ramp, so gravity, atmospheric audio and the Sable pressure function share the exact same profile. The shipped `minecraft:overworld` entry in `dimensions.json` is ignored
-- fix: the config screen's "Max Gravity Offset" tooltip no longer claims the Overworld entry overrides it
+- addon API for modders (ask what gravity applies, hook it and change it), and all gravity now goes through one shared resolver
+- Weightlessness/Heaviness effects with brewable potions (awkward + phantom membrane or iron ingot), plus a `/endlessgravity` command, an `endlessGravity` game rule and an optional gravity HUD
+- Overworld gravity follows the atmosphere curve again, the linear ramp from dimensions.json was getting used by mistake
 
 ## 1.3.0
 
-- new `mobFallDamageMode`: mob fall damage in The End and Sable sub-levels is disabled by default, separate from the player `fallDamageMode`
-- new `gravityImmuneEntities` list in the config screen: extra entity IDs that ignore low gravity without a datapack. It only affects living entities, in addition to the `gravity_immune` tag
-- mobs now fall with reduced gravity on Fabric too. Flying and anchored mobs (ghast, bat, allay, armor stands...) are skipped automatically so they don't float away
-- the default `gravity_immune` tag now ships with the ender dragon, wither, allay, bat, bee, blaze, ghast, phantom, vex, parrot, armor stands and anything tagged `#c:bosses`. If your datapack replaces that tag file, your file wins and the default list is not applied
-- block-breaking particles now get the reduced-gravity effect from a Particle.tick mixin (every tick, End and Overworld) instead of a reflection pass every 4 ticks, so the effect no longer compounds over a particle's lifetime
-- lower the default particle gravity offset to 0.1. A config that already saved 0.5 keeps 0.5, so delete the entry or hit the reset button to pick up the new default
-- fix: the config screen showed 0.5 as the particle offset default instead of 0.1
-- fix: the `gravityImmuneEntities` list could desync items and arrows when listing one; it is now limited to living entities
+- `mobFallDamageMode`: mobs no longer take fall damage in the end and sable sub-levels
+- mobs fall with reduced gravity on Fabric too, and flying/anchored mobs (ghast, bat, allay, armor stands...) are skipped so they don't float off
+- new `gravityImmuneEntities` config list, and the default `gravity_immune` tag now covers the dragon, wither, bosses and friends
+- lowered the default particle gravity offset to 0.1 (and fixed the config showing 0.5)
 
 ## 1.2.5
 
