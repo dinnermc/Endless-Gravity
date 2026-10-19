@@ -64,7 +64,8 @@ jobs:
             echo "::error::Version $VER not found on Modrinth"
             exit 1
           fi
-          CHANGELOG=$(awk -v v="$VER" '/^## /{ if (f) exit; if ($2 == v) f=1 } f{ print }' CHANGELOG.md)
+          BASE="${VER%%-*}"
+          CHANGELOG=$(awk -v v="$BASE" '/^## /{ if (f) exit; if ($2 == v) f=1 } f{ print }' CHANGELOG.md)
           jq -n --arg changelog "$CHANGELOG" '{changelog: $changelog}' \
             | curl -fsS -X PATCH -H "Authorization: Bearer $MODRINTH_TOKEN" \
               -H "Content-Type: application/json" -d @- \
