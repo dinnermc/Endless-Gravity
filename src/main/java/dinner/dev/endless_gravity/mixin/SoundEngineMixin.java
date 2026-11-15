@@ -85,9 +85,13 @@ public abstract class SoundEngineMixin {
         double playerY = EndlessGravityAPI.getRealY(mc.player);
 
         boolean inEnd = mc.level.dimension() == Level.END;
-        boolean inAtmosphere = EndlessGravityAPI.isOverworld(mc.level);
-        double atmosphereProgress = EndlessGravityAPI.getAtmosphereProgress(playerY);
-        boolean atmFiltering = inAtmosphere && atmosphereProgress > 0 && Config.COMMON.enableAtmosphere.get();
+        Config.CustomDimConfig dimensionConfig = Config.getCustomDimConfig(
+                mc.level.dimension().location().toString()).orElse(null);
+        boolean atmosphereEnabled = dimensionConfig != null && dimensionConfig.isEnableAtmosphere()
+                && (!EndlessGravityAPI.isOverworld(mc.level)
+                || (Config.COMMON.enableAtmosphere.get() && Config.COMMON.overworldEntityGravity.get()));
+        double atmosphereProgress = EndlessGravityAPI.getAtmosphereProgress(mc.level, playerY);
+        boolean atmFiltering = atmosphereEnabled && atmosphereProgress > 0;
 
         float targetGain = 1.0f;
         float targetGainHF = 1.0f;
@@ -103,8 +107,8 @@ public abstract class SoundEngineMixin {
 
         if (atmFiltering) {
             try {
-                float atmGain = (float) EndlessGravityAPI.getAtmosphereMuffleGain(playerY);
-                float atmGainHF = (float) EndlessGravityAPI.getAtmosphereMuffleGainHF(playerY);
+                float atmGain = (float) EndlessGravityAPI.getAtmosphereMuffleGain(mc.level, playerY);
+                float atmGainHF = (float) EndlessGravityAPI.getAtmosphereMuffleGainHF(mc.level, playerY);
                 targetGain = Math.min(targetGain, atmGain);
                 targetGainHF = Math.min(targetGainHF, atmGainHF);
             } catch (Exception ignored) {}

@@ -57,17 +57,14 @@ public class GravityHandler {
         boolean isPlayer = entity instanceof Player;
         Level level = entity.level();
 
-        // Custom dimension fall damage
         String dimId = level.dimension().location().toString();
-        if (Config.hasCustomAtmosphere(dimId)) {
-            Config.CustomDimConfig config = Config.getCustomDimConfig(dimId).orElse(null);
-            if (config != null && config.isEnableAtmosphere() && EndlessGravityAPI.getRealY(entity) > config.getAtmosphereMaxAltitude()) {
+        Config.CustomDimConfig dimensionConfig = Config.getCustomDimConfig(dimId).orElse(null);
+        if (dimensionConfig != null && dimensionConfig.isEnableAtmosphere()) {
+            Double noFallAltitude = dimensionConfig.getNoFallDamageAltitude();
+            if (noFallAltitude != null && EndlessGravityAPI.getRealY(entity) > noFallAltitude) {
                 return false;
             }
-        }
-
-        // Vanilla fall damage
-        if (Config.COMMON.enableAtmosphere.get()
+        } else if (dimensionConfig == null && Config.COMMON.enableAtmosphere.get()
                 && EndlessGravityAPI.isOverworld(level)
                 && EndlessGravityAPI.getRealY(entity) > Config.COMMON.noFallDamageAltitude.get()) {
             return false;
