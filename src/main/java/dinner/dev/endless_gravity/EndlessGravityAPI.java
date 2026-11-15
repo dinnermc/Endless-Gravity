@@ -53,7 +53,7 @@ public final class EndlessGravityAPI {
 
     public static double getAtmosphereOffset(double y) {
         if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
-        double progress = getAtmosphereProgress(y);
+        double progress = AtmosphereLayers.getGravityProgress(y);
         return progress * Config.COMMON.atmosphereGravityMax.get();
     }
 

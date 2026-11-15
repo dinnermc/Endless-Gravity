@@ -8,6 +8,8 @@ import dev.ryanhcode.sable.api.physics.mass.MassData;
 import dev.ryanhcode.sable.companion.SubLevelAccess;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import dinner.dev.endless_gravity.Config;
+import dinner.dev.endless_gravity.AtmosphereLayers;
+import dinner.dev.endless_gravity.CustomDimConfig;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
 import dinner.dev.endless_gravity.compat.sable.AtmosphereForceGroups;
 import org.joml.Vector3d;
@@ -62,7 +64,12 @@ public abstract class ServerSubLevelMixin {
         try {
             SubLevelAccess subLevelAccess = (SubLevelAccess) this;
             double altitudeY = subLevelAccess.logicalPose().position().y();
-            double spaceProgress = EndlessGravityAPI.getAtmosphereProgress(altitudeY);
+            CustomDimConfig overworldProfile = Config.getCustomDimConfig("minecraft:overworld").orElse(null);
+            boolean usesOverworldProfile = overworldProfile != null
+                    && overworldProfile.getMode() == CustomDimConfig.Mode.ATMOSPHERE;
+            double spaceProgress = usesOverworldProfile
+                    ? overworldProfile.getAtmosphereGravityProgress(altitudeY)
+                    : AtmosphereLayers.getGravityProgress(altitudeY);
             if (spaceProgress <= 0) return;
 
             MassData massData = (MassData) getMassTrackerMethod.invoke(this);
@@ -74,9 +81,11 @@ public abstract class ServerSubLevelMixin {
             Vector3dc centerOfMass = massData.getCenterOfMass();
             if (centerOfMass == null) return;
 
-            // Cap at 6.7% of Sable's gravity so the net pull stays downward even at full vacuum.
             double sableGravity = Math.abs(Config.COMMON.sableGravityY.get());
-            double levitationAccel = sableGravity * spaceProgress * 0.067;
+            double gravityCompensation = AtmosphereLayers.getGravityCompensationFraction(
+                    usesOverworldProfile ? overworldProfile.getAtmosphereGravityMax()
+                            : Config.COMMON.atmosphereGravityMax.get());
+            double levitationAccel = sableGravity * spaceProgress * gravityCompensation;
             if (Double.isNaN(levitationAccel) || Double.isInfinite(levitationAccel) || levitationAccel > sableGravity) return;
 
             double forceMagnitude = mass * levitationAccel;

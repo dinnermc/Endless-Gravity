@@ -6,12 +6,15 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Pressure curve from the config: altitude -> pressure points. The same curve
- * drives the mod's gravity/muffle progress and the Sable datapack.
+ * Configured pressure curve plus the shared smooth gravity ramp used by entities
+ * and Sable sub-levels.
  */
 public final class AtmosphereLayers {
 
     public static final int LAYER_COUNT = 8;
+    public static final double GRAVITY_START_ALTITUDE = 319.0;
+    private static final double VANILLA_GRAVITY = 0.08;
+    private static final double MAX_GRAVITY_COMPENSATION = 0.99;
 
     public record Layer(double altitude, double pressure) {}
 
@@ -19,11 +22,11 @@ public final class AtmosphereLayers {
             new Layer(-64.0, 1.25),
             new Layer(64.0, 1.0),
             new Layer(400.0, 0.5),
-            new Layer(900.0, 0.2),
-            new Layer(1200.0, 0.08),
-            new Layer(1800.0, 0.01),
-            new Layer(2500.0, 0.001),
-            new Layer(3500.0, 0.0)
+            new Layer(1200.0, 0.4),
+            new Layer(2000.0, 0.3),
+            new Layer(3000.0, 0.2),
+            new Layer(4500.0, 0.1),
+            new Layer(6000.0, 0.0)
     );
 
     private static volatile List<Layer> cached = null;
@@ -39,11 +42,11 @@ public final class AtmosphereLayers {
     public static List<Layer> parse(List<? extends String> raw) {
         if (raw != null && raw.equals(cachedRaw) && cached != null) return cached;
         cachedRaw = raw;
-        cached = doParse(raw);
+        cached = parseUncached(raw);
         return cached;
     }
 
-    private static List<Layer> doParse(List<? extends String> raw) {
+    public static List<Layer> parseUncached(List<? extends String> raw) {
         List<Layer> layers = new ArrayList<>();
         if (raw != null) {
             for (String entry : raw) {
@@ -52,6 +55,7 @@ public final class AtmosphereLayers {
                 try {
                     double altitude = Double.parseDouble(parts[0].trim());
                     double pressure = Double.parseDouble(parts[1].trim());
+                    if (!Double.isFinite(altitude) || !Double.isFinite(pressure)) continue;
                     layers.add(new Layer(altitude, clamp(pressure, 0.0, 10.0)));
                 } catch (NumberFormatException ignored) {}
             }
@@ -61,7 +65,7 @@ public final class AtmosphereLayers {
         return layers;
     }
 
-    public static List<? extends String> serialize(List<Layer> layers) {
+    public static List<String> serialize(List<Layer> layers) {
         List<String> out = new ArrayList<>();
         for (Layer layer : layers) {
             out.add(String.format(Locale.ROOT, "%.0f:%.4f", layer.altitude(), layer.pressure()));
@@ -99,6 +103,37 @@ public final class AtmosphereLayers {
     /** Pure variant of {@link #getProgress(double)}: progress from the given layers, clamped to [0, 1]. */
     public static double getProgress(List<Layer> layers, double y) {
         return clamp(1.0 - getPressure(layers, y), 0.0, 1.0);
+    }
+
+    /**
+     * Smooth gravity ramp from Y=319 to the final atmosphere layer. Pressure remains
+     * independent so changing the gravity ramp does not alter audio or Sable drag.
+     */
+    public static double getGravityProgress(double y) {
+        return getGravityProgress(parse(Config.COMMON.atmosphereLayers.get()), y);
+    }
+
+    /** Pure variant of {@link #getGravityProgress(double)} for the given atmosphere curve. */
+    public static double getGravityProgress(List<Layer> layers, double y) {
+        return getGravityProgress(layers, GRAVITY_START_ALTITUDE, y);
+    }
+
+    /** Pure variant with a dimension-specific gravity-ramp start altitude. */
+    public static double getGravityProgress(List<Layer> layers, double startAltitude, double y) {
+        double endAltitude = layers.get(layers.size() - 1).altitude();
+        if (endAltitude <= startAltitude) return 0.0;
+        double t = clamp((y - startAltitude) / (endAltitude - startAltitude), 0.0, 1.0);
+        return t * t * (3.0 - 2.0 * t);
+    }
+
+    /** Gravity compensation as a fraction of vanilla gravity, capped to leave a downward pull. */
+    public static double getGravityCompensationFraction(double maxOffset) {
+        return clamp(maxOffset / VANILLA_GRAVITY, 0.0, MAX_GRAVITY_COMPENSATION);
+    }
+
+    /** Estimate the starting world altitude from a landing altitude and fall distance. */
+    public static double getFallStartAltitude(double landingY, double fallDistance) {
+        return landingY + Math.max(0.0, fallDistance);
     }
 
     /** Clamp helper matching {@code net.minecraft.util.Mth.clamp}. */

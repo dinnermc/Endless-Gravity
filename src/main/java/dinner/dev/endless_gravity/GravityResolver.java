@@ -66,9 +66,7 @@ public final class GravityResolver {
             return context;
         }
 
-        if (!resolveCustomDimension(level, channel, context) && !resolveAtmosphere(entity, level, context)) {
-            resolveEnd(level, channel, context);
-        }
+        resolveDimensionProfile(entity, level, channel, context);
 
         applyEntityGravity(entity, context);
 
@@ -94,90 +92,29 @@ public final class GravityResolver {
         }
     }
 
-    private static boolean resolveCustomDimension(Level level, GravityChannel channel, GravityContext context) {
-        if (channel != GravityChannel.PLAYER && channel != GravityChannel.MOB) return false;
-
+    private static void resolveDimensionProfile(Entity entity, Level level, GravityChannel channel, GravityContext context) {
         String dimensionId = level.dimension().location().toString();
         CustomDimConfig config = Config.getCustomDimConfig(dimensionId).orElse(null);
-        if (config == null || !config.isEnableCustomGravity()) return false;
+        if (config == null) return;
 
-        double offset;
-        if (channel == GravityChannel.PLAYER) {
-            Double perDimension = config.getPlayerGravityOffset();
-            offset = (perDimension != null) ? perDimension : Config.COMMON.playerGravityOffset.get();
-        } else {
-            offset = config.getMobGravityOffset();
-        }
-        context.setSource(GravitySource.CUSTOM_DIMENSION);
-        context.setOffset(offset);
-        return true;
-    }
-
-    private static boolean resolveAtmosphere(Entity entity, Level level, GravityContext context) {
-        double offset;
-
-        // The built-in Overworld atmosphere always uses the configurable 8-layer
-        // pressure curve (the same curve as the audio filter and the Sable datapack).
-        // dimensions.json ships a legacy Overworld entry whose linear ramp is
-        // intentionally ignored so entity gravity stays in step with the layers.
-        if (level.dimension() == Level.OVERWORLD) {
-            if (!Config.COMMON.overworldEntityGravity.get()) return false;
-            if (!Config.COMMON.enableAtmosphere.get()) return false;
-
+        double offset = 0.0;
+        if (config.getMode() == CustomDimConfig.Mode.FIXED_GRAVITY) {
+            offset = switch (channel) {
+                case PLAYER -> config.getPlayerGravityOffset();
+                case MOB -> config.getMobGravityOffset();
+                case ITEM -> config.getItemGravityOffset();
+                case ARROW -> config.getArrowGravityOffset();
+                case THROWN -> config.getThrownGravityOffset();
+                case BLOCK -> config.getBlockGravityOffset();
+            };
+        } else if (channel == GravityChannel.PLAYER || channel == GravityChannel.MOB) {
             double realY = EndlessGravityAPI.getRealY(entity);
-            if (realY <= EndlessGravityAPI.BASE) return false;
-            offset = EndlessGravityAPI.getAtmosphereOffset(realY);
-        } else {
-            // Other dimensions may define their own linear atmosphere ramp.
-            String dimensionId = level.dimension().location().toString();
-            CustomDimConfig custom = Config.getCustomDimConfig(dimensionId).orElse(null);
-            if (custom == null || !custom.isEnableAtmosphere()) return false;
-
-            double base = custom.getAtmosphereBaseAltitude();
-            double span = custom.getAtmosphereMaxAltitude() - base;
-            if (span <= 0) return false;
-            double realY = EndlessGravityAPI.getRealY(entity);
-            if (realY <= base) return false;
-            double progress = Math.max(0.0, Math.min(1.0, (realY - base) / span));
-            offset = progress * custom.getAtmosphereGravityMax();
+            offset = config.getAtmosphereGravityOffset(realY);
+            offset = Math.min(offset, entity.getGravity());
         }
-
-        if (offset <= 0) return false;
-        double gravity = entity.getGravity();
-        if (offset > gravity) offset = gravity;
-        if (offset <= 0) return false;
-
-        context.setSource(GravitySource.ATMOSPHERE);
+        context.setSource(config.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                ? GravitySource.ATMOSPHERE : GravitySource.CUSTOM_DIMENSION);
         context.setOffset(offset);
-        return true;
     }
 
-    private static boolean resolveEnd(Level level, GravityChannel channel, GravityContext context) {
-        // Sable dimensions are driven by Sable's own physics pack, not by this mod.
-        if ((channel == GravityChannel.PLAYER || channel == GravityChannel.MOB)
-                && EndlessGravityAPI.isSableManaged(level)) {
-            return false;
-        }
-        if (level.dimension() != Level.END) return false;
-        if (!Config.COMMON.endEntityGravity.get()) return false;
-
-        Double offset = endOffset(channel);
-        if (offset == null) return false;
-
-        context.setSource(GravitySource.END);
-        context.setOffset(offset);
-        return true;
-    }
-
-    private static Double endOffset(GravityChannel channel) {
-        switch (channel) {
-            case PLAYER: return Config.COMMON.enablePlayerGravity.get() ? Config.COMMON.playerGravityOffset.get() : null;
-            case MOB: return Config.COMMON.enableMobGravity.get() ? Config.COMMON.mobGravityOffset.get() : null;
-            case ITEM: return Config.COMMON.enableItemGravity.get() ? Config.COMMON.itemGravityOffset.get() : null;
-            case ARROW: return Config.COMMON.enableArrowGravity.get() ? Config.COMMON.arrowGravityOffset.get() : null;
-            case THROWN: return Config.COMMON.enableThrownGravity.get() ? Config.COMMON.thrownGravityOffset.get() : null;
-            case BLOCK: return Config.COMMON.enableBlockGravity.get() ? Config.COMMON.blockGravityOffset.get() : null;
-            default: return null;
-        }
-    }
 }

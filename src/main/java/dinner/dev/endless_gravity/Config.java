@@ -6,22 +6,31 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mojang.logging.LogUtils;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Locale;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 public class Config {
+    private static final Logger LOGGER = LogUtils.getLogger();
     public static final ModConfigSpec COMMON_SPEC;
     public static final Common COMMON;
 
@@ -98,43 +107,43 @@ public class Config {
             builder.push("gravity");
 
             endEntityGravity = builder
-                    .comment("Master switch for End gravity. Off = vanilla gravity for everything, ignoring the toggles below.")
+                    .comment("Legacy End-profile default used when creating/migrating dimensions.json; also gates End particle gravity.")
                     .define("endEntityGravity", true);
 
             enablePlayerGravity = builder
-                    .comment("Reduced gravity for players in The End.")
+                    .comment("Legacy End-profile default. Edit the minecraft:the_end profile in dimensions.json.")
                     .define("enablePlayerGravity", true);
             playerGravityOffset = builder
-                    .comment("Upward impulse per tick for players. 0.055 leaves a gentle float; crank it up and you barely fall at all.")
+                    .comment("Legacy/default End profile value; edit dimensions.json after the profiles have been created.")
                     .defineInRange("playerGravityOffset", 0.055, 0.0, 0.07);
 
             enableItemGravity = builder
-                    .comment("Reduced gravity for dropped items in The End.")
+                    .comment("Legacy End-profile default. Edit the minecraft:the_end profile in dimensions.json.")
                     .define("enableItemGravity", true);
             itemGravityOffset = builder
-                    .comment("Same impulse as the player offset, but for items. Lower because items have no way to steer.")
+                    .comment("Legacy/default End profile value; edit dimensions.json after the profiles have been created.")
                     .defineInRange("itemGravityOffset", 0.025, 0.0, 0.035);
 
             enableArrowGravity = builder
-                    .comment("Reduced gravity for arrows and tridents in The End.")
+                    .comment("Legacy End-profile default. Edit the minecraft:the_end profile in dimensions.json.")
                     .define("enableArrowGravity", true);
             arrowGravityOffset = builder
-                    .comment("Upward impulse per tick for arrows and tridents.")
+                    .comment("Legacy/default End profile value; edit dimensions.json after the profiles have been created.")
                     .defineInRange("arrowGravityOffset", 0.03, 0.0, 0.04);
 
             enableThrownGravity = builder
-                    .comment("Reduced gravity for thrown projectiles (snowballs, pearls, bottles...) in The End.")
+                    .comment("Legacy End-profile default. Edit the minecraft:the_end profile in dimensions.json.")
                     .define("enableThrownGravity", true);
             thrownGravityOffset = builder
-                    .comment("Upward impulse per tick for thrown projectiles.")
+                    .comment("Legacy/default End profile value; edit dimensions.json after the profiles have been created.")
                     .defineInRange("thrownGravityOffset", 0.018, 0.0, 0.025);
 
             // Mob gravity (new)
             enableMobGravity = builder
-                    .comment("Reduced gravity for all mobs in The End.")
+                    .comment("Legacy End-profile default. Edit the minecraft:the_end profile in dimensions.json.")
                     .define("enableMobGravity", true);
             mobGravityOffset = builder
-                    .comment("Upward impulse per tick for mobs in The End. Lower because mobs have no way to steer.")
+                    .comment("Legacy/default End profile value; edit dimensions.json after the profiles have been created.")
                     .defineInRange("mobGravityOffset", 0.025, 0.0, 0.035);
 
             gravityImmuneEntities = builder
@@ -168,10 +177,10 @@ public class Config {
                     .defineInRange("mobFallDamageMode", 1, 0, 1);
 
             enableBlockGravity = builder
-                    .comment("Falling blocks (sand, gravel, anvils, dragon eggs) fall slower in The End.")
+                    .comment("Legacy End-profile default. Edit the minecraft:the_end profile in dimensions.json.")
                     .define("enableBlockGravity", true);
             blockGravityOffset = builder
-                    .comment("Upward impulse per tick for falling blocks.")
+                    .comment("Legacy/default End profile value; edit dimensions.json after the profiles have been created.")
                     .defineInRange("blockGravityOffset", 0.035, 0.0, 0.1);
 
             builder.pop();
@@ -205,37 +214,37 @@ public class Config {
 
             overworldSableDatapackPriority = builder
                     .comment("Datapack priority for the Overworld pack. Must beat Sable's built-in 1000.")
-                    .defineInRange("overworldSableDatapackPriority", 2000, 1, 9999);
+                    .defineInRange("overworldSableDatapackPriority", 9999, 1, 9999);
 
             builder.pop();
 
             builder.push("atmosphere");
 
             enableAtmosphere = builder
-                    .comment("Turns on the Overworld's altitude physics: gravity eases off above Y=64 and fades to vacuum by Y=3500. Also applies inside Sable sub-levels.")
+                    .comment("Master switch for the global Sable sub-level atmosphere. Dimension profile modes control gravity in Minecraft dimensions.")
                     .define("enableAtmosphere", true);
             overworldEntityGravity = builder
-                    .comment("Master switch for the atmosphere's effect on entities. Off = full vanilla gravity at every altitude.")
+                    .comment("Legacy Overworld profile default used when dimensions.json is first created or migrated.")
                     .define("overworldEntityGravity", true);
             atmosphereGravityMax = builder
-                    .comment("Upward impulse per tick at deep space, ramped from 0 at Y=64. Keep under 0.08 so a residual pull always remains - never perfect zero-G.")
+                    .comment("Maximum upward impulse per tick for Sable sub-level gravity reduction and the initial Overworld profile.")
                     .defineInRange("atmosphereGravityMax", 0.075, 0.0, 0.1);
             noFallDamageAltitude = builder
-                    .comment("Above this Y, fall damage is cancelled in the Overworld (and Sable sub-levels). 400 = the air is already thin enough that falls stop hurting; 3500 = only at the top of the atmosphere.")
-                    .defineInRange("noFallDamageAltitude", 400.0, 64.0, 3500.0);
+                    .comment("Global Sable sub-level fall-damage threshold and initial Overworld profile default.")
+                    .defineInRange("noFallDamageAltitude", 4500.0, 64.0, 6000.0);
             atmosphereMuffleGain = builder
-                    .comment("Low-pass gain at deep space, interpolated from 1.0 at the base. 0.01 is effectively silence.")
+                    .comment("Global Sable audio fallback and initial Overworld profile default.")
                     .defineInRange("atmosphereMuffleGain", 0.01, 0.0, 1.0);
             atmosphereMuffleGainHF = builder
-                    .comment("High-frequency gain at deep space, same interpolation as the gain above.")
+                    .comment("Global Sable audio fallback and initial Overworld profile default.")
                     .defineInRange("atmosphereMuffleGainHF", 0.005, 0.0, 1.0);
             particleGravityOffset = builder
                     .comment("Upward acceleration per tick for particles in The End. 0.08 = neutral gravity (float), <0.08 = slow fall, >0.08 = slow rise")
                     .defineInRange("particleGravityOffset", 0.1, 0.0, 0.5);
             atmosphereLayers = builder
-                    .comment("\"altitude:pressure\" pairs defining the pressure curve - 1.0 = full atmosphere, 0.0 = vacuum. Gravity, muffling and the Sable datapack all read this curve. Defaults: -64:1.25, 64:1.0, 400:0.5, 900:0.2, 1200:0.08, 1800:0.01, 2500:0.001, 3500:0.0")
+                    .comment("Global Sable pressure curve and initial curve for new atmosphere profiles. Profile curves are stored in dimensions.json.")
                     .defineListAllowEmpty("atmosphereLayers",
-                            List.of("-64:1.25", "64:1.0", "400:0.5", "900:0.2", "1200:0.08", "1800:0.01", "2500:0.001", "3500:0.0"),
+                            List.of("-64:1.25", "64:1.0", "400:0.5", "1200:0.4", "2000:0.3", "3000:0.2", "4500:0.1", "6000:0.0"),
                             obj -> obj instanceof String);
 
             builder.pop();
@@ -265,10 +274,10 @@ public class Config {
     }
 
     // Runtime cache for custom dimensions
-    private static final Map<String, CustomDimConfig> CUSTOM_DIMENSIONS = new HashMap<>();
+    private static final Map<String, CustomDimConfig> CUSTOM_DIMENSIONS = new LinkedHashMap<>();
     private static boolean customDimensionsLoaded = false;
 
-    public static void loadCustomDimensions() {
+    public static synchronized void loadCustomDimensions() {
         if (customDimensionsLoaded) return;
         CUSTOM_DIMENSIONS.clear();
 
@@ -279,118 +288,363 @@ public class Config {
 
         try {
             parseDimensionsFile(configPath);
-            customDimensionsLoaded = true;
         } catch (Exception e) {
-            // Corrupt or truncated file: back it up, regenerate the default, retry once.
-            System.err.println("[Endless Gravity] Failed to load custom dimensions config (" + e.getMessage() + "); regenerating default.");
+            LOGGER.error("Could not read dimension profiles from {}. The original file will be backed up.", configPath, e);
             try {
                 Files.move(configPath, configPath.resolveSibling(configPath.getFileName() + ".bak"), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException ignored) {}
-            createDefaultDimensionsConfig(configPath);
+            } catch (IOException backupError) {
+                LOGGER.error("Could not back up invalid dimension profiles at {}", configPath, backupError);
+            }
+            CUSTOM_DIMENSIONS.clear();
+            addBuiltInDefaults(CUSTOM_DIMENSIONS);
             try {
-                parseDimensionsFile(configPath);
-                customDimensionsLoaded = true;
-            } catch (Exception e2) {
-                System.err.println("[Endless Gravity] Failed to load regenerated custom dimensions config: " + e2.getMessage());
-                customDimensionsLoaded = true;
+                writeDimensionsFile(configPath, CUSTOM_DIMENSIONS.values());
+            } catch (IOException writeError) {
+                LOGGER.error("Could not recreate dimension profiles at {}", configPath, writeError);
             }
         }
+        customDimensionsLoaded = true;
     }
 
     private static void parseDimensionsFile(Path configPath) throws IOException {
         String json = Files.readString(configPath);
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
         JsonArray dimensions = root.getAsJsonArray("dimensions");
-        if (dimensions != null) {
-            Gson gson = new GsonBuilder().create();
-            for (JsonElement element : dimensions) {
-                JsonObject obj = element.getAsJsonObject();
-                String dimId = obj.get("dimension").getAsString();
-
-                Double playerGravityOffset = null;
-                JsonElement playerOffsetElement = obj.get("playerGravityOffset");
-                if (playerOffsetElement != null && !playerOffsetElement.isJsonNull()) {
-                    playerGravityOffset = playerOffsetElement.getAsDouble();
+        if (dimensions == null) throw new IllegalArgumentException("missing 'dimensions' array");
+        if (dimensions.size() > 512) LOGGER.warn("Only the first 512 dimension profiles will be loaded");
+        for (JsonElement element : dimensions) {
+            if (CUSTOM_DIMENSIONS.size() >= 512) break;
+            try {
+                CustomDimConfig config = parseDimension(element);
+                if (CUSTOM_DIMENSIONS.putIfAbsent(config.getDimensionId(), config) != null) {
+                    LOGGER.warn("Ignoring duplicate dimension profile for {}", config.getDimensionId());
                 }
-
-                CustomDimConfig config = new CustomDimConfig(
-                        dimId,
-                        obj.get("enableCustomGravity").getAsBoolean(),
-                        obj.get("mobGravityOffset").getAsDouble(),
-                        playerGravityOffset,
-                        obj.get("enableAtmosphere").getAsBoolean(),
-                        obj.get("atmosphereGravityMax").getAsDouble(),
-                        obj.get("atmosphereBaseAltitude").getAsDouble(),
-                        obj.get("atmosphereMaxAltitude").getAsDouble(),
-                        obj.get("atmosphereMuffleGain").getAsDouble(),
-                        obj.get("atmosphereMuffleGainHF").getAsDouble(),
-                        obj.get("enableMobGravity").getAsBoolean(),
-                        obj.get("mobGravityOffsetCustom").getAsDouble(),
-                        gson.fromJson(obj.get("atmosphereLayers"), new com.google.gson.reflect.TypeToken<List<String>>() {}.getType())
-                );
-                CUSTOM_DIMENSIONS.put(dimId, config);
+            } catch (RuntimeException e) {
+                LOGGER.warn("Ignoring invalid dimension profile: {}", e.getMessage());
             }
         }
     }
 
-    private static void createDefaultDimensionsConfig(Path configPath) {
-        try {
-            Files.createDirectories(configPath.getParent());
+    private static CustomDimConfig parseDimension(JsonElement element) {
+        JsonObject obj = element.getAsJsonObject();
+        String id = stringValue(obj, "id", stringValue(obj, "dimension", ""));
+        ResourceLocation parsedId = ResourceLocation.tryParse(id);
+        if (parsedId == null) throw new IllegalArgumentException("invalid dimension ID '" + id + "'");
+        id = parsedId.toString();
 
-            JsonObject endDim = new JsonObject();
-            endDim.addProperty("dimension", "minecraft:the_end");
-            endDim.addProperty("enableCustomGravity", true);
-            endDim.addProperty("mobGravityOffset", 0.025);
-            endDim.addProperty("enableAtmosphere", false);
-            endDim.addProperty("atmosphereGravityMax", 0.0);
-            endDim.addProperty("atmosphereBaseAltitude", 0.0);
-            endDim.addProperty("atmosphereMaxAltitude", 0.0);
-            endDim.addProperty("atmosphereMuffleGain", 0.0);
-            endDim.addProperty("atmosphereMuffleGainHF", 0.0);
-            endDim.addProperty("enableMobGravity", true);
-            endDim.addProperty("mobGravityOffsetCustom", 0.025);
-            endDim.add("atmosphereLayers", new JsonArray());
-
-            JsonObject overworldDim = new JsonObject();
-            overworldDim.addProperty("dimension", "minecraft:overworld");
-            overworldDim.addProperty("enableCustomGravity", false);
-            overworldDim.addProperty("mobGravityOffset", 0.0);
-            overworldDim.addProperty("enableAtmosphere", true);
-            overworldDim.addProperty("atmosphereGravityMax", 0.075);
-            overworldDim.addProperty("atmosphereBaseAltitude", 64.0);
-            overworldDim.addProperty("atmosphereMaxAltitude", 3500.0);
-            overworldDim.addProperty("atmosphereMuffleGain", 0.01);
-            overworldDim.addProperty("atmosphereMuffleGainHF", 0.005);
-            overworldDim.addProperty("enableMobGravity", false);
-            overworldDim.addProperty("mobGravityOffsetCustom", 0.0);
-
-            JsonArray layers = new JsonArray();
-            layers.add("-64:1.25");
-            layers.add("64:1.0");
-            layers.add("400:0.5");
-            layers.add("900:0.2");
-            layers.add("1200:0.08");
-            layers.add("1800:0.01");
-            layers.add("2500:0.001");
-            layers.add("3500:0.0");
-            overworldDim.add("atmosphereLayers", layers);
-
-            JsonArray dimensions = new JsonArray();
-            dimensions.add(endDim);
-            dimensions.add(overworldDim);
-
-            JsonObject root = new JsonObject();
-            root.add("dimensions", dimensions);
-
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            String defaultJson = gson.toJson(root);
-
-            Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
-            Files.writeString(tempPath, defaultJson);
-            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException e) {
-            System.err.println("[Endless Gravity] Failed to create default dimensions config: " + e.getMessage());
+        JsonElement modeElement = obj.get("mode");
+        CustomDimConfig.Mode mode;
+        boolean legacyProfile = modeElement == null;
+        boolean legacyDisabled = false;
+        boolean legacyAtmosphereEnabled = false;
+        if (!legacyProfile) {
+            if (!modeElement.isJsonPrimitive() || !modeElement.getAsJsonPrimitive().isString()) {
+                throw new IllegalArgumentException("invalid mode for " + id);
+            }
+            mode = switch (modeElement.getAsString().toLowerCase(Locale.ROOT)) {
+                case "atmosphere" -> CustomDimConfig.Mode.ATMOSPHERE;
+                case "fixed_gravity", "fixed-gravity", "gravity" -> CustomDimConfig.Mode.FIXED_GRAVITY;
+                default -> throw new IllegalArgumentException("invalid mode for " + id);
+            };
+        } else {
+            boolean hasLegacyMode = obj.has("enableAtmosphere") || obj.has("enableCustomGravity");
+            boolean legacyAtmosphere = boolValue(obj, "enableAtmosphere", id.equals("minecraft:overworld"));
+            boolean legacyGravity = boolValue(obj, "enableCustomGravity", id.equals("minecraft:the_end"));
+            legacyAtmosphereEnabled = legacyAtmosphere;
+            legacyDisabled = hasLegacyMode && !legacyAtmosphere && !legacyGravity;
+            mode = legacyGravity ? CustomDimConfig.Mode.FIXED_GRAVITY
+                    : legacyAtmosphere ? CustomDimConfig.Mode.ATMOSPHERE
+                    : (hasLegacyMode || !id.equals("minecraft:overworld")
+                    ? CustomDimConfig.Mode.FIXED_GRAVITY : CustomDimConfig.Mode.ATMOSPHERE);
         }
+
+        JsonObject gravity = obj.has("gravity") && obj.get("gravity").isJsonObject()
+                ? obj.getAsJsonObject("gravity") : obj;
+        double player = numberValue(gravity, "player", legacyNumber(obj, "playerGravityOffset",
+                id.equals("minecraft:the_end") && !COMMON.endEntityGravity.get() ? 0.0 : COMMON.playerGravityOffset.get()));
+        double mob = numberValue(gravity, "mob", legacyNumber(obj, "mobGravityOffset",
+                legacyNumber(obj, "mobGravityOffsetCustom", id.equals("minecraft:the_end")
+                        ? COMMON.mobGravityOffset.get() : 0.0)));
+        double item = numberValue(gravity, "item", legacyNumber(obj, "itemGravityOffset",
+                id.equals("minecraft:the_end") ? COMMON.itemGravityOffset.get() : 0.0));
+        double arrow = numberValue(gravity, "arrow", legacyNumber(obj, "arrowGravityOffset",
+                id.equals("minecraft:the_end") ? COMMON.arrowGravityOffset.get() : 0.0));
+        double thrown = numberValue(gravity, "thrown", legacyNumber(obj, "thrownGravityOffset",
+                id.equals("minecraft:the_end") ? COMMON.thrownGravityOffset.get() : 0.0));
+        double block = numberValue(gravity, "block", legacyNumber(obj, "blockGravityOffset",
+                id.equals("minecraft:the_end") ? COMMON.blockGravityOffset.get() : 0.0));
+        if (legacyDisabled) player = mob = item = arrow = thrown = block = 0.0;
+        if (legacyProfile && id.equals("minecraft:the_end")) {
+            if (!COMMON.endEntityGravity.get()) {
+                player = mob = item = arrow = thrown = block = 0.0;
+            } else {
+                if (!boolValue(obj, "enablePlayerGravity", true)) player = 0.0;
+                if (!boolValue(obj, "enableMobGravity", true)) mob = 0.0;
+                if (!boolValue(obj, "enableItemGravity", true)) item = 0.0;
+                if (!boolValue(obj, "enableArrowGravity", true)) arrow = 0.0;
+                if (!boolValue(obj, "enableThrownGravity", true)) thrown = 0.0;
+                if (!boolValue(obj, "enableBlockGravity", true)) block = 0.0;
+            }
+        }
+
+        JsonObject atmosphere = obj.has("atmosphere") && obj.get("atmosphere").isJsonObject()
+                ? obj.getAsJsonObject("atmosphere") : obj;
+        double baseAltitude = numberValue(atmosphere, "start_altitude",
+                numberValue(atmosphere, "atmosphereBaseAltitude", AtmosphereLayers.GRAVITY_START_ALTITUDE));
+        if (legacyProfile && id.equals("minecraft:overworld")) {
+            baseAltitude = AtmosphereLayers.GRAVITY_START_ALTITUDE;
+        }
+        double maxGravity = numberValue(atmosphere, "gravity_offset",
+                numberValue(atmosphere, "atmosphereGravityMax", COMMON.atmosphereGravityMax.get()));
+        if (legacyProfile && id.equals("minecraft:overworld") && !COMMON.overworldEntityGravity.get()) maxGravity = 0.0;
+        if (legacyProfile && id.equals("minecraft:overworld") && !COMMON.enableAtmosphere.get()) {
+            mode = CustomDimConfig.Mode.FIXED_GRAVITY;
+            player = mob = item = arrow = thrown = block = maxGravity = 0.0;
+        }
+        Double noFallDamage = null;
+        if (obj.has("no_fall_damage_above")) {
+            JsonElement threshold = obj.get("no_fall_damage_above");
+            if (threshold != null && !threshold.isJsonNull()) noFallDamage = numeric(threshold, "no_fall_damage_above");
+        } else {
+            boolean useLegacyAtmosphereThreshold = legacyProfile
+                    ? legacyAtmosphereEnabled : mode == CustomDimConfig.Mode.ATMOSPHERE;
+            double fallback = !useLegacyAtmosphereThreshold ? -1.0
+                    : id.equals("minecraft:overworld") ? COMMON.noFallDamageAltitude.get()
+                    : numberValue(obj, "atmosphereMaxAltitude", COMMON.noFallDamageAltitude.get());
+            double legacyThreshold = numberValue(obj, "noFallDamageAltitude", fallback);
+            if (legacyThreshold >= 0.0) noFallDamage = legacyThreshold;
+        }
+        double gain = numberValue(atmosphere, "muffle_gain",
+                numberValue(atmosphere, "atmosphereMuffleGain", COMMON.atmosphereMuffleGain.get()));
+        double gainHF = numberValue(atmosphere, "muffle_gain_hf",
+                numberValue(atmosphere, "atmosphereMuffleGainHF", COMMON.atmosphereMuffleGainHF.get()));
+        List<String> layers = stringList(atmosphere, "layers", "atmosphereLayers");
+        if (layers.size() < 2) layers = defaultLayers();
+        if (layers.size() > CustomDimConfig.MAX_ATMOSPHERE_LAYERS) {
+            throw new IllegalArgumentException("too many atmosphere layers for " + id);
+        }
+
+        return new CustomDimConfig(id, mode,
+                clamp(player, -0.5, 0.5), clamp(mob, -0.5, 0.5),
+                clamp(item, -0.5, 0.5), clamp(arrow, -0.5, 0.5),
+                clamp(thrown, -0.5, 0.5), clamp(block, -0.5, 0.5),
+                clamp(maxGravity, 0.0, 0.5), clamp(baseAltitude, -2048.0, 30000.0),
+                noFallDamage != null && Double.isFinite(noFallDamage) && noFallDamage >= 0.0 ? noFallDamage : null,
+                clamp(gain, 0.0, 1.0), clamp(gainHF, 0.0, 1.0), layers);
+    }
+
+    private static double legacyNumber(JsonObject obj, String key, double fallback) {
+        JsonElement value = obj.get(key);
+        return value == null || value.isJsonNull() ? fallback : numeric(value, key);
+    }
+
+    private static double numberValue(JsonObject obj, String key, double fallback) {
+        JsonElement value = obj.get(key);
+        return value == null || value.isJsonNull() ? fallback : numeric(value, key);
+    }
+
+    private static double numeric(JsonElement element, String key) {
+        double value = element.getAsDouble();
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("non-finite value for " + key);
+        return value;
+    }
+
+    private static String stringValue(JsonObject obj, String key, String fallback) {
+        JsonElement value = obj.get(key);
+        return value == null || value.isJsonNull() ? fallback : value.getAsString();
+    }
+
+    private static boolean boolValue(JsonObject obj, String key, boolean fallback) {
+        JsonElement value = obj.get(key);
+        return value == null || value.isJsonNull() ? fallback : value.getAsBoolean();
+    }
+
+    private static List<String> stringList(JsonObject obj, String newKey, String oldKey) {
+        JsonElement value = obj.has(newKey) ? obj.get(newKey) : obj.get(oldKey);
+        List<String> layers = new ArrayList<>();
+        if (value != null && value.isJsonArray()) {
+            for (JsonElement element : value.getAsJsonArray()) {
+                if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+                    layers.add(element.getAsString());
+                }
+            }
+        }
+        return layers;
+    }
+
+    private static void addBuiltInDefaults(Map<String, CustomDimConfig> dimensions) {
+        dimensions.putIfAbsent("minecraft:overworld", defaultOverworld());
+        dimensions.putIfAbsent("minecraft:the_end", defaultEnd());
+    }
+
+    private static CustomDimConfig defaultOverworld() {
+        boolean atmosphereEnabled = COMMON.enableAtmosphere.get();
+        return new CustomDimConfig("minecraft:overworld",
+                atmosphereEnabled ? CustomDimConfig.Mode.ATMOSPHERE : CustomDimConfig.Mode.FIXED_GRAVITY,
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                atmosphereEnabled && COMMON.overworldEntityGravity.get() ? COMMON.atmosphereGravityMax.get() : 0.0,
+                AtmosphereLayers.GRAVITY_START_ALTITUDE,
+                atmosphereEnabled ? COMMON.noFallDamageAltitude.get() : null, COMMON.atmosphereMuffleGain.get(),
+                COMMON.atmosphereMuffleGainHF.get(), defaultLayers());
+    }
+
+    private static CustomDimConfig defaultEnd() {
+        boolean enabled = COMMON.endEntityGravity.get();
+        return new CustomDimConfig("minecraft:the_end", CustomDimConfig.Mode.FIXED_GRAVITY,
+                enabled && COMMON.enablePlayerGravity.get() ? COMMON.playerGravityOffset.get() : 0.0,
+                enabled && COMMON.enableMobGravity.get() ? COMMON.mobGravityOffset.get() : 0.0,
+                enabled && COMMON.enableItemGravity.get() ? COMMON.itemGravityOffset.get() : 0.0,
+                enabled && COMMON.enableArrowGravity.get() ? COMMON.arrowGravityOffset.get() : 0.0,
+                enabled && COMMON.enableThrownGravity.get() ? COMMON.thrownGravityOffset.get() : 0.0,
+                enabled && COMMON.enableBlockGravity.get() ? COMMON.blockGravityOffset.get() : 0.0,
+                0.075, AtmosphereLayers.GRAVITY_START_ALTITUDE, null,
+                COMMON.atmosphereMuffleGain.get(), COMMON.atmosphereMuffleGainHF.get(),
+                defaultLayers());
+    }
+
+    private static List<String> defaultLayers() {
+        List<String> configured = new ArrayList<>(COMMON.atmosphereLayers.get());
+        List<AtmosphereLayers.Layer> parsed = AtmosphereLayers.parseUncached(configured);
+        if (parsed.size() <= CustomDimConfig.MAX_ATMOSPHERE_LAYERS) {
+            return AtmosphereLayers.serialize(parsed);
+        }
+        LOGGER.warn("Global atmosphere curve has more than {} layers; retaining the first {} and the final layer",
+                CustomDimConfig.MAX_ATMOSPHERE_LAYERS, CustomDimConfig.MAX_ATMOSPHERE_LAYERS - 1);
+        List<AtmosphereLayers.Layer> limited = new ArrayList<>(
+                parsed.subList(0, CustomDimConfig.MAX_ATMOSPHERE_LAYERS - 1));
+        limited.add(parsed.get(parsed.size() - 1));
+        return AtmosphereLayers.serialize(limited);
+    }
+
+    public static CustomDimConfig createDimensionProfile(String dimensionId, CustomDimConfig.Mode mode) {
+        return new CustomDimConfig(dimensionId, mode,
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                COMMON.atmosphereGravityMax.get(), AtmosphereLayers.GRAVITY_START_ALTITUDE,
+                mode == CustomDimConfig.Mode.ATMOSPHERE ? COMMON.noFallDamageAltitude.get() : null,
+                COMMON.atmosphereMuffleGain.get(), COMMON.atmosphereMuffleGainHF.get(),
+                defaultLayers());
+    }
+
+    private static void createDefaultDimensionsConfig(Path configPath) {
+        Map<String, CustomDimConfig> defaults = new LinkedHashMap<>();
+        addBuiltInDefaults(defaults);
+        try {
+            writeDimensionsFile(configPath, defaults.values());
+        } catch (IOException e) {
+            LOGGER.error("Failed to create default dimension profiles at {}", configPath, e);
+        }
+    }
+
+    private static void writeDimensionsFile(Path configPath, Collection<CustomDimConfig> dimensions) throws IOException {
+        Files.createDirectories(configPath.getParent());
+        JsonArray array = new JsonArray();
+        dimensions.stream().sorted(Comparator.comparing(CustomDimConfig::getDimensionId))
+                .forEach(config -> array.add(toJson(config)));
+        JsonObject root = new JsonObject();
+        root.add("dimensions", array);
+        String json = new GsonBuilder().setPrettyPrinting().create().toJson(root);
+        Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
+        Files.writeString(tempPath, json);
+        try {
+            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static JsonObject toJson(CustomDimConfig config) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("id", config.getDimensionId());
+        obj.addProperty("mode", config.getMode().name().toLowerCase(Locale.ROOT));
+        JsonObject gravity = new JsonObject();
+        gravity.addProperty("player", config.getPlayerGravityOffset());
+        gravity.addProperty("mob", config.getMobGravityOffset());
+        gravity.addProperty("item", config.getItemGravityOffset());
+        gravity.addProperty("arrow", config.getArrowGravityOffset());
+        gravity.addProperty("thrown", config.getThrownGravityOffset());
+        gravity.addProperty("block", config.getBlockGravityOffset());
+        obj.add("gravity", gravity);
+        JsonObject atmosphere = new JsonObject();
+        atmosphere.addProperty("start_altitude", config.getAtmosphereBaseAltitude());
+        atmosphere.addProperty("gravity_offset", config.getAtmosphereGravityMax());
+        atmosphere.addProperty("muffle_gain", config.getAtmosphereMuffleGain());
+        atmosphere.addProperty("muffle_gain_hf", config.getAtmosphereMuffleGainHF());
+        JsonArray layers = new JsonArray();
+        config.getAtmosphereLayers().forEach(layers::add);
+        atmosphere.add("layers", layers);
+        obj.add("atmosphere", atmosphere);
+        if (config.getNoFallDamageAltitude() == null) obj.add("no_fall_damage_above", null);
+        else obj.addProperty("no_fall_damage_above", config.getNoFallDamageAltitude());
+        return obj;
+    }
+
+    public static synchronized List<CustomDimConfig> getCustomDimensions() {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        return CUSTOM_DIMENSIONS.values().stream()
+                .sorted(Comparator.comparing(CustomDimConfig::getDimensionId))
+                .toList();
+    }
+
+    public static synchronized List<String> getCustomDimensionsJson() {
+        return getCustomDimensions().stream().map(config -> new Gson().toJson(toJson(config))).toList();
+    }
+
+    public static synchronized void replaceCustomDimensions(Collection<CustomDimConfig> dimensions) {
+        replaceCustomDimensions(dimensions, true);
+    }
+
+    public static synchronized void replaceCustomDimensions(Collection<CustomDimConfig> dimensions, boolean persist) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        Map<String, CustomDimConfig> replacement = new LinkedHashMap<>();
+        if (dimensions.size() > 512) throw new IllegalArgumentException("At most 512 dimension profiles are supported");
+        HashSet<String> seen = new HashSet<>();
+        for (CustomDimConfig config : dimensions) {
+            ResourceLocation id = ResourceLocation.tryParse(config.getDimensionId());
+            if (id == null) throw new IllegalArgumentException("Invalid dimension ID: " + config.getDimensionId());
+            if (!seen.add(id.toString())) throw new IllegalArgumentException("Duplicate dimension profile: " + id);
+            if (config.getAtmosphereLayers().size() > CustomDimConfig.MAX_ATMOSPHERE_LAYERS) {
+                throw new IllegalArgumentException("Too many atmosphere layers for " + id);
+            }
+            replacement.put(id.toString(), new CustomDimConfig(id.toString(), config.getMode(),
+                    clamp(config.getPlayerGravityOffset(), -0.5, 0.5), clamp(config.getMobGravityOffset(), -0.5, 0.5),
+                    clamp(config.getItemGravityOffset(), -0.5, 0.5), clamp(config.getArrowGravityOffset(), -0.5, 0.5),
+                    clamp(config.getThrownGravityOffset(), -0.5, 0.5), clamp(config.getBlockGravityOffset(), -0.5, 0.5),
+                    clamp(config.getAtmosphereGravityMax(), 0.0, 0.5), clamp(config.getAtmosphereBaseAltitude(), -2048.0, 30000.0),
+                    config.getNoFallDamageAltitude(), clamp(config.getAtmosphereMuffleGain(), 0.0, 1.0),
+                    clamp(config.getAtmosphereMuffleGainHF(), 0.0, 1.0), config.getAtmosphereLayers()));
+        }
+        if (replacement.size() > 512) throw new IllegalArgumentException("At most 512 dimension profiles are supported");
+        if (persist) {
+            try {
+                Path path = net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get().resolve("endless_gravity").resolve("dimensions.json");
+                writeDimensionsFile(path, replacement.values());
+            } catch (IOException e) {
+                throw new UncheckedIOException("Could not save dimension profiles", e);
+            }
+        }
+        CUSTOM_DIMENSIONS.clear();
+        CUSTOM_DIMENSIONS.putAll(replacement);
+    }
+
+    public static synchronized void applySyncedCustomDimensions(List<String> profiles) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        Map<String, CustomDimConfig> replacement = new LinkedHashMap<>();
+        for (String profile : profiles) {
+            if (replacement.size() >= 510) break;
+            try {
+                CustomDimConfig config = parseDimension(JsonParser.parseString(profile));
+                replacement.put(config.getDimensionId(), config);
+            } catch (RuntimeException e) {
+                LOGGER.warn("Ignoring invalid synced dimension profile: {}", e.getMessage());
+            }
+        }
+        CUSTOM_DIMENSIONS.clear();
+        CUSTOM_DIMENSIONS.putAll(replacement);
+    }
+
+    private static double clamp(double value, double min, double max) {
+        if (!Double.isFinite(value)) return min;
+        return Math.max(min, Math.min(max, value));
     }
 
     public static void reloadCustomDimensions() {
@@ -436,5 +690,55 @@ public class Config {
 
     public static Optional<CustomDimConfig> getCustomDimConfigByKey(ResourceKey<Level> dimension) {
         return getCustomDimConfig(dimension.location().toString());
+    }
+
+    public static synchronized List<AtmospherePreset> getAtmospherePresets() {
+        Path path = net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get()
+                .resolve("endless_gravity").resolve("atmosphere_presets.json");
+        if (!Files.exists(path)) return List.of();
+        try {
+            JsonElement root = JsonParser.parseString(Files.readString(path));
+            List<AtmospherePreset> presets = AtmospherePreset.parseImport(root.toString());
+            validateUniquePresetNames(presets);
+            return presets;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read atmosphere presets from " + path, e);
+        } catch (RuntimeException e) {
+            LOGGER.error("Invalid atmosphere presets in {}", path, e);
+            throw new IllegalStateException("Could not load atmosphere presets from " + path, e);
+        }
+    }
+
+    public static synchronized void saveAtmospherePresets(List<AtmospherePreset> presets) {
+        validateUniquePresetNames(presets);
+        if (presets.size() > AtmospherePreset.MAX_PRESETS) {
+            throw new IllegalArgumentException("At most " + AtmospherePreset.MAX_PRESETS + " presets are supported");
+        }
+        Path path = net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get()
+                .resolve("endless_gravity").resolve("atmosphere_presets.json");
+        Path tempPath = path.resolveSibling(path.getFileName() + ".tmp");
+        try {
+            Files.createDirectories(path.getParent());
+            Files.writeString(tempPath, AtmospherePreset.exportJson(presets));
+            try {
+                Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not save atmosphere presets to " + path, e);
+        }
+    }
+
+    private static void validateUniquePresetNames(List<AtmospherePreset> presets) {
+        if (presets.size() > AtmospherePreset.MAX_PRESETS) {
+            throw new IllegalArgumentException("At most " + AtmospherePreset.MAX_PRESETS + " presets are supported");
+        }
+        HashSet<String> names = new HashSet<>();
+        for (AtmospherePreset preset : presets) {
+            if (!names.add(preset.name().toLowerCase(Locale.ROOT))) {
+                throw new IllegalArgumentException("Duplicate atmosphere preset name: " + preset.name());
+            }
+        }
     }
 }

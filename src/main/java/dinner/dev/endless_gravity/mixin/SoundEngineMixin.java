@@ -1,6 +1,7 @@
 package dinner.dev.endless_gravity.mixin;
 
 import dinner.dev.endless_gravity.Config;
+import dinner.dev.endless_gravity.CustomDimConfig;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
 import dinner.dev.endless_gravity.MuffleState;
 import com.mojang.blaze3d.audio.Channel;
@@ -85,9 +86,22 @@ public abstract class SoundEngineMixin {
         double playerY = EndlessGravityAPI.getRealY(mc.player);
 
         boolean inEnd = mc.level.dimension() == Level.END;
-        boolean inAtmosphere = EndlessGravityAPI.isOverworldOrSable(mc.level) && !EndlessGravityAPI.isCosmonauticsInstalled();
-        double atmosphereProgress = EndlessGravityAPI.getAtmosphereProgress(playerY);
-        boolean atmFiltering = inAtmosphere && atmosphereProgress > 0 && Config.COMMON.enableAtmosphere.get();
+        CustomDimConfig profile = Config.getCustomDimConfig(mc.level.dimension().location().toString()).orElse(null);
+        if (profile == null && EndlessGravityAPI.isSableManaged(mc.level)) {
+            CustomDimConfig overworldProfile = Config.getCustomDimConfig("minecraft:overworld").orElse(null);
+            if (overworldProfile != null && overworldProfile.getMode() == CustomDimConfig.Mode.ATMOSPHERE) {
+                profile = overworldProfile;
+            }
+        }
+        boolean profileAtmosphere = profile != null && profile.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                && (!EndlessGravityAPI.isSableManaged(mc.level) || Config.COMMON.enableAtmosphere.get())
+                && !(EndlessGravityAPI.isOverworldOrSable(mc.level)
+                && EndlessGravityAPI.isCosmonauticsInstalled());
+        boolean globalAtmosphere = !profileAtmosphere && EndlessGravityAPI.isSableManaged(mc.level)
+                && !EndlessGravityAPI.isCosmonauticsInstalled() && Config.COMMON.enableAtmosphere.get();
+        double atmosphereProgress = profileAtmosphere
+                ? profile.getAtmosphereProgress(playerY) : EndlessGravityAPI.getAtmosphereProgress(playerY);
+        boolean atmFiltering = (profileAtmosphere || globalAtmosphere) && atmosphereProgress > 0;
 
         float targetGain = 1.0f;
         float targetGainHF = 1.0f;
@@ -103,8 +117,12 @@ public abstract class SoundEngineMixin {
 
         if (atmFiltering) {
             try {
-                float atmGain = (float) EndlessGravityAPI.getAtmosphereMuffleGain(playerY);
-                float atmGainHF = (float) EndlessGravityAPI.getAtmosphereMuffleGainHF(playerY);
+                float atmGain = (float) (profileAtmosphere
+                        ? profile.getAtmosphereMuffleGain(playerY)
+                        : EndlessGravityAPI.getAtmosphereMuffleGain(playerY));
+                float atmGainHF = (float) (profileAtmosphere
+                        ? profile.getAtmosphereMuffleGainHF(playerY)
+                        : EndlessGravityAPI.getAtmosphereMuffleGainHF(playerY));
                 targetGain = Math.min(targetGain, atmGain);
                 targetGainHF = Math.min(targetGainHF, atmGainHF);
             } catch (Exception ignored) {}

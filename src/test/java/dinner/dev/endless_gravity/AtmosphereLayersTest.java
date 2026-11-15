@@ -34,8 +34,16 @@ class AtmosphereLayersTest {
         assertEquals(1.25, AtmosphereLayers.getPressure(layers, -64.0), EPS);
         assertEquals(1.0, AtmosphereLayers.getPressure(layers, 64.0), EPS);
         assertEquals(0.5, AtmosphereLayers.getPressure(layers, 400.0), EPS);
-        assertEquals(0.08, AtmosphereLayers.getPressure(layers, 1200.0), EPS);
-        assertEquals(0.0, AtmosphereLayers.getPressure(layers, 3500.0), EPS);
+        assertEquals(0.4, AtmosphereLayers.getPressure(layers, 1200.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getPressure(layers, 6000.0), EPS);
+    }
+
+    @Test
+    void defaultCurveKeepsLowerAtmosphereUnchanged() {
+        List<AtmosphereLayers.Layer> layers = defaults();
+        assertEquals(1.125, AtmosphereLayers.getPressure(layers, 0.0), EPS);
+        assertEquals(1.0 - 192.0 / 336.0 * 0.5, AtmosphereLayers.getPressure(layers, 256.0), EPS);
+        assertEquals(0.5, AtmosphereLayers.getPressure(layers, 400.0), EPS);
     }
 
     @Test
@@ -59,7 +67,53 @@ class AtmosphereLayersTest {
         List<AtmosphereLayers.Layer> layers = defaults();
         assertEquals(0.0, AtmosphereLayers.getProgress(layers, -64.0), EPS);   // pressure 1.25 -> clamped
         assertEquals(0.5, AtmosphereLayers.getProgress(layers, 400.0), EPS);   // pressure 0.5
-        assertEquals(1.0, AtmosphereLayers.getProgress(layers, 3500.0), EPS);  // pressure 0.0
+        assertEquals(1.0, AtmosphereLayers.getProgress(layers, 6000.0), EPS);  // pressure 0.0
+    }
+
+    @Test
+    void gravityRemainsVanillaUntil319AndRampsSmoothlyToTheTopLayer() {
+        List<AtmosphereLayers.Layer> layers = defaults();
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, 319.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, 64.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, -64.0), EPS);
+        assertEquals(1.0, AtmosphereLayers.getGravityProgress(layers, 6000.0), EPS);
+        assertEquals(1.0, AtmosphereLayers.getGravityProgress(layers, 10000.0), EPS);
+        double halfway = AtmosphereLayers.getGravityProgress(layers, (319.0 + 6000.0) / 2.0);
+        assertEquals(0.5, halfway, EPS);
+        assertTrue(AtmosphereLayers.getGravityProgress(layers, 320.0) < 0.001);
+    }
+
+    @Test
+    void gravityRampIsDisabledWhenLastLayerIsAtOrBelowItsStart() {
+        List<AtmosphereLayers.Layer> layers = List.of(
+                new AtmosphereLayers.Layer(-64.0, 1.25),
+                new AtmosphereLayers.Layer(319.0, 0.0));
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, 319.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, 320.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, 6000.0), EPS);
+    }
+
+    @Test
+    void customGravityRampUsesItsOwnStartAltitude() {
+        List<AtmosphereLayers.Layer> layers = List.of(
+                new AtmosphereLayers.Layer(0.0, 1.0),
+                new AtmosphereLayers.Layer(1000.0, 0.0));
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, 200.0, 200.0), EPS);
+        assertEquals(0.5, AtmosphereLayers.getGravityProgress(layers, 200.0, 600.0), EPS);
+        assertEquals(1.0, AtmosphereLayers.getGravityProgress(layers, 200.0, 1000.0), EPS);
+    }
+
+    @Test
+    void fallStartAltitudeUsesLandingAltitudeAndFallDistance() {
+        assertEquals(5000.0, AtmosphereLayers.getFallStartAltitude(64.0, 4936.0), EPS);
+        assertEquals(64.0, AtmosphereLayers.getFallStartAltitude(64.0, -2.0), EPS);
+    }
+
+    @Test
+    void gravityCompensationMatchesEntityOffsetAndLeavesResidualPull() {
+        assertEquals(0.9375, AtmosphereLayers.getGravityCompensationFraction(0.075), EPS);
+        assertEquals(0.0, AtmosphereLayers.getGravityCompensationFraction(0.0), EPS);
+        assertEquals(0.99, AtmosphereLayers.getGravityCompensationFraction(0.1), EPS);
     }
 
     @Test
@@ -88,6 +142,14 @@ class AtmosphereLayersTest {
         assertEquals(2, layers.size());
         assertEquals(0.0, layers.get(0).altitude(), EPS);
         assertEquals(50.0, layers.get(1).altitude(), EPS);
+    }
+
+    @Test
+    void parseSkipsNonFiniteValues() {
+        List<AtmosphereLayers.Layer> layers =
+                AtmosphereLayers.parseUncached(List.of("NaN:1", "10:Infinity", "0:1", "100:0"));
+        assertEquals(2, layers.size());
+        assertEquals(0.0, layers.get(0).altitude(), EPS);
     }
 
     @Test
