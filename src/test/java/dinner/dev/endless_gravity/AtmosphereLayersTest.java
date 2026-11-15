@@ -117,6 +117,13 @@ class AtmosphereLayersTest {
     }
 
     @Test
+    void sableGravityCompensationKeepsItsSafeLimit() {
+        assertEquals(0.067, AtmosphereLayers.getSableGravityCompensationFraction(0.075), EPS);
+        assertEquals(0.02, AtmosphereLayers.getSableGravityCompensationFraction(0.0016), EPS);
+        assertEquals(0.0, AtmosphereLayers.getSableGravityCompensationFraction(0.0), EPS);
+    }
+
+    @Test
     void parseSortsByAltitude() {
         List<AtmosphereLayers.Layer> layers =
                 AtmosphereLayers.parse(List.of("400:0.5", "-64:1.25", "64:1.0"));
