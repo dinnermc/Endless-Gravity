@@ -59,7 +59,7 @@ public final class GravityApi {
         return AtmosphereLayers.getProgress(y);
     }
 
-    /** Upward atmosphere offset Endless Gravity would apply at a world Y. */
+    /** Upward atmosphere offset Endless Gravity would apply at a world Y (smooth ramp from Y=319). */
     public static double getAtmosphereOffset(double y) {
         return EndlessGravityAPI.getAtmosphereOffset(y);
     }

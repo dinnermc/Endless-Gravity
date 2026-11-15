@@ -1,6 +1,8 @@
 package dinner.dev.endless_gravity.client;
 
 import dinner.dev.endless_gravity.EndlessGravityAPI;
+import dinner.dev.endless_gravity.Config;
+import dinner.dev.endless_gravity.CustomDimConfig;
 import dinner.dev.endless_gravity.GravityHandler;
 import net.minecraft.world.level.Level;
 
@@ -19,11 +21,9 @@ public final class ParticleGravity {
         // Misma lógica que applyAtmosphereEffects: Sable-managed y Cosmonautics quedan fuera
         if (!GravityHandler.isOverworld(level)) return 0.0;
         if (EndlessGravityAPI.isCosmonauticsInstalled()) return 0.0;
-        if (!GravityHandler.isOverworldEntityGravity()) return 0.0;
-        if (!GravityHandler.isEnableAtmosphere()) return 0.0;
-        if (y <= EndlessGravityAPI.BASE) return 0.0;
-
-        return clamp(EndlessGravityAPI.getAtmosphereOffset(y) / VANILLA_ENTITY_GRAVITY);
+        CustomDimConfig profile = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (profile == null || profile.getMode() != CustomDimConfig.Mode.ATMOSPHERE) return 0.0;
+        return clamp(profile.getAtmosphereGravityOffset(y) / VANILLA_ENTITY_GRAVITY);
     }
 
     private static double clamp(double v) {

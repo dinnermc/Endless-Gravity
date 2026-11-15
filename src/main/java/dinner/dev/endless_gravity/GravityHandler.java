@@ -125,23 +125,25 @@ public class GravityHandler {
         boolean isPlayer = entity instanceof Player;
 
         Level level = entity.level();
+        double fallStartY = AtmosphereLayers.getFallStartAltitude(
+                EndlessGravityAPI.getRealY(entity), event.getDistance());
 
-        // Custom dimension fall damage
-        String dimId = level.dimension().location().toString();
-        Config.getCustomDimConfig(dimId).ifPresent(config -> {
-            if (config.isEnableAtmosphere() && 
-                EndlessGravityAPI.getRealY(entity) > config.getAtmosphereMaxAltitude()) {
+        CustomDimConfig profile = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (profile != null
+                && profile.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                && profile.getNoFallDamageAltitude() != null
+                && fallStartY > profile.getNoFallDamageAltitude()) {
                 event.setDamageMultiplier(0.0F);
                 event.setDistance(0.0F);
                 return;
-            }
-        });
+        }
 
-        // Vanilla fall damage
-        if (!EndlessGravityAPI.isCosmonauticsInstalled()
+        // Legacy fallback for dimensions without a profile.
+        if (profile == null
+                && !EndlessGravityAPI.isCosmonauticsInstalled()
                 && cacheEnableAtmosphere
-                && EndlessGravityAPI.isOverworldOrSable(level)
-                && EndlessGravityAPI.getRealY(entity) > cacheNoFallDamageAltitude) {
+                && EndlessGravityAPI.isSableManaged(level)
+                && fallStartY > cacheNoFallDamageAltitude) {
             event.setDamageMultiplier(0.0F);
             event.setDistance(0.0F);
             return;

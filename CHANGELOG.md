@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+- per-dimension profiles for the Overworld, The End and modded dimensions, with atmosphere or fixed-gravity modes, synced from server to clients
+- redesigned dimension editor with atmosphere presets, editable curve layers, and custom preset import/export
+- fixed opening the config screen when the custom atmosphere preset library is empty
+
 ## 1.3.1
 
 - addon API for modders (ask what gravity applies, hook it and change it), and all gravity now goes through one shared resolver

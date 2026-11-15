@@ -109,7 +109,11 @@ public class SableDatapackHandler {
             }
 
             int priority = Config.COMMON.overworldSableDatapackPriority.get();
-            List<AtmosphereLayers.Layer> layers = AtmosphereLayers.parse(Config.COMMON.atmosphereLayers.get());
+            CustomDimConfig overworldProfile = Config.getCustomDimConfig("minecraft:overworld").orElse(null);
+            List<AtmosphereLayers.Layer> layers = overworldProfile != null
+                    && overworldProfile.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? overworldProfile.getParsedAtmosphereLayers()
+                    : AtmosphereLayers.parse(Config.COMMON.atmosphereLayers.get());
 
             StringBuilder pressureFunction = new StringBuilder();
             for (int i = 0; i < layers.size(); i++) {

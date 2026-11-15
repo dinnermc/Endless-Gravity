@@ -26,7 +26,8 @@ public record ConfigSyncPayload(
         List<String> atmosphereLayers,
         boolean enableMobGravity, double mobGravityOffset,
         boolean enablePotionGravity, double weightlessnessGravityOffset, double heavinessGravityOffset,
-        List<String> gravityImmuneEntities
+        List<String> gravityImmuneEntities,
+        List<String> dimensionProfiles
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<ConfigSyncPayload> ID =
@@ -67,6 +68,10 @@ public record ConfigSyncPayload(
             for (String id : p.gravityImmuneEntities()) {
                 ByteBufCodecs.STRING_UTF8.encode(buf, id);
             }
+            buf.writeInt(p.dimensionProfiles().size());
+            for (String profile : p.dimensionProfiles()) {
+                ByteBufCodecs.STRING_UTF8.encode(buf, profile);
+            }
         }
 
         @Override
@@ -105,6 +110,14 @@ public record ConfigSyncPayload(
             for (int i = 0; i < immuneCount; i++) {
                 gravityImmuneEntities.add(ByteBufCodecs.STRING_UTF8.decode(buf));
             }
+            int profileCount = buf.readInt();
+            if (profileCount < 0 || profileCount > 512) {
+                throw new IllegalArgumentException("Invalid synced dimension profile count: " + profileCount);
+            }
+            List<String> dimensionProfiles = new ArrayList<>(profileCount);
+            for (int i = 0; i < profileCount; i++) {
+                dimensionProfiles.add(ByteBufCodecs.STRING_UTF8.decode(buf));
+            }
             return new ConfigSyncPayload(
                     endEntityGravity,
                     enablePlayerGravity, playerGravityOffset,
@@ -120,7 +133,8 @@ public record ConfigSyncPayload(
                     atmosphereLayers,
                     enableMobGravity, mobGravityOffset,
                     enablePotionGravity, weightlessnessGravityOffset, heavinessGravityOffset,
-                    gravityImmuneEntities
+                    gravityImmuneEntities,
+                    dimensionProfiles
             );
         }
     };
@@ -146,7 +160,8 @@ public record ConfigSyncPayload(
                 List.copyOf(Config.COMMON.atmosphereLayers.get()),
                 Config.COMMON.enableMobGravity.get(), Config.COMMON.mobGravityOffset.get(),
                 Config.COMMON.enablePotionGravity.get(), Config.COMMON.weightlessnessGravityOffset.get(), Config.COMMON.heavinessGravityOffset.get(),
-                new ArrayList<String>(Config.COMMON.gravityImmuneEntities.get())
+                new ArrayList<String>(Config.COMMON.gravityImmuneEntities.get()),
+                Config.getCustomDimensionsJson()
         );
     }
 
@@ -156,7 +171,7 @@ public record ConfigSyncPayload(
      * The player's local values are restored on disconnect (see {@code client.ConfigSyncClient}).
      *
      * <p>Not synced on purpose, these always use the client's own config: particle
-     * offset, the low-pass audio filter, Sable and custom dimensions.
+     * offset, the low-pass audio filter and Sable physics.
      */
     public void applyToConfig() {
         Config.COMMON.endEntityGravity.set(endEntityGravity);
@@ -185,6 +200,7 @@ public record ConfigSyncPayload(
         Config.COMMON.weightlessnessGravityOffset.set(weightlessnessGravityOffset);
         Config.COMMON.heavinessGravityOffset.set(heavinessGravityOffset);
         Config.COMMON.gravityImmuneEntities.set(gravityImmuneEntities);
+        Config.applySyncedCustomDimensions(dimensionProfiles);
     }
 
     public static void handle(ConfigSyncPayload payload, IPayloadContext ctx) {

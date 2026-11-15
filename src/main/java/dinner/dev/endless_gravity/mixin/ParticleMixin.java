@@ -1,6 +1,8 @@
 package dinner.dev.endless_gravity.mixin;
 
 import dinner.dev.endless_gravity.EndlessGravityAPI;
+import dinner.dev.endless_gravity.Config;
+import dinner.dev.endless_gravity.CustomDimConfig;
 import dinner.dev.endless_gravity.GravityHandler;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
@@ -29,14 +31,12 @@ public abstract class ParticleMixin {
             if (!GravityHandler.isEndEntityGravity()) return;
             offset = GravityHandler.getParticleGravityOffset();
         } else {
-            // Misma lógica que applyAtmosphereEffects: Sable-managed y Cosmonautics quedan fuera
+            // Particles retain the built-in Overworld atmosphere behavior only.
             if (!GravityHandler.isOverworld(this.level)) return;
             if (EndlessGravityAPI.isCosmonauticsInstalled()) return;
-            if (!GravityHandler.isOverworldEntityGravity()) return;
-            if (!GravityHandler.isEnableAtmosphere()) return;
-            if (this.y <= EndlessGravityAPI.BASE) return;
-
-            offset = EndlessGravityAPI.getAtmosphereOffset(this.y);
+            CustomDimConfig profile = Config.getCustomDimConfig(this.level.dimension().location().toString()).orElse(null);
+            if (profile == null || profile.getMode() != CustomDimConfig.Mode.ATMOSPHERE) return;
+            offset = profile.getAtmosphereGravityOffset(this.y);
         }
         if (offset > 0.0) {
             // Apply a subtle fraction of the offset for slow motion effect

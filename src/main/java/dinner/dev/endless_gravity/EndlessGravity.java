@@ -41,7 +41,7 @@ public class EndlessGravity {
             builder.addMix(ModPotions.HEAVINESS, net.minecraft.world.item.Items.REDSTONE, ModPotions.LONG_HEAVINESS);
         });
         modEventBus.addListener(RegisterPayloadHandlersEvent.class, event -> {
-            PayloadRegistrar registrar = event.registrar("1");
+            PayloadRegistrar registrar = event.registrar("2");
             registrar.playToClient(
                     ConfigSyncPayload.ID,
                     ConfigSyncPayload.STREAM_CODEC,
