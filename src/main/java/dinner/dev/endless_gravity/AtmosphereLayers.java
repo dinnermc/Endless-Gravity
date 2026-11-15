@@ -6,11 +6,12 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Pressure curve from the config: altitude -> pressure points.
+ * Configured pressure curve plus the smooth Overworld gravity ramp.
  */
 public final class AtmosphereLayers {
 
     public static final int LAYER_COUNT = 8;
+    public static final double GRAVITY_START_ALTITUDE = 319.0;
 
     public record Layer(double altitude, double pressure) {}
 
@@ -18,11 +19,11 @@ public final class AtmosphereLayers {
             new Layer(-64.0, 1.25),
             new Layer(64.0, 1.0),
             new Layer(400.0, 0.5),
-            new Layer(900.0, 0.2),
-            new Layer(1200.0, 0.08),
-            new Layer(1800.0, 0.01),
-            new Layer(2500.0, 0.001),
-            new Layer(3500.0, 0.0)
+            new Layer(1200.0, 0.4),
+            new Layer(2000.0, 0.3),
+            new Layer(3000.0, 0.2),
+            new Layer(4500.0, 0.1),
+            new Layer(6000.0, 0.0)
     );
 
     private static volatile List<Layer> cached = null;
@@ -51,6 +52,7 @@ public final class AtmosphereLayers {
                 try {
                     double altitude = Double.parseDouble(parts[0].trim());
                     double pressure = Double.parseDouble(parts[1].trim());
+                    if (!Double.isFinite(altitude) || !Double.isFinite(pressure)) continue;
                     layers.add(new Layer(altitude, clamp(pressure, 0.0, 10.0)));
                 } catch (NumberFormatException ignored) {}
             }
@@ -98,6 +100,23 @@ public final class AtmosphereLayers {
     /** Pure variant of {@link #getProgress(double)}: progress from the given layers, clamped to [0, 1]. */
     public static double getProgress(List<Layer> layers, double y) {
         return clamp(1.0 - getPressure(layers, y), 0.0, 1.0);
+    }
+
+    /** Smooth gravity ramp from Y=319 to the final atmosphere layer. */
+    public static double getGravityProgress(double y) {
+        return getGravityProgress(parse(Config.COMMON.atmosphereLayers.get()), y);
+    }
+
+    /** Pure variant of {@link #getGravityProgress(double)} for the given atmosphere curve. */
+    public static double getGravityProgress(List<Layer> layers, double y) {
+        return getGravityProgress(layers, y, GRAVITY_START_ALTITUDE);
+    }
+
+    public static double getGravityProgress(List<Layer> layers, double y, double startAltitude) {
+        double endAltitude = layers.get(layers.size() - 1).altitude();
+        if (endAltitude <= startAltitude) return y > startAltitude ? 1.0 : 0.0;
+        double t = clamp((y - startAltitude) / (endAltitude - startAltitude), 0.0, 1.0);
+        return t * t * (3.0 - 2.0 * t);
     }
 
     /** Clamp helper matching {@code net.minecraft.util.Mth.clamp}. */

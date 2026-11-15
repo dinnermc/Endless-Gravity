@@ -9,6 +9,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -44,23 +45,57 @@ public final class EndlessGravityAPI {
     }
 
     public static double getAtmosphereProgress(double y) {
-        return AtmosphereLayers.getProgress(y);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
+        if (config == null) return AtmosphereLayers.getProgress(y);
+        if (!config.isEnableAtmosphere()) return 0.0;
+        return AtmosphereLayers.getProgress(AtmosphereLayers.parse(config.getAtmosphereLayers()), y);
+    }
+
+    public static double getAtmosphereProgress(Level level, double y) {
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (config == null || !config.isEnableAtmosphere()) return 0.0;
+        return AtmosphereLayers.getProgress(AtmosphereLayers.parse(config.getAtmosphereLayers()), y);
     }
 
     public static double getAtmosphereOffset(double y) {
-        if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
-        double progress = getAtmosphereProgress(y);
-        return progress * Config.COMMON.atmosphereGravityMax.get();
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
+        if (config == null) {
+            if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
+            return AtmosphereLayers.getGravityProgress(y) * Config.COMMON.atmosphereGravityMax.get();
+        }
+        if (!config.isEnableAtmosphere() || !Config.COMMON.enableAtmosphere.get()
+                || !Config.COMMON.overworldEntityGravity.get() || y <= config.getAtmosphereBaseAltitude()) return 0.0;
+        List<AtmosphereLayers.Layer> layers = AtmosphereLayers.parse(config.getAtmosphereLayers());
+        return AtmosphereLayers.getGravityProgress(layers, y, config.getAtmosphereBaseAltitude())
+                * config.getAtmosphereGravityMax();
     }
 
     public static double getAtmosphereMuffleGain(double y) {
         double progress = getAtmosphereProgress(y);
-        return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGain.get());
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
+        double gain = config == null ? Config.COMMON.atmosphereMuffleGain.get() : config.getAtmosphereMuffleGain();
+        return 1.0 - progress * (1.0 - gain);
+    }
+
+    public static double getAtmosphereMuffleGain(Level level, double y) {
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (config == null || !config.isEnableAtmosphere()) return 1.0;
+        double progress = getAtmosphereProgress(level, y);
+        return 1.0 - progress * (1.0 - config.getAtmosphereMuffleGain());
     }
 
     public static double getAtmosphereMuffleGainHF(double y) {
         double progress = getAtmosphereProgress(y);
-        return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGainHF.get());
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
+        double gain = config == null ? Config.COMMON.atmosphereMuffleGainHF.get() : config.getAtmosphereMuffleGainHF();
+        return 1.0 - progress * (1.0 - gain);
+    }
+
+    public static double getAtmosphereMuffleGainHF(Level level, double y) {
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (config == null || !config.isEnableAtmosphere()) return 1.0;
+        double progress = getAtmosphereProgress(level, y);
+        return 1.0 - progress * (1.0 - config.getAtmosphereMuffleGainHF());
     }
 
     /**
