@@ -15,6 +15,7 @@ public final class AtmosphereLayers {
     public static final double GRAVITY_START_ALTITUDE = 319.0;
     private static final double VANILLA_GRAVITY = 0.08;
     private static final double MAX_GRAVITY_COMPENSATION = 0.99;
+    private static final double MAX_SABLE_GRAVITY_COMPENSATION = 0.067;
 
     public record Layer(double altitude, double pressure) {}
 
@@ -129,6 +130,11 @@ public final class AtmosphereLayers {
     /** Gravity compensation as a fraction of vanilla gravity, capped to leave a downward pull. */
     public static double getGravityCompensationFraction(double maxOffset) {
         return clamp(maxOffset / VANILLA_GRAVITY, 0.0, MAX_GRAVITY_COMPENSATION);
+    }
+
+    /** Sable uses a different physics scale, so its lift stays at the previously tuned safe limit. */
+    public static double getSableGravityCompensationFraction(double maxOffset) {
+        return Math.min(getGravityCompensationFraction(maxOffset), MAX_SABLE_GRAVITY_COMPENSATION);
     }
 
     /** Estimate the starting world altitude from a landing altitude and fall distance. */

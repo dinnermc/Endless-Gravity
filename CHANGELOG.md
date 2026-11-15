@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.3
+
+- NeoForge: cap Sable atmosphere lift at its stable tuned limit to prevent Overworld sub-levels from accelerating upward
+
 ## 1.3.2
 
 - per-dimension profiles for the Overworld, The End and modded dimensions, with atmosphere or fixed-gravity modes, synced from server to clients

@@ -82,7 +82,7 @@ public abstract class ServerSubLevelMixin {
             if (centerOfMass == null) return;
 
             double sableGravity = Math.abs(Config.COMMON.sableGravityY.get());
-            double gravityCompensation = AtmosphereLayers.getGravityCompensationFraction(
+            double gravityCompensation = AtmosphereLayers.getSableGravityCompensationFraction(
                     usesOverworldProfile ? overworldProfile.getAtmosphereGravityMax()
                             : Config.COMMON.atmosphereGravityMax.get());
             double levitationAccel = sableGravity * spaceProgress * gravityCompensation;
