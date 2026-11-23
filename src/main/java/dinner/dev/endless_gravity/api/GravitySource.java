@@ -11,5 +11,7 @@ public enum GravitySource {
     /** Altitude-based atmosphere gravity in the Overworld (and Sable sub-levels). */
     ATMOSPHERE,
     /** Per-dimension gravity from {@code config/endless_gravity/dimensions.json}. */
-    CUSTOM_DIMENSION
+    CUSTOM_DIMENSION,
+    /** Biome-specific gravity override from datapacks or API. */
+    BIOME
 }

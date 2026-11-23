@@ -2,11 +2,9 @@ package dinner.dev.endless_gravity;
 
 import dinner.dev.endless_gravity.api.GravityChannel;
 import dinner.dev.endless_gravity.api.GravityContext;
-import net.minecraft.server.MinecraftServer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.DamageTypeTags;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.FlyingMob;
 import net.minecraft.world.entity.LivingEntity;
@@ -15,25 +13,11 @@ import net.minecraft.world.entity.ai.control.FlyingMoveControl;
 import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 public class GravityHandler {
 
-    private static volatile MinecraftServer server;
-
     public static void register() {
-        ServerLifecycleEvents.SERVER_STARTING.register(server -> GravityHandler.server = server);
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> GravityHandler.server = null);
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            if (server != null) {
-                for (ServerLevel level : server.getAllLevels()) {
-                    onLevelTick(level);
-                }
-            }
-        });
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register(GravityHandler::onAllowDamage);
+        ServerTickEvents.END_WORLD_TICK.register(GravityHandler::onLevelTick);
     }
 
     private static void onLevelTick(ServerLevel level) {
@@ -49,34 +33,65 @@ public class GravityHandler {
         if (context.applicable()) {
             applyGravity(player, context.offset());
         }
+        GravityResolver.applyAtmosphericDrag(player);
     }
 
-    private static boolean onAllowDamage(LivingEntity entity, DamageSource source, float amount) {
-        if (!source.is(DamageTypeTags.IS_FALL)) return true;
+    /**
+     * Adjusts fall distance before vanilla calculates fall damage (invoked from
+     * {@code LivingEntityMixin#causeFallDamage}). Returns {@code 0.0F} to cancel fall
+     * damage cleanly, or a scaled fall distance in proportional mode.
+     */
+    public static float adjustFallDistance(LivingEntity entity, float fallDistance) {
+        if (fallDistance <= 0.0F) return fallDistance;
+
+        Level level = entity.level();
+        if (level == null || !GravityGameRules.enabled(level)) return fallDistance;
 
         boolean isPlayer = entity instanceof Player;
-        Level level = entity.level();
+        double fallStartY = AtmosphereLayers.getFallStartAltitude(
+                EndlessGravityAPI.getRealY(entity), fallDistance);
 
-        String dimId = level.dimension().location().toString();
-        Config.CustomDimConfig dimensionConfig = Config.getCustomDimConfig(dimId).orElse(null);
-        if (dimensionConfig != null && dimensionConfig.isEnableAtmosphere()) {
-            Double noFallAltitude = dimensionConfig.getNoFallDamageAltitude();
-            if (noFallAltitude != null && EndlessGravityAPI.getRealY(entity) > noFallAltitude) {
-                return false;
+        Config.CustomDimConfig profile = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
+
+        // Altitude-based immunity in atmosphere profiles (always checked first).
+        if (profile != null && profile.isEnableAtmosphere()) {
+            Double noFallAltitude = profile.getNoFallDamageAltitude();
+            if (noFallAltitude != null && fallStartY > noFallAltitude) {
+                return 0.0F;
             }
-        } else if (dimensionConfig == null && Config.COMMON.enableAtmosphere.get()
+        } else if (profile == null && Config.COMMON.enableAtmosphere.get()
                 && EndlessGravityAPI.isOverworld(level)
-                && EndlessGravityAPI.getRealY(entity) > Config.COMMON.noFallDamageAltitude.get()) {
-            return false;
+                && fallStartY > Config.COMMON.noFallDamageAltitude.get()) {
+            return 0.0F;
+        }
+
+        // Per-dimension explicit fall-damage mode overrides global End behavior.
+        if (profile != null && profile.getFallDamageMode() != Config.CustomDimConfig.FallDamageMode.INHERIT) {
+            return switch (profile.getFallDamageMode()) {
+                case NORMAL -> fallDistance;
+                case DISABLED -> 0.0F;
+                case PROPORTIONAL -> scaleProportionalFallDistance(entity, isPlayer, fallDistance);
+                default -> fallDistance;
+            };
         }
 
         if (isEnd(level)) {
             int mode = isPlayer ? Config.COMMON.fallDamageMode.get() : Config.COMMON.mobFallDamageMode.get();
-            if (mode == 1) {
-                return false;
-            }
+            if (mode == 1) return 0.0F;
+            if (mode == 2) return scaleProportionalFallDistance(entity, isPlayer, fallDistance);
         }
-        return true;
+        return fallDistance;
+    }
+
+    private static float scaleProportionalFallDistance(LivingEntity entity, boolean isPlayer, float fallDistance) {
+        if (EndlessGravityAPI.isGravityImmune(entity)) return fallDistance;
+        GravityChannel channel = isPlayer ? GravityChannel.PLAYER : GravityChannel.MOB;
+        GravityContext ctx = GravityResolver.compute(entity, channel);
+        if (!ctx.applicable()) return fallDistance;
+        double base = ctx.baseGravity();
+        if (base <= 0.0) return fallDistance;
+        double ratio = AtmosphereLayers.clamp(ctx.effectiveGravity() / base, 0.0, 4.0);
+        return ratio <= 0.01 ? 0.0F : (float) (fallDistance * ratio);
     }
 
     /**
@@ -109,7 +124,7 @@ public class GravityHandler {
         entity.setDeltaMovement(entity.getDeltaMovement().add(0, offset, 0));
     }
 
-    // Public getters for mixins
+    // Public getters retained for compatibility
     public static boolean isEndEntityGravity() { return Config.COMMON.endEntityGravity.get(); }
     public static boolean isOverworldEntityGravity() { return Config.COMMON.overworldEntityGravity.get(); }
     public static boolean isEnableAtmosphere() { return Config.COMMON.enableAtmosphere.get(); }

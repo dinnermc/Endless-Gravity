@@ -85,8 +85,31 @@ class AtmosphereLayersTest {
                 new AtmosphereLayers.Layer(0, 1.0),
                 new AtmosphereLayers.Layer(1000, 0.0));
         assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, 500, 500), EPS);
-        assertEquals(0.5, AtmosphereLayers.getGravityProgress(layers, 750, 500), EPS);
-        assertEquals(1.0, AtmosphereLayers.getGravityProgress(layers, 1000, 500), EPS);
+        assertEquals(0.5, AtmosphereLayers.getGravityProgress(layers, 500, 750), EPS);
+        assertEquals(1.0, AtmosphereLayers.getGravityProgress(layers, 500, 1000), EPS);
+    }
+
+    @Test
+    void fallStartAltitudeUsesLandingAltitudeAndFallDistance() {
+        assertEquals(5000.0, AtmosphereLayers.getFallStartAltitude(64.0, 4936.0), EPS);
+        assertEquals(64.0, AtmosphereLayers.getFallStartAltitude(64.0, -2.0), EPS);
+    }
+
+    @Test
+    void parseHandlesMutatedInputListSafely() {
+        java.util.ArrayList<String> mutable = new java.util.ArrayList<>(List.of("0:1.0", "1000:0.0"));
+        List<AtmosphereLayers.Layer> first = AtmosphereLayers.parse(mutable);
+        assertEquals(0.5, AtmosphereLayers.getPressure(first, 500.0), EPS);
+
+        mutable.set(1, "2000:0.0");
+        List<AtmosphereLayers.Layer> second = AtmosphereLayers.parse(mutable);
+        assertEquals(0.75, AtmosphereLayers.getPressure(second, 500.0), EPS);
+    }
+
+    @Test
+    void emptyLayersDoNotThrow() {
+        assertEquals(1.0, AtmosphereLayers.getPressure(List.of(), 500.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(List.of(), 319.0, 500.0), EPS);
     }
 
     @Test

@@ -27,11 +27,13 @@ import java.util.HashSet;
 public class Config {
     public static final Common COMMON = new Common();
 
+    public static final int MAX_CUSTOM_DIMENSIONS = 512;
+    private static final Gson GSON_COMPACT = new Gson();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("endless_gravity.json");
 
-    private static boolean dirty;
-    private static boolean serverSyncActive;
+    private static volatile boolean dirty;
+    private static volatile boolean serverSyncActive;
 
     public static void load() {
         if (!Files.exists(PATH)) {
@@ -102,6 +104,10 @@ public class Config {
      */
     public static void setServerSyncActive(boolean active) {
         serverSyncActive = active;
+    }
+
+    public static boolean isServerSyncActive() {
+        return serverSyncActive;
     }
 
     public abstract static class Value<T> {
@@ -305,16 +311,17 @@ public class Config {
         public final DoubleValue particleGravityOffset = add(new DoubleValue("particleGravityOffset", 0.1, 0.0, 0.5));
 
         // Gameplay
-        public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1, 0, 1));
-        public final IntValue mobFallDamageMode = add(new IntValue("mobFallDamageMode", 1, 0, 1));
+        public final IntValue fallDamageMode = add(new IntValue("fallDamageMode", 1, 0, 2));
+        public final IntValue mobFallDamageMode = add(new IntValue("mobFallDamageMode", 1, 0, 2));
         public final BoolValue enableBlockGravity = add(new BoolValue("enableBlockGravity", true));
         public final DoubleValue blockGravityOffset = add(new DoubleValue("blockGravityOffset", 0.035, 0.0, 0.1));
 
 // Atmosphere
         public final BoolValue enableAtmosphere = add(new BoolValue("enableAtmosphere", true));
+        public final BoolValue enableAtmosphericDrag = add(new BoolValue("enableAtmosphericDrag", false));
         public final BoolValue overworldEntityGravity = add(new BoolValue("overworldEntityGravity", true));
         public final DoubleValue atmosphereGravityMax = add(new DoubleValue("atmosphereGravityMax", 0.075, 0.0, 0.1));
-        public final DoubleValue noFallDamageAltitude = add(new DoubleValue("noFallDamageAltitude", 400.0, 64.0, 3500.0));
+        public final DoubleValue noFallDamageAltitude = add(new DoubleValue("noFallDamageAltitude", 4500.0, 64.0, 6000.0));
         public final DoubleValue atmosphereMuffleGain = add(new DoubleValue("atmosphereMuffleGain", 0.01, 0.0, 1.0));
         public final DoubleValue atmosphereMuffleGainHF = add(new DoubleValue("atmosphereMuffleGainHF", 0.005, 0.0, 1.0));
         public final StringListValue atmosphereLayers = add(new StringListValue("atmosphereLayers",
@@ -331,6 +338,9 @@ public class Config {
 
         // HUD (client-side only)
         public final BoolValue enableGravityHud = add(new BoolValue("enableGravityHud", false));
+        public final IntValue hudPosition = add(new IntValue("hudPosition", 0, 0, 3));
+        public final BoolValue hudShowPressure = add(new BoolValue("hudShowPressure", true));
+        public final BoolValue hudCompact = add(new BoolValue("hudCompact", false));
 
         // Extra entity IDs excluded from reduced gravity, in addition to the gravity_immune tag.
         // The tag needs a datapack; this is the convenient per-player alternative.
@@ -344,6 +354,7 @@ public class Config {
         public static final int MAX_ATMOSPHERE_LAYERS = 64;
 
         public enum Mode { ATMOSPHERE, FIXED_GRAVITY }
+        public enum FallDamageMode { INHERIT, NORMAL, PROPORTIONAL, DISABLED }
 
         private final String dimensionId;
         private final Mode mode;
@@ -359,6 +370,12 @@ public class Config {
         private final double atmosphereMuffleGain;
         private final double atmosphereMuffleGainHF;
         private final List<String> atmosphereLayers;
+        private final List<AtmosphereLayers.Layer> parsedAtmosphereLayers;
+        private final double surfaceGravityOffset;
+        private final boolean atmosphereAffectNonLiving;
+        private final FallDamageMode fallDamageMode;
+        private final double fixedMuffleGain;
+        private final double fixedMuffleGainHF;
 
         public CustomDimConfig(
                 String dimensionId,
@@ -375,6 +392,61 @@ public class Config {
                 double atmosphereMuffleGain,
                 double atmosphereMuffleGainHF,
                 List<String> atmosphereLayers) {
+            this(dimensionId, mode,
+                    playerGravityOffset, mobGravityOffset, itemGravityOffset,
+                    arrowGravityOffset, thrownGravityOffset, blockGravityOffset,
+                    atmosphereGravityMax, atmosphereBaseAltitude, noFallDamageAltitude,
+                    atmosphereMuffleGain, atmosphereMuffleGainHF, atmosphereLayers,
+                    0.0, false, FallDamageMode.INHERIT);
+        }
+
+        public CustomDimConfig(
+                String dimensionId,
+                Mode mode,
+                double playerGravityOffset,
+                double mobGravityOffset,
+                double itemGravityOffset,
+                double arrowGravityOffset,
+                double thrownGravityOffset,
+                double blockGravityOffset,
+                double atmosphereGravityMax,
+                double atmosphereBaseAltitude,
+                Double noFallDamageAltitude,
+                double atmosphereMuffleGain,
+                double atmosphereMuffleGainHF,
+                List<String> atmosphereLayers,
+                double surfaceGravityOffset,
+                boolean atmosphereAffectNonLiving,
+                FallDamageMode fallDamageMode) {
+            this(dimensionId, mode,
+                    playerGravityOffset, mobGravityOffset, itemGravityOffset,
+                    arrowGravityOffset, thrownGravityOffset, blockGravityOffset,
+                    atmosphereGravityMax, atmosphereBaseAltitude, noFallDamageAltitude,
+                    atmosphereMuffleGain, atmosphereMuffleGainHF, atmosphereLayers,
+                    surfaceGravityOffset, atmosphereAffectNonLiving, fallDamageMode,
+                    1.0, 1.0);
+        }
+
+        public CustomDimConfig(
+                String dimensionId,
+                Mode mode,
+                double playerGravityOffset,
+                double mobGravityOffset,
+                double itemGravityOffset,
+                double arrowGravityOffset,
+                double thrownGravityOffset,
+                double blockGravityOffset,
+                double atmosphereGravityMax,
+                double atmosphereBaseAltitude,
+                Double noFallDamageAltitude,
+                double atmosphereMuffleGain,
+                double atmosphereMuffleGainHF,
+                List<String> atmosphereLayers,
+                double surfaceGravityOffset,
+                boolean atmosphereAffectNonLiving,
+                FallDamageMode fallDamageMode,
+                double fixedMuffleGain,
+                double fixedMuffleGainHF) {
             this.dimensionId = dimensionId;
             this.mode = mode;
             this.playerGravityOffset = playerGravityOffset;
@@ -389,6 +461,12 @@ public class Config {
             this.atmosphereMuffleGain = atmosphereMuffleGain;
             this.atmosphereMuffleGainHF = atmosphereMuffleGainHF;
             this.atmosphereLayers = List.copyOf(atmosphereLayers);
+            this.parsedAtmosphereLayers = List.copyOf(AtmosphereLayers.parseUncached(this.atmosphereLayers));
+            this.surfaceGravityOffset = surfaceGravityOffset;
+            this.atmosphereAffectNonLiving = atmosphereAffectNonLiving;
+            this.fallDamageMode = fallDamageMode == null ? FallDamageMode.INHERIT : fallDamageMode;
+            this.fixedMuffleGain = MuffleMath.clamp01(fixedMuffleGain);
+            this.fixedMuffleGainHF = MuffleMath.clamp01(fixedMuffleGainHF);
         }
 
         /** Backwards-compatible constructor for the legacy dimensions.json schema. */
@@ -421,8 +499,7 @@ public class Config {
         public double getAtmosphereGravityMax() { return atmosphereGravityMax; }
         public double getAtmosphereBaseAltitude() { return atmosphereBaseAltitude; }
         public double getAtmosphereMaxAltitude() {
-            List<AtmosphereLayers.Layer> parsed = AtmosphereLayers.parse(atmosphereLayers);
-            return parsed.get(parsed.size() - 1).altitude();
+            return parsedAtmosphereLayers.get(parsedAtmosphereLayers.size() - 1).altitude();
         }
         public Double getNoFallDamageAltitude() { return noFallDamageAltitude; }
         public double getAtmosphereMuffleGain() { return atmosphereMuffleGain; }
@@ -430,6 +507,42 @@ public class Config {
         public boolean isEnableMobGravity() { return mode == Mode.FIXED_GRAVITY; }
         public double getMobGravityOffsetCustom() { return mobGravityOffset; }
         public List<String> getAtmosphereLayers() { return atmosphereLayers; }
+        public List<AtmosphereLayers.Layer> getParsedAtmosphereLayers() { return parsedAtmosphereLayers; }
+        public double getSurfaceGravityOffset() { return surfaceGravityOffset; }
+        public boolean isAtmosphereAffectNonLiving() { return atmosphereAffectNonLiving; }
+        public FallDamageMode getFallDamageMode() { return fallDamageMode; }
+        public double getFixedMuffleGain() { return fixedMuffleGain; }
+        public double getFixedMuffleGainHF() { return fixedMuffleGainHF; }
+        public boolean hasFixedAudioMuffle() { return fixedMuffleGain < 0.999 || fixedMuffleGainHF < 0.999; }
+
+        public double getAtmospherePressure(double y) {
+            return AtmosphereLayers.getPressure(parsedAtmosphereLayers, y);
+        }
+
+        public double getAtmosphereProgress(double y) {
+            return AtmosphereLayers.getProgress(parsedAtmosphereLayers, y);
+        }
+
+        public double getAtmosphereGravityProgress(double y) {
+            return AtmosphereLayers.getGravityProgress(parsedAtmosphereLayers, atmosphereBaseAltitude, y);
+        }
+
+        public double getAtmosphereGravityOffset(double y) {
+            double progress = getAtmosphereGravityProgress(y);
+            if (surfaceGravityOffset == 0.0) {
+                return progress * atmosphereGravityMax;
+            }
+            double target = Math.max(surfaceGravityOffset, atmosphereGravityMax);
+            return surfaceGravityOffset + progress * (target - surfaceGravityOffset);
+        }
+
+        public double getAtmosphereMuffleGain(double y) {
+            return MuffleMath.perceptualGain(getAtmosphereProgress(y), atmosphereMuffleGain);
+        }
+
+        public double getAtmosphereMuffleGainHF(double y) {
+            return MuffleMath.perceptualGainHF(getAtmosphereProgress(y), atmosphereMuffleGainHF);
+        }
 
         public static CustomDimConfig vanilla() {
             return new CustomDimConfig(
@@ -456,13 +569,45 @@ public class Config {
         }
     }
 
-    // Runtime cache for custom dimensions
-    private static final Map<String, CustomDimConfig> CUSTOM_DIMENSIONS = new java.util.HashMap<>();
-    private static boolean customDimensionsLoaded = false;
+    // Thread-safe immutable snapshots for custom dimensions (lock-free reads on entity ticks).
+    private static Map<String, CustomDimConfig> userCustomDimensions = Map.of();
+    private static Map<String, CustomDimConfig> datapackDimensions = Map.of();
+    private static volatile Map<String, CustomDimConfig> customDimensions = Map.of();
+    private static volatile Map<net.minecraft.resources.ResourceLocation, CustomDimConfig> customDimensionsByLocation = Map.of();
+    private static volatile boolean customDimensionsLoaded = false;
 
-    public static void loadCustomDimensions() {
+    private static void publishEffectiveDimensions(Map<String, CustomDimConfig> map) {
+        Map<String, CustomDimConfig> byId = new java.util.LinkedHashMap<>(map);
+        Map<net.minecraft.resources.ResourceLocation, CustomDimConfig> byLoc = new java.util.LinkedHashMap<>(map.size());
+        for (Map.Entry<String, CustomDimConfig> entry : byId.entrySet()) {
+            net.minecraft.resources.ResourceLocation loc = net.minecraft.resources.ResourceLocation.tryParse(entry.getKey());
+            if (loc != null) {
+                byLoc.put(loc, entry.getValue());
+            }
+        }
+        customDimensions = Map.copyOf(byId);
+        customDimensionsByLocation = Map.copyOf(byLoc);
+    }
+
+    private static void rebuildMergedDimensions() {
+        Map<String, CustomDimConfig> merged = new java.util.LinkedHashMap<>(datapackDimensions);
+        merged.putAll(userCustomDimensions);
+        publishEffectiveDimensions(merged);
+    }
+
+    public static synchronized void setDatapackDimensions(Map<String, CustomDimConfig> profiles) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        datapackDimensions = profiles == null ? Map.of() : Map.copyOf(profiles);
+        rebuildMergedDimensions();
+    }
+
+    public static CustomDimConfig parseDimensionJson(JsonObject obj) {
+        return parseDimension(obj);
+    }
+
+    public static synchronized void loadCustomDimensions() {
         if (customDimensionsLoaded) return;
-        CUSTOM_DIMENSIONS.clear();
+        Map<String, CustomDimConfig> loaded = new java.util.LinkedHashMap<>();
 
         Path configPath = FabricLoader.getInstance().getConfigDir().resolve("endless_gravity").resolve("dimensions.json");
         if (!Files.exists(configPath)) {
@@ -470,8 +615,7 @@ public class Config {
         }
 
         try {
-            parseDimensionsFile(configPath);
-            customDimensionsLoaded = true;
+            parseDimensionsFile(configPath, loaded);
         } catch (Exception e) {
             // Corrupt or truncated file: back it up, regenerate the default, retry once.
             System.err.println("[Endless Gravity] Failed to load custom dimensions config (" + e.getMessage() + "); regenerating default.");
@@ -479,24 +623,33 @@ public class Config {
                 Files.move(configPath, configPath.resolveSibling(configPath.getFileName() + ".bak"), StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException ignored) {}
             createDefaultDimensionsConfig(configPath);
+            loaded.clear();
             try {
-                parseDimensionsFile(configPath);
-                customDimensionsLoaded = true;
+                parseDimensionsFile(configPath, loaded);
             } catch (Exception e2) {
                 System.err.println("[Endless Gravity] Failed to load regenerated custom dimensions config: " + e2.getMessage());
-                customDimensionsLoaded = true;
+                loaded.put("minecraft:overworld", CustomDimConfig.vanilla());
+                loaded.put("minecraft:the_end", CustomDimConfig.endDefault());
             }
         }
+        userCustomDimensions = Map.copyOf(loaded);
+        rebuildMergedDimensions();
+        customDimensionsLoaded = true;
     }
 
-    private static void parseDimensionsFile(Path configPath) throws IOException {
+    private static void parseDimensionsFile(Path configPath, Map<String, CustomDimConfig> target) throws IOException {
         String json = Files.readString(configPath);
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
         JsonArray dimensions = root.getAsJsonArray("dimensions");
         if (dimensions == null) throw new IllegalArgumentException("missing 'dimensions' array");
         for (JsonElement element : dimensions) {
-            CustomDimConfig config = parseDimension(element.getAsJsonObject());
-            CUSTOM_DIMENSIONS.putIfAbsent(config.getDimensionId(), config);
+            if (target.size() >= MAX_CUSTOM_DIMENSIONS) break;
+            try {
+                CustomDimConfig config = parseDimension(element.getAsJsonObject());
+                target.putIfAbsent(config.getDimensionId(), config);
+            } catch (RuntimeException e) {
+                System.err.println("[Endless Gravity] Ignoring invalid dimension profile: " + e.getMessage());
+            }
         }
     }
 
@@ -561,6 +714,16 @@ public class Config {
             noFallAltitude = clamp(noFallAltitude, 0, 30000);
         }
 
+        double surfaceGravity = numberValue(atmosphere, "surface_gravity_offset", 0.0);
+        boolean affectNonLiving = boolValue(atmosphere, "affect_non_living", false);
+        CustomDimConfig.FallDamageMode dimFallDamage = parseFallDamageMode(obj.get("fall_damage_mode"));
+        double fixedMuffleGain = gravity != obj && gravity.has("muffle_gain")
+                ? numberValue(gravity, "muffle_gain", 1.0)
+                : numberValue(obj, "fixed_muffle_gain", 1.0);
+        double fixedMuffleGainHF = gravity != obj && gravity.has("muffle_gain_hf")
+                ? numberValue(gravity, "muffle_gain_hf", 1.0)
+                : numberValue(obj, "fixed_muffle_gain_hf", 1.0);
+
         return new CustomDimConfig(
                 id, mode,
                 clamp(playerOffset, -0.5, 0.5), clamp(mobOffset, -0.5, 0.5),
@@ -573,8 +736,22 @@ public class Config {
                 clamp(numberValue(atmosphere, "muffle_gain", numberValue(obj, "atmosphereMuffleGain", 0.01)), 0, 1),
                 clamp(numberValue(atmosphere, "muffle_gain_hf",
                         numberValue(obj, "atmosphereMuffleGainHF", 0.005)), 0, 1),
-                layers
+                layers,
+                clamp(surfaceGravity, -0.5, 0.5), affectNonLiving, dimFallDamage,
+                clamp(fixedMuffleGain, 0, 1), clamp(fixedMuffleGainHF, 0, 1)
         );
+    }
+
+    private static CustomDimConfig.FallDamageMode parseFallDamageMode(JsonElement element) {
+        if (element == null || element.isJsonNull() || !element.isJsonPrimitive()) {
+            return CustomDimConfig.FallDamageMode.INHERIT;
+        }
+        return switch (element.getAsString().toLowerCase(Locale.ROOT)) {
+            case "normal", "vanilla" -> CustomDimConfig.FallDamageMode.NORMAL;
+            case "proportional", "scaled" -> CustomDimConfig.FallDamageMode.PROPORTIONAL;
+            case "disabled", "none", "off" -> CustomDimConfig.FallDamageMode.DISABLED;
+            default -> CustomDimConfig.FallDamageMode.INHERIT;
+        };
     }
 
     private static String stringValue(JsonObject object, String key, String fallback) {
@@ -613,41 +790,50 @@ public class Config {
     private static void createDefaultDimensionsConfig(Path configPath) {
         try {
             Files.createDirectories(configPath.getParent());
-            CUSTOM_DIMENSIONS.clear();
-            CUSTOM_DIMENSIONS.put("minecraft:overworld", CustomDimConfig.vanilla());
-            CUSTOM_DIMENSIONS.put("minecraft:the_end", CustomDimConfig.endDefault());
-            writeCustomDimensions(configPath);
+            Map<String, CustomDimConfig> defaults = new java.util.LinkedHashMap<>();
+            defaults.put("minecraft:overworld", CustomDimConfig.vanilla());
+            defaults.put("minecraft:the_end", CustomDimConfig.endDefault());
+            writeCustomDimensions(configPath, defaults.values());
         } catch (IOException e) {
             System.err.println("[Endless Gravity] Failed to create default dimensions config: " + e.getMessage());
         }
     }
 
-    private static void writeCustomDimensions(Path configPath) throws IOException {
+    private static JsonObject toDimensionJson(CustomDimConfig config) {
+        JsonObject dimension = new JsonObject();
+        dimension.addProperty("id", config.getDimensionId());
+        dimension.addProperty("mode", config.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                ? "atmosphere" : "fixed_gravity");
+        JsonObject gravity = new JsonObject();
+        gravity.addProperty("player", config.getPlayerGravityOffset());
+        gravity.addProperty("mob", config.getMobGravityOffset());
+        gravity.addProperty("item", config.getItemGravityOffset());
+        gravity.addProperty("arrow", config.getArrowGravityOffset());
+        gravity.addProperty("thrown", config.getThrownGravityOffset());
+        gravity.addProperty("block", config.getBlockGravityOffset());
+        gravity.addProperty("muffle_gain", config.getFixedMuffleGain());
+        gravity.addProperty("muffle_gain_hf", config.getFixedMuffleGainHF());
+        dimension.add("gravity", gravity);
+        JsonObject atmosphere = new JsonObject();
+        atmosphere.addProperty("gravity_offset", config.getAtmosphereGravityMax());
+        atmosphere.addProperty("start_altitude", config.getAtmosphereBaseAltitude());
+        atmosphere.addProperty("surface_gravity_offset", config.getSurfaceGravityOffset());
+        atmosphere.addProperty("affect_non_living", config.isAtmosphereAffectNonLiving());
+        atmosphere.addProperty("muffle_gain", config.getAtmosphereMuffleGain());
+        atmosphere.addProperty("muffle_gain_hf", config.getAtmosphereMuffleGainHF());
+        atmosphere.add("layers", GSON.toJsonTree(config.getAtmosphereLayers()));
+        dimension.add("atmosphere", atmosphere);
+        if (config.getNoFallDamageAltitude() == null) dimension.add("no_fall_damage_above", null);
+        else dimension.addProperty("no_fall_damage_above", config.getNoFallDamageAltitude());
+        dimension.addProperty("fall_damage_mode", config.getFallDamageMode().name().toLowerCase(Locale.ROOT));
+        return dimension;
+    }
+
+    private static void writeCustomDimensions(Path configPath, java.util.Collection<CustomDimConfig> profiles) throws IOException {
         JsonArray dimensions = new JsonArray();
-        for (CustomDimConfig config : CUSTOM_DIMENSIONS.values()) {
-            JsonObject dimension = new JsonObject();
-            dimension.addProperty("id", config.getDimensionId());
-            dimension.addProperty("mode", config.getMode() == CustomDimConfig.Mode.ATMOSPHERE
-                    ? "atmosphere" : "fixed_gravity");
-            JsonObject gravity = new JsonObject();
-            gravity.addProperty("player", config.getPlayerGravityOffset());
-            gravity.addProperty("mob", config.getMobGravityOffset());
-            gravity.addProperty("item", config.getItemGravityOffset());
-            gravity.addProperty("arrow", config.getArrowGravityOffset());
-            gravity.addProperty("thrown", config.getThrownGravityOffset());
-            gravity.addProperty("block", config.getBlockGravityOffset());
-            dimension.add("gravity", gravity);
-            JsonObject atmosphere = new JsonObject();
-            atmosphere.addProperty("gravity_offset", config.getAtmosphereGravityMax());
-            atmosphere.addProperty("start_altitude", config.getAtmosphereBaseAltitude());
-            atmosphere.addProperty("muffle_gain", config.getAtmosphereMuffleGain());
-            atmosphere.addProperty("muffle_gain_hf", config.getAtmosphereMuffleGainHF());
-            atmosphere.add("layers", GSON.toJsonTree(config.getAtmosphereLayers()));
-            dimension.add("atmosphere", atmosphere);
-            if (config.getNoFallDamageAltitude() == null) dimension.add("no_fall_damage_above", null);
-            else dimension.addProperty("no_fall_damage_above", config.getNoFallDamageAltitude());
-            dimensions.add(dimension);
-        }
+        profiles.stream()
+                .sorted(java.util.Comparator.comparing(CustomDimConfig::getDimensionId))
+                .forEach(config -> dimensions.add(toDimensionJson(config)));
         JsonObject root = new JsonObject();
         root.add("dimensions", dimensions);
         Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
@@ -659,7 +845,7 @@ public class Config {
         }
     }
 
-    public static void reloadCustomDimensions() {
+    public static synchronized void reloadCustomDimensions() {
         customDimensionsLoaded = false;
         loadCustomDimensions();
     }
@@ -671,26 +857,155 @@ public class Config {
 
     public static Optional<CustomDimConfig> getCustomDimConfig(String dimensionId) {
         if (!customDimensionsLoaded) loadCustomDimensions();
-        return Optional.ofNullable(CUSTOM_DIMENSIONS.get(dimensionId));
+        return Optional.ofNullable(customDimensions.get(dimensionId));
     }
 
-    public static List<CustomDimConfig> getCustomDimensions() {
+    /** Zero-allocation lookup for hot entity tick paths. */
+    public static Optional<CustomDimConfig> getCustomDimConfig(net.minecraft.resources.ResourceLocation dimensionId) {
         if (!customDimensionsLoaded) loadCustomDimensions();
-        return List.copyOf(CUSTOM_DIMENSIONS.values());
+        return Optional.ofNullable(customDimensionsByLocation.get(dimensionId));
     }
 
-    public static void saveCustomDimensions(List<CustomDimConfig> dimensions) {
-        CUSTOM_DIMENSIONS.clear();
-        for (CustomDimConfig dimension : dimensions) {
-            CUSTOM_DIMENSIONS.put(dimension.getDimensionId(), dimension);
+    public static synchronized List<CustomDimConfig> getCustomDimensions() {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        return customDimensions.values().stream()
+                .sorted(java.util.Comparator.comparing(CustomDimConfig::getDimensionId))
+                .toList();
+    }
+
+    public static synchronized List<String> getCustomDimensionsJson() {
+        return getCustomDimensions().stream().map(config -> GSON_COMPACT.toJson(toDimensionJson(config))).toList();
+    }
+
+    /** Pretty-printed JSON representation suitable for a datapack file under data/<ns>/endless_gravity/dimensions/. */
+    public static String toPrettyDatapackJson(CustomDimConfig config) {
+        return GSON.toJson(toDimensionJson(config));
+    }
+
+    public static CustomDimConfig defaultOverworldProfile() {
+        return new CustomDimConfig("minecraft:overworld", CustomDimConfig.Mode.ATMOSPHERE,
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                0.075, 64.0, 4500.0, 0.01, 0.005,
+                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
+    }
+
+    public static CustomDimConfig defaultEndProfile() {
+        return new CustomDimConfig("minecraft:the_end", CustomDimConfig.Mode.FIXED_GRAVITY,
+                0.055, 0.025, 0.025, 0.03, 0.018, 0.035,
+                0.075, 64.0, 4500.0, 0.01, 0.005,
+                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
+    }
+
+    public static CustomDimConfig defaultGenericProfile(String id, CustomDimConfig.Mode mode) {
+        if (mode == CustomDimConfig.Mode.ATMOSPHERE) {
+            return new CustomDimConfig(id, CustomDimConfig.Mode.ATMOSPHERE,
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                    0.075, 64.0, 4500.0, 0.01, 0.005,
+                    AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
         }
+        return new CustomDimConfig(id, CustomDimConfig.Mode.FIXED_GRAVITY,
+                0.055, 0.025, 0.025, 0.03, 0.018, 0.035,
+                0.075, 64.0, 4500.0, 0.01, 0.005,
+                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
+    }
+
+    public static synchronized void applySyncedCustomDimensions(List<String> profiles) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        Map<String, CustomDimConfig> replacement = new java.util.LinkedHashMap<>();
+        for (String profile : profiles) {
+            if (replacement.size() >= MAX_CUSTOM_DIMENSIONS) break;
+            try {
+                CustomDimConfig config = parseDimension(JsonParser.parseString(profile).getAsJsonObject());
+                replacement.put(config.getDimensionId(), config);
+            } catch (RuntimeException e) {
+                System.err.println("[Endless Gravity] Ignoring invalid synced dimension profile: " + e.getMessage());
+            }
+        }
+        publishEffectiveDimensions(replacement);
+    }
+
+    public static synchronized void putDimensionProfile(CustomDimConfig profile) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        Map<String, CustomDimConfig> updated = new java.util.LinkedHashMap<>(userCustomDimensions);
+        updated.put(profile.getDimensionId(), profile);
+        saveCustomDimensions(List.copyOf(updated.values()));
+    }
+
+    public static synchronized boolean removeDimensionProfile(String dimensionId) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        if (!userCustomDimensions.containsKey(dimensionId)) return false;
+        Map<String, CustomDimConfig> updated = new java.util.LinkedHashMap<>(userCustomDimensions);
+        updated.remove(dimensionId);
+        saveCustomDimensions(List.copyOf(updated.values()));
+        return true;
+    }
+
+    public static synchronized void updateDimensionProfile(
+            String dimensionId, java.util.function.UnaryOperator<CustomDimConfig> updater) {
+        if (!customDimensionsLoaded) loadCustomDimensions();
+        CustomDimConfig existing = customDimensions.get(dimensionId);
+        if (existing == null) return;
+        Map<String, CustomDimConfig> updated = new java.util.LinkedHashMap<>(userCustomDimensions);
+        updated.put(dimensionId, updater.apply(existing));
+        saveCustomDimensions(List.copyOf(updated.values()));
+    }
+
+    public static synchronized void saveCustomDimensions(List<CustomDimConfig> dimensions) {
+        if (serverSyncActive) return;
+        if (dimensions.size() > MAX_CUSTOM_DIMENSIONS) {
+            throw new IllegalArgumentException("At most " + MAX_CUSTOM_DIMENSIONS + " dimension profiles are supported");
+        }
+        Map<String, CustomDimConfig> replacement = new java.util.LinkedHashMap<>();
+        for (CustomDimConfig dimension : dimensions) {
+            net.minecraft.resources.ResourceLocation id = net.minecraft.resources.ResourceLocation.tryParse(dimension.getDimensionId());
+            if (id == null) throw new IllegalArgumentException("Invalid dimension ID: " + dimension.getDimensionId());
+            List<String> layers = dimension.getAtmosphereLayers();
+            if (layers.size() > CustomDimConfig.MAX_ATMOSPHERE_LAYERS) {
+                throw new IllegalArgumentException("Too many atmosphere layers for " + id);
+            }
+            if (layers.size() < 2) {
+                layers = AtmosphereLayers.serialize(AtmosphereLayers.defaults());
+            }
+            Double noFall = dimension.getNoFallDamageAltitude();
+            Double sanitizedNoFall = (noFall != null && Double.isFinite(noFall) && noFall >= 0.0)
+                    ? clamp(noFall, 0.0, 30000.0) : null;
+            replacement.put(id.toString(), new CustomDimConfig(id.toString(), dimension.getMode(),
+                    clamp(dimension.getPlayerGravityOffset(), -0.5, 0.5),
+                    clamp(dimension.getMobGravityOffset(), -0.5, 0.5),
+                    clamp(dimension.getItemGravityOffset(), -0.5, 0.5),
+                    clamp(dimension.getArrowGravityOffset(), -0.5, 0.5),
+                    clamp(dimension.getThrownGravityOffset(), -0.5, 0.5),
+                    clamp(dimension.getBlockGravityOffset(), -0.5, 0.5),
+                    clamp(dimension.getAtmosphereGravityMax(), 0.0, 0.5),
+                    clamp(dimension.getAtmosphereBaseAltitude(), -2048.0, 30000.0),
+                    sanitizedNoFall,
+                    clamp(dimension.getAtmosphereMuffleGain(), 0.0, 1.0),
+                    clamp(dimension.getAtmosphereMuffleGainHF(), 0.0, 1.0),
+                    layers,
+                    clamp(dimension.getSurfaceGravityOffset(), -0.5, 0.5),
+                    dimension.isAtmosphereAffectNonLiving(),
+                    dimension.getFallDamageMode(),
+                    clamp(dimension.getFixedMuffleGain(), 0.0, 1.0),
+                    clamp(dimension.getFixedMuffleGainHF(), 0.0, 1.0)));
+        }
+        userCustomDimensions = Map.copyOf(replacement);
+        rebuildMergedDimensions();
         customDimensionsLoaded = true;
         Path configPath = FabricLoader.getInstance().getConfigDir().resolve("endless_gravity").resolve("dimensions.json");
         try {
             Files.createDirectories(configPath.getParent());
-            writeCustomDimensions(configPath);
+            writeCustomDimensions(configPath, replacement.values());
         } catch (IOException e) {
             throw new IllegalStateException("Could not save dimension profiles to " + configPath, e);
+        }
+    }
+
+    public static synchronized List<AtmospherePreset> getAtmospherePresetsSafe() {
+        try {
+            return getAtmospherePresets();
+        } catch (RuntimeException e) {
+            System.err.println("[Endless Gravity] Falling back to empty atmosphere presets: " + e.getMessage());
+            return List.of();
         }
     }
 

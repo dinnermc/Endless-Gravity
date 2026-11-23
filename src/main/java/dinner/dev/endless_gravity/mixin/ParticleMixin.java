@@ -1,6 +1,8 @@
 package dinner.dev.endless_gravity.mixin;
 
+import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
+import dinner.dev.endless_gravity.GravityGameRules;
 import dinner.dev.endless_gravity.GravityHandler;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
@@ -22,21 +24,26 @@ public abstract class ParticleMixin {
     private void endless_gravity$reduceGravity(CallbackInfo ci) {
         // Only affect block-breaking particles (TerrainParticle == block dust), never other particle types.
         if (!((Object) this instanceof TerrainParticle)) return;
+        if (!GravityGameRules.enabled(this.level)) return;
 
         double offset = 0.0;
         if (EndlessGravityAPI.isEnd(this.level)) {
-            if (!GravityHandler.isEndEntityGravity()) return;
-            offset = GravityHandler.getParticleGravityOffset();
+            if (!Config.COMMON.endEntityGravity.get()) return;
+            offset = Config.COMMON.particleGravityOffset.get();
         } else {
-            // Same cancellations as applyAtmosphereEffects: Sable-managed dimensions stay out.
-            // The NeoForge build also bails when Create: Cosmonautics is installed; Fabric has no
-            // Cosmonautics integration, so that check is intentionally omitted here.
-            if (!GravityHandler.isOverworld(this.level)) return;
-            if (!GravityHandler.isOverworldEntityGravity()) return;
-            if (!GravityHandler.isEnableAtmosphere()) return;
-            if (this.y <= EndlessGravityAPI.BASE) return;
-
-            offset = EndlessGravityAPI.getAtmosphereOffset(this.y);
+            Config.CustomDimConfig profile = Config.getCustomDimConfig(this.level.dimension().location()).orElse(null);
+            if (profile == null) return;
+            if (profile.isEnableAtmosphere()) {
+                if (GravityHandler.isOverworld(this.level)
+                        && (!Config.COMMON.overworldEntityGravity.get() || !Config.COMMON.enableAtmosphere.get())) {
+                    return;
+                }
+                offset = profile.getAtmosphereGravityOffset(this.y);
+            } else {
+                offset = profile.getBlockGravityOffset() != 0.0
+                        ? profile.getBlockGravityOffset()
+                        : profile.getPlayerGravityOffset();
+            }
         }
         if (offset > 0.0) {
             // Add a fraction of the offset to vertical velocity each tick for a slow-motion fall.

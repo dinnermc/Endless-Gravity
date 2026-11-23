@@ -17,13 +17,14 @@
 
 ## Features
 
-- **Per-dimension profiles**: configure The End, the Overworld, and modded dimensions as atmosphere or fixed-gravity profiles
-- **Fixed gravity**: independent offsets for players, mobs, items, arrows, thrown projectiles, and falling blocks
-- **Atmosphere presets and curve editor**: choose a preset, then drag pressure/altitude points to customize the profile
-- **Fall damage**: normal or disabled in The End, and no fall damage above a configurable altitude in the Overworld
-- **Modded config screen**: *Dimensions* editor and *General* settings; add, remove, restore, and edit profiles without leaving the screen (requires Mod Menu and Cloth Config)
-- **Addon API**: stable `GravityApi` (query the gravity the mod would apply, register modifiers to change or cancel it) plus the `endless_gravity:gravity_immune` entity type tag
-- **Compatible** with modded dimensions; gameplay config is synced from server to client on login
+- **Per-dimension profiles**: configure The End, the Overworld, and modded dimensions as atmosphere or fixed-gravity profiles from the config screen (with quick dimension picker), `config/endless_gravity/dimensions.json`, or datapacks (`data/<namespace>/endless_gravity/dimensions/*.json`)
+- **Fixed gravity**: independent offsets for players, mobs, items, arrows, thrown projectiles, falling blocks, primed TNT, and XP orbs
+- **Atmosphere presets and curve editor**: choose a preset, set optional surface gravity, pressure-based air drag, and item/projectile scaling, and drag pressure/altitude points with live gravity curve and altitude markers
+- **Fall damage**: normal, proportional (scales safe fall height and damage with effective gravity), or disabled — configurable globally and per dimension
+- **Potions & HUD**: brewable *Weightlessness* (Awkward + Shulker Shell) and *Heaviness* (Awkward + Iron Ingot) potions (including Long with Redstone and Level II with Glowstone), plus a minimalist Gravity & Pressure HUD (standard or compact) with toggle keybind
+- **Native config screen**: built-in two-pane minimalist UI with zero config library dependencies (install Mod Menu to open it in-game), dimension filter, interactive curve editor, and one-click *Copy JSON* datapack export
+- **Addon API & datapacks**: stable `GravityApi` (entity and position-based queries, biome/biome-tag gravity overrides via `data/<ns>/endless_gravity/biomes/*.json`, client audio-muffle modifiers via `registerAudioMuffleModifier`, multiplicative `scaleGravity`, priority-ordered modifiers) plus the `endless_gravity:gravity_immune` tag
+- **Compatible** with modded dimensions; gameplay config, dimension profiles, and the `endlessGravity` game rule are synced from server to client on login and reload
 
 ## Configuration
 
@@ -42,7 +43,7 @@ Profiles are stored in `config/endless_gravity/dimensions.json`. Existing legacy
 
 The **General** tab contains global fall-damage, End-gravity, atmosphere-enable, audio-filter, potion, HUD, and gravity-immunity settings. The atmosphere starts reducing gravity at Y=319 by default and reaches its maximum at the final curve point.
 
-Dimension profiles are stored locally and are not included in the server config-sync packet. For multiplayer, configure the same `dimensions.json` on the server and clients; ordinary synced settings continue to come from the server.
+All gameplay config values, dimension profiles (`dimensions.json` and datapacks), and the `endlessGravity` game rule are synced from server to client on login and reload via `ConfigSyncPayload`.
 
 ## Addon API
 
@@ -50,11 +51,12 @@ The stable public API is `dinner.dev.endless_gravity.api.GravityApi`. Everything
 `dinner.dev.endless_gravity.api` package is versioned by `GravityApi.API_VERSION`; classes outside it
 (`EndlessGravityAPI`, config, mixins) are internal and may change without notice.
 
-- `getGravityOffset(entity)`: the upward offset the mod would apply this tick (`0.0` if none), resolved through the exact same code path the mod itself uses
-- `getGravityContext(entity)` / `channelFor(entity)`: the full calculation (source, offset, cancellation) and the entity's gravity channel (`PLAYER`, `MOB`, `ITEM`, `ARROW`, `THROWN`, `BLOCK`)
-- `getPressure(y)`, `getAtmosphereProgress(y)`, `getAtmosphereOffset(y)`, `getRealY(entity)`: read the configured atmosphere curve and world-space entity altitude
-- `registerModifier(id, priority, modifier)`: run custom logic whenever an offset is resolved (the "calculate gravity" event); `ctx.setOffset`, `ctx.addOffset` and `ctx.cancel` control the result. Higher priority runs first, and a per-entity modifier (`setEntityModifier`) runs last
+- `getGravityOffset(entity)` / `getGravityOffset(level, pos, channel)`: the upward offset the mod would apply (`0.0` if none), for a live entity or any world position
+- `getGravityContext(entity)` / `channelFor(entity)`: the full calculation (source, offset, `baseGravity()`, `effectiveGravity()`, `scaleGravity(factor)`, cancellation) and the entity's gravity channel (`PLAYER`, `MOB`, `ITEM`, `ARROW`, `THROWN`, `BLOCK`)
+- `getPressure(level, y)`, `getAtmosphereProgress(level, y)`, `getAtmosphereOffset(level, y)`, `getRealY(entity)`: read dimension-specific or Overworld atmosphere curves and world-space entity altitude
+- `registerModifier(id, priority, modifier)` / `getRegisteredModifiers()`: run custom logic whenever an offset is resolved; `ctx.setOffset`, `ctx.addOffset`, `ctx.scaleGravity`, `ctx.cancel`, and `ctx.uncancel` control the result. Higher priority runs first (ties broken deterministically by ID), and a per-entity modifier (`setEntityModifier`) runs last
 - `GRAVITY_IMMUNE` tag: add entity types to `data/endless_gravity/tags/entity_type/gravity_immune.json` to make them ignore reduced gravity
+- **Datapack profiles**: place JSON files under `data/<namespace>/endless_gravity/dimensions/<path>.json` to ship built-in gravity/atmosphere defaults for custom dimensions (user `config/endless_gravity/dimensions.json` always overrides datapacks)
 
 ### Depending on the API
 
@@ -68,25 +70,25 @@ GravityApi.registerModifier(ResourceLocation.fromNamespaceAndPath("mymod", "moon
 });
 ```
 
-Global gameplay config values are synced from server to client on login via `ConfigSyncPayload`.
+Gameplay config values, dimension profiles, and the `endlessGravity` game rule are synced from server to client on login and reload via `ConfigSyncPayload`.
 
-Some settings are **not** synced and always come from your local config: atmospheric audio muffling, particle gravity, and custom dimensions (`config/endless_gravity/dimensions.json`). While connected to a remote server, synced global values are applied in memory for that session and your own values are restored on disconnect — synced values are never written to your config file.
+Client-only settings are **not** synced and always save locally even while connected to a remote server: the End audio filter, particle gravity, and Gravity HUD settings. While connected to a remote server, synced gameplay values are applied in memory for that session and your own values are restored on disconnect.
 
 ## Loader differences
 
-Both builds share the same config and behavior for The End and the Overworld. These are the only known gaps:
+Both builds share the same config and behavior for The End, the Overworld, and custom dimensions. These are the only known gaps:
 
 | Feature | NeoForge | Fabric |
 |---|---|---|
 | Create: Cosmonautics integration | Overworld gravity backs off when it is installed | Not supported |
 | Sable sub-level physics and datapacks | Supported | Not supported |
-| Custom dimensions — fixed gravity | All supported entity types | All supported entity types |
 
 ## Requirements
 
 - Minecraft 1.21.1
 - Fabric Loader 0.16.10+
-- Mod Menu and Cloth Config — optional dependencies, both required for the in-game config screen
+- Fabric API
+- Mod Menu — optional, provides the button to open the built-in config screen
 - Create: Cosmonautics and Sable — **not supported on this build** (see *Loader differences*)
 
 ## License

@@ -21,6 +21,10 @@ public final class ModEffects {
 
     public static final MobEffect WEIGHTLESSNESS = register("weightlessness", MobEffectCategory.BENEFICIAL, 0x7FCFFF);
     public static final MobEffect HEAVINESS = register("heaviness", MobEffectCategory.HARMFUL, 0x8B5A2B);
+    private static final net.minecraft.core.Holder<MobEffect> WEIGHTLESSNESS_HOLDER =
+            BuiltInRegistries.MOB_EFFECT.wrapAsHolder(WEIGHTLESSNESS);
+    private static final net.minecraft.core.Holder<MobEffect> HEAVINESS_HOLDER =
+            BuiltInRegistries.MOB_EFFECT.wrapAsHolder(HEAVINESS);
 
     private static MobEffect register(String name, MobEffectCategory category, int color) {
         return Registry.register(
@@ -42,14 +46,14 @@ public final class ModEffects {
         return HEAVINESS;
     }
 
-    /** The Weightlessness effect holder, for building potions. */
+    /** The Weightlessness effect holder, for building potions and O(1) effect lookups. */
     public static net.minecraft.core.Holder<MobEffect> weightlessnessHolder() {
-        return BuiltInRegistries.MOB_EFFECT.wrapAsHolder(WEIGHTLESSNESS);
+        return WEIGHTLESSNESS_HOLDER;
     }
 
-    /** The Heaviness effect holder, for building potions. */
+    /** The Heaviness effect holder, for building potions and O(1) effect lookups. */
     public static net.minecraft.core.Holder<MobEffect> heavinessHolder() {
-        return BuiltInRegistries.MOB_EFFECT.wrapAsHolder(HEAVINESS);
+        return HEAVINESS_HOLDER;
     }
 
     /** A plain effect with no per-tick behaviour; gravity reads it via {@link GravityResolver}. */

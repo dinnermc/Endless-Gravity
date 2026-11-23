@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Configured pressure curve plus the smooth Overworld gravity ramp.
+ * Configured pressure curve plus the smooth gravity ramp.
  */
 public final class AtmosphereLayers {
 
@@ -26,8 +26,9 @@ public final class AtmosphereLayers {
             new Layer(6000.0, 0.0)
     );
 
-    private static volatile List<Layer> cached = null;
-    private static volatile List<? extends String> cachedRaw = null;
+    private record ParseCache(List<String> rawSnapshot, List<Layer> parsed) {}
+
+    private static volatile ParseCache cache = null;
 
     private AtmosphereLayers() {}
 
@@ -37,13 +38,18 @@ public final class AtmosphereLayers {
 
     /** "altitude:pressure" entries, sorted by altitude; defaults if invalid or too short. */
     public static List<Layer> parse(List<? extends String> raw) {
-        if (raw != null && raw.equals(cachedRaw) && cached != null) return cached;
-        cachedRaw = raw;
-        cached = doParse(raw);
-        return cached;
+        if (raw == null) return DEFAULTS;
+        ParseCache current = cache;
+        if (current != null && raw.equals(current.rawSnapshot())) {
+            return current.parsed();
+        }
+        List<String> snapshot = List.copyOf(raw);
+        List<Layer> parsed = List.copyOf(parseUncached(snapshot));
+        cache = new ParseCache(snapshot, parsed);
+        return parsed;
     }
 
-    private static List<Layer> doParse(List<? extends String> raw) {
+    public static List<Layer> parseUncached(List<? extends String> raw) {
         List<Layer> layers = new ArrayList<>();
         if (raw != null) {
             for (String entry : raw) {
@@ -77,6 +83,7 @@ public final class AtmosphereLayers {
 
     /** Pure variant of {@link #getPressure(double)}: piecewise linear between the given layers. */
     public static double getPressure(List<Layer> layers, double y) {
+        if (layers == null || layers.isEmpty()) return 1.0;
         Layer first = layers.get(0);
         if (y <= first.altitude()) return first.pressure();
         for (int i = 0; i < layers.size() - 1; i++) {
@@ -109,14 +116,21 @@ public final class AtmosphereLayers {
 
     /** Pure variant of {@link #getGravityProgress(double)} for the given atmosphere curve. */
     public static double getGravityProgress(List<Layer> layers, double y) {
-        return getGravityProgress(layers, y, GRAVITY_START_ALTITUDE);
+        return getGravityProgress(layers, GRAVITY_START_ALTITUDE, y);
     }
 
-    public static double getGravityProgress(List<Layer> layers, double y, double startAltitude) {
+    /** Pure variant with a dimension-specific gravity-ramp start altitude (matches NeoForge signature). */
+    public static double getGravityProgress(List<Layer> layers, double startAltitude, double y) {
+        if (layers == null || layers.isEmpty()) return 0.0;
         double endAltitude = layers.get(layers.size() - 1).altitude();
-        if (endAltitude <= startAltitude) return y > startAltitude ? 1.0 : 0.0;
+        if (endAltitude <= startAltitude) return 0.0;
         double t = clamp((y - startAltitude) / (endAltitude - startAltitude), 0.0, 1.0);
         return t * t * (3.0 - 2.0 * t);
+    }
+
+    /** Estimate the starting world altitude from a landing altitude and fall distance. */
+    public static double getFallStartAltitude(double landingY, double fallDistance) {
+        return landingY + Math.max(0.0, fallDistance);
     }
 
     /** Clamp helper matching {@code net.minecraft.util.Mth.clamp}. */

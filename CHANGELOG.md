@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.4
+
+- native minimalist two-pane config screen — Cloth Config is no longer required; includes dimension search/filter, per-dimension and general reset buttons, and one-click JSON datapack export
+- upgraded 3-tier OpenAL audio muffling: UI and music stay untouched, your own suit/player sounds get warm helmet conduction while world sounds muffle perceptually with smooth transitions, plus per-dimension fixed-gravity audio settings and a client `AudioMuffle` hook in `GravityApi`
+- biome gravity overrides via datapacks (`data/<ns>/endless_gravity/biomes/*.json`), synced to clients and exposed through `GravityApi`
+- Weightlessness II and Heaviness II potions (brew with Glowstone Dust), custom effect icons, and ambient-gravity-aware scaling (Weightlessness scales down in low gravity without ever inverting; Heaviness anchors harder in low/zero gravity)
+- proportional fall damage mode (global and per-dimension), optional pressure-based atmospheric drag, and gravity support for primed TNT and XP orbs
+- minimalist gravity HUD with a compact mode option and toggle keybind
+- added 8 new languages: Mexican Spanish, French, German, Brazilian Portuguese, Italian, Russian, Simplified Chinese, and Japanese
+- Fabric & NeoForge parity and stability fixes (Fabric projectile/mob/client-sync parity, safe OpenAL thread execution and cleanup)
+
 ## 1.3.3
 
 - NeoForge: cap Sable atmosphere lift at its stable tuned limit to prevent Overworld sub-levels from accelerating upward

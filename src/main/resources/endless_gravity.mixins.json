@@ -8,7 +8,9 @@
     "AbstractArrowMixin",
     "FallingBlockEntityMixin",
     "ProjectileMixin",
-    "LivingEntityMixin"
+    "LivingEntityMixin",
+    "PrimedTntMixin",
+    "ExperienceOrbMixin"
   ],
   "client": [
     "ParticleMixin",

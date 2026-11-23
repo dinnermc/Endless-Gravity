@@ -11,7 +11,7 @@ public final class ConfigSync {
 
     public static void broadcast(MinecraftServer server) {
         if (server == null) return;
-        ConfigSyncPayload payload = ConfigSyncPayload.fromConfig();
+        ConfigSyncPayload payload = ConfigSyncPayload.fromServer(server);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ServerPlayNetworking.send(player, payload);
         }

@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
-import java.util.List;
+
 import java.util.Optional;
 
 /**
@@ -19,8 +19,8 @@ import java.util.Optional;
 public final class EndlessGravityAPI {
 
     /**
-     * Entity type tag. Add entity IDs to {@code data/endless_gravity/tags/entity/gravity_immune.json}
-     * to make them ignore gravity in The End.
+     * Entity type tag. Add entity IDs to {@code data/endless_gravity/tags/entity_type/gravity_immune.json}
+     * to make them ignore reduced gravity.
      */
     public static final TagKey<EntityType<?>> GRAVITY_IMMUNE =
             TagKey.create(Registries.ENTITY_TYPE, ResourceLocation.fromNamespaceAndPath(EndlessGravity.MODID, "gravity_immune"));
@@ -32,81 +32,96 @@ public final class EndlessGravityAPI {
 
     public static boolean isGravityImmune(Entity entity) {
         if (entity.getType().is(GRAVITY_IMMUNE)) return true;
-        // The gravityImmuneEntities config list is server-only (not in the sync payload),
-        // so restrict it to living entities. The common item/arrow/block/projectile mixins
-        // also run on the client and must rely on the (synced) tag alone, or they desync.
         if (!(entity instanceof LivingEntity)) return false;
         ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
         return id != null && Config.COMMON.gravityImmuneEntities.get().contains(id.toString());
     }
 
     public static double getPressure(double y) {
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (config != null && config.isEnableAtmosphere()) {
+            return config.getAtmospherePressure(y);
+        }
         return AtmosphereLayers.getPressure(y);
     }
 
+    public static double getPressure(Level level, double y) {
+        if (level == null) return getPressure(y);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
+        if (config != null) {
+            return config.isEnableAtmosphere() ? config.getAtmospherePressure(y) : 1.0;
+        }
+        return 1.0;
+    }
+
     public static double getAtmosphereProgress(double y) {
-        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
         if (config == null) return AtmosphereLayers.getProgress(y);
         if (!config.isEnableAtmosphere()) return 0.0;
-        return AtmosphereLayers.getProgress(AtmosphereLayers.parse(config.getAtmosphereLayers()), y);
+        return config.getAtmosphereProgress(y);
     }
 
     public static double getAtmosphereProgress(Level level, double y) {
-        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (level == null) return getAtmosphereProgress(y);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
         if (config == null || !config.isEnableAtmosphere()) return 0.0;
-        return AtmosphereLayers.getProgress(AtmosphereLayers.parse(config.getAtmosphereLayers()), y);
+        return config.getAtmosphereProgress(y);
     }
 
     public static double getAtmosphereOffset(double y) {
-        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
         if (config == null) {
             if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
             return AtmosphereLayers.getGravityProgress(y) * Config.COMMON.atmosphereGravityMax.get();
         }
         if (!config.isEnableAtmosphere() || !Config.COMMON.enableAtmosphere.get()
-                || !Config.COMMON.overworldEntityGravity.get() || y <= config.getAtmosphereBaseAltitude()) return 0.0;
-        List<AtmosphereLayers.Layer> layers = AtmosphereLayers.parse(config.getAtmosphereLayers());
-        return AtmosphereLayers.getGravityProgress(layers, y, config.getAtmosphereBaseAltitude())
-                * config.getAtmosphereGravityMax();
+                || !Config.COMMON.overworldEntityGravity.get()) return 0.0;
+        return config.getAtmosphereGravityOffset(y);
+    }
+
+    public static double getAtmosphereOffset(Level level, double y) {
+        if (level == null) return getAtmosphereOffset(y);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
+        if (config == null || !config.isEnableAtmosphere()) return 0.0;
+        if (level.dimension() == Level.OVERWORLD
+                && (!Config.COMMON.enableAtmosphere.get() || !Config.COMMON.overworldEntityGravity.get())) {
+            return 0.0;
+        }
+        return config.getAtmosphereGravityOffset(y);
     }
 
     public static double getAtmosphereMuffleGain(double y) {
-        double progress = getAtmosphereProgress(y);
-        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
-        double gain = config == null ? Config.COMMON.atmosphereMuffleGain.get() : config.getAtmosphereMuffleGain();
-        return 1.0 - progress * (1.0 - gain);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (config != null) {
+            return config.isEnableAtmosphere() ? config.getAtmosphereMuffleGain(y) : 1.0;
+        }
+        return MuffleMath.perceptualGain(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGain.get());
     }
 
     public static double getAtmosphereMuffleGain(Level level, double y) {
-        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (level == null) return getAtmosphereMuffleGain(y);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
         if (config == null || !config.isEnableAtmosphere()) return 1.0;
-        double progress = getAtmosphereProgress(level, y);
-        return 1.0 - progress * (1.0 - config.getAtmosphereMuffleGain());
+        return config.getAtmosphereMuffleGain(y);
     }
 
     public static double getAtmosphereMuffleGainHF(double y) {
-        double progress = getAtmosphereProgress(y);
-        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location().toString()).orElse(null);
-        double gain = config == null ? Config.COMMON.atmosphereMuffleGainHF.get() : config.getAtmosphereMuffleGainHF();
-        return 1.0 - progress * (1.0 - gain);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (config != null) {
+            return config.isEnableAtmosphere() ? config.getAtmosphereMuffleGainHF(y) : 1.0;
+        }
+        return MuffleMath.perceptualGainHF(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGainHF.get());
     }
 
     public static double getAtmosphereMuffleGainHF(Level level, double y) {
-        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location().toString()).orElse(null);
+        if (level == null) return getAtmosphereMuffleGainHF(y);
+        Config.CustomDimConfig config = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
         if (config == null || !config.isEnableAtmosphere()) return 1.0;
-        double progress = getAtmosphereProgress(level, y);
-        return 1.0 - progress * (1.0 - config.getAtmosphereMuffleGainHF());
+        return config.getAtmosphereMuffleGainHF(y);
     }
 
-    /**
-     * Global Y for an entity.
-     */
     public static double getRealY(Entity entity) {
         return entity.getY();
-    }
-
-    public static double getRealY(Level level, double y) {
-        return y;
     }
 
     public static boolean isEnd(Level level) {
@@ -117,82 +132,47 @@ public final class EndlessGravityAPI {
         return level.dimension() == Level.OVERWORLD;
     }
 
-    // ========== Custom Dimension Support ==========
-
-    /**
-     * Checks if a dimension has custom gravity configuration.
-     */
     public static boolean hasCustomGravity(ResourceKey<Level> dimension) {
         return Config.hasCustomGravity(dimension.location().toString());
     }
 
-    /**
-     * Checks if a dimension has custom atmosphere configuration.
-     */
     public static boolean hasCustomAtmosphere(ResourceKey<Level> dimension) {
         return Config.hasCustomAtmosphere(dimension.location().toString());
     }
 
-    /**
-     * Checks if a dimension has custom gravity configuration (by ID string).
-     */
     public static boolean hasCustomGravity(String dimensionId) {
         return Config.hasCustomGravity(dimensionId);
     }
 
-    /**
-     * Gets the custom dimension configuration for a dimension.
-     */
     public static Optional<Config.CustomDimConfig> getCustomDimConfig(ResourceKey<Level> dimension) {
-        return Config.getCustomDimConfig(dimension.location().toString());
+        return Config.getCustomDimConfig(dimension.location());
     }
 
-    /**
-     * Gets the custom dimension configuration for a dimension by ID string.
-     */
     public static Optional<Config.CustomDimConfig> getCustomDimConfig(String dimensionId) {
         return Config.getCustomDimConfig(dimensionId);
     }
 
-    /**
-     * Checks if a dimension has custom gravity enabled.
-     */
     public static boolean hasCustomGravityEnabled(ResourceKey<Level> dimension) {
         return Config.hasCustomGravity(dimension.location().toString());
     }
 
-    /**
-     * Checks if a dimension has custom atmosphere enabled.
-     */
     public static boolean hasCustomAtmosphereEnabled(ResourceKey<Level> dimension) {
         return Config.hasCustomAtmosphere(dimension.location().toString());
     }
 
-    /**
-     * Gets the mob gravity offset for a custom dimension.
-     */
     public static double getMobGravityOffsetForDimension(ResourceKey<Level> dimension) {
         return Config.getMobGravityOffsetForDimension(dimension.location().toString());
     }
 
-    /**
-     * Gets the custom mob gravity offset for a dimension.
-     */
     public static double getMobGravityOffsetCustom(ResourceKey<Level> dimension) {
         return Config.getMobGravityOffsetCustom(dimension.location().toString());
     }
 
-    /**
-     * Checks if a dimension has mob gravity enabled.
-     */
     public static boolean hasMobGravityEnabled(ResourceKey<Level> dimension) {
         return Config.hasMobGravity(dimension.location().toString());
     }
 
-    /**
-     * Gets the custom dimension configuration for a dimension by ResourceKey.
-     */
     public static Optional<Config.CustomDimConfig> getCustomDimConfigByKey(ResourceKey<Level> dimension) {
-        return Config.getCustomDimConfig(dimension.location().toString());
+        return Config.getCustomDimConfig(dimension.location());
     }
 }
