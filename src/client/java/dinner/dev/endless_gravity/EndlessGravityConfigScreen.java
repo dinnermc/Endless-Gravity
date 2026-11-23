@@ -1,76 +1,2134 @@
 package dinner.dev.endless_gravity;
 
 import dinner.dev.endless_gravity.client.ConfigSyncClient;
-import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
-import me.shedaniel.clothconfig2.api.ConfigBuilder;
-import me.shedaniel.clothconfig2.api.ConfigCategory;
-import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
-import me.shedaniel.clothconfig2.gui.entries.TextListEntry;
-import me.shedaniel.clothconfig2.impl.builders.SubCategoryBuilder;
+import dinner.dev.endless_gravity.network.ConfigSync;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.common.ModConfigSpec;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
+import java.util.function.IntConsumer;
 
-public class EndlessGravityConfigScreen {
+/**
+ * Native, zero-flicker two-pane configuration screen for Endless Gravity.
+ *
+ * <p>All edits are buffered inside {@link EditorDraft} until Save is pressed, so Cancel
+ * discards cleanly. Switching modes, dragging atmosphere points, adding/removing layers,
+ * or applying presets updates widgets in place without resetting scroll or closing panels.
+ */
+public final class EndlessGravityConfigScreen extends Screen {
 
-    private static final int TEXT_WHITE = 0xFFFFFF;
-    private static final int TEXT_GRAY = 0xAAAAAA;
-    private static final int TEXT_BLUE = 0x66CCFF;
-    private static final int TEXT_GREEN = 0x55FF55;
-    private static final int TEXT_RED = 0xFF5555;
-    private static final int TEXT_AMBER = 0xFFAA00;
-    private static final int DIVIDER_COLOR = 0x8866CCFF;
-    private static final double CURVE_MIN_ALTITUDE = -2048.0;
-    private static final double CURVE_MAX_ALTITUDE = 30000.0;
-    private static final double CURVE_MIN_PRESSURE = 0.0;
+    // Palette (minimalist black/gray)
+    private static final int BG_HEADER = 0xE60B0B0B;
+    private static final int BG_SIDEBAR = 0xCC121212;
+    private static final int BG_PANEL = 0xC4141414;
+    private static final int BG_CARD = 0xB81C1C1C;
+    private static final int BG_ROW_SELECTED = 0xFF2B2B2B;
+    private static final int BG_ROW_HOVER = 0x772B2B2B;
+    private static final int BORDER_SUBTLE = 0xFF323232;
+    private static final int ACCENT_LIGHT = 0xFFE6E6E6;
+    private static final int ACCENT_GREEN = 0xFF8AB896;
+    private static final int ACCENT_AMBER = 0xFFC9A66B;
+    private static final int ACCENT_RED = 0xFFC97373;
+    private static final int TEXT_WHITE = 0xFFF2F2F2;
+    private static final int TEXT_MUTED = 0xFFA0A0A0;
+    private static final int TEXT_DIM = 0xFF6E6E6E;
 
-    private EndlessGravityConfigScreen() {}
+    private static final int HEADER_H = 34;
+    private static final int FOOTER_H = 36;
+    private static final double CURVE_MIN_ALT = -2048.0;
+    private static final double CURVE_MAX_ALT = 30000.0;
+    private static final double VANILLA_GRAVITY = 0.08;
 
-    public static Screen create(Screen parent) {
-        return new Factory(parent).build();
-    }
+    private enum Tab { DIMENSIONS, GENERAL, SABLE }
+    private enum DimSubView { EDITOR, ADD_DIMENSION, PRESETS }
 
     private enum FallDamageMode {
-        NORMAL, DISABLED;
+        NORMAL, DISABLED, PROPORTIONAL;
 
         static FallDamageMode fromInt(int value) {
             return switch (value) {
                 case 0 -> NORMAL;
-                case 1 -> DISABLED;
+                case 2 -> PROPORTIONAL;
                 default -> DISABLED;
             };
         }
     }
 
+    private enum HudPosition {
+        TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT;
+
+        static HudPosition fromInt(int value) {
+            return switch (value) {
+                case 1 -> TOP_RIGHT;
+                case 2 -> BOTTOM_LEFT;
+                case 3 -> BOTTOM_RIGHT;
+                default -> TOP_LEFT;
+            };
+        }
+    }
+
+    public static Screen create(Screen parent) {
+        return new EndlessGravityConfigScreen(parent);
+    }
+
+    private final Screen parent;
+    private final boolean sableLoaded;
+    private final EditorDraft draft;
+
+    private Tab activeTab = Tab.DIMENSIONS;
+    private DimSubView dimSubView = DimSubView.EDITOR;
+    private String selectedDimId = "";
+
+    // Layout bounds
+    private int sidebarX, sidebarY, sidebarW, sidebarH;
+    private int contentX, contentY, contentW, contentH;
+
+    // Scroll state (persisted across in-place rebuilds!)
+    private double leftScroll = 0.0;
+    private double rightScroll = 0.0;
+    private int rightContentHeight = 0;
+
+    // Fixed chrome widgets (header tabs & footer buttons)
+    private Button tabDimsBtn;
+    private Button tabGeneralBtn;
+    private Button tabSableBtn;
+    private Button addDimBtn;
+    private Button undoRemoveBtn;
+    private EditBox sidebarSearchBox;
+    private String sidebarFilter = "";
+
+    // Scrollable right-panel items & focused input
+    private final List<PanelItem> panelItems = new ArrayList<>();
+    private final List<LayerRowBoxes> activeLayerBoxes = new ArrayList<>();
+    private AbstractWidget focusedPanelWidget = null;
+    private CurveCanvas activeCanvas = null;
+    private boolean suppressFieldCallbacks = false;
+
+    // Deferred tooltip rendered outside scissor clip
+    private Component deferredTooltip = null;
+    private int deferredTooltipX, deferredTooltipY;
+
+    // Status toast in footer
+    private Component statusText = Component.empty();
+    private int statusColor = TEXT_MUTED;
+
+    // Add-dimension scratch state
+    private String pendingDimId = "";
+    private CustomDimConfig.Mode pendingDimMode = CustomDimConfig.Mode.FIXED_GRAVITY;
+    private String pendingPresetName = "";
+    private String pendingImportJson = "";
+    private String pendingImmuneId = "";
+
+    private EndlessGravityConfigScreen(Screen parent) {
+        super(Component.translatable("endless_gravity.config.title"));
+        this.parent = parent;
+        this.sableLoaded = ModList.get().isLoaded("sable");
+        this.draft = new EditorDraft();
+        if (!draft.profiles.isEmpty()) {
+            this.selectedDimId = draft.profiles.get(0).id;
+        }
+        if (ConfigSyncClient.isServerSyncActive()) {
+            setStatus(Component.translatable("endless_gravity.config.serverSyncNotice"), ACCENT_AMBER);
+        }
+    }
+
+    private DimensionDraft selectedProfile() {
+        for (DimensionDraft p : draft.profiles) {
+            if (p.id.equals(selectedDimId)) return p;
+        }
+        if (!draft.profiles.isEmpty()) {
+            selectedDimId = draft.profiles.get(0).id;
+            return draft.profiles.get(0);
+        }
+        return null;
+    }
+
+    private void setStatus(Component msg, int color) {
+        this.statusText = msg;
+        this.statusColor = color;
+    }
+
+    @Override
+    protected void init() {
+        clearWidgets();
+        computeLayout();
+
+        // Header tabs
+        int tabY = 7;
+        int tabW = 92;
+        int tabGap = 6;
+        int tabCount = sableLoaded ? 3 : 2;
+        int totalTabsW = tabCount * tabW + (tabCount - 1) * tabGap;
+        int tabStartX = Math.max(150, this.width - totalTabsW - 12);
+
+        tabDimsBtn = addRenderableWidget(Button.builder(
+                Component.translatable("endless_gravity.config.section.dimensions"),
+                b -> switchTab(Tab.DIMENSIONS)).bounds(tabStartX, tabY, tabW, 20).build());
+        tabGeneralBtn = addRenderableWidget(Button.builder(
+                Component.translatable("endless_gravity.config.section.general"),
+                b -> switchTab(Tab.GENERAL)).bounds(tabStartX + tabW + tabGap, tabY, tabW, 20).build());
+        if (sableLoaded) {
+            tabSableBtn = addRenderableWidget(Button.builder(
+                    Component.translatable("endless_gravity.config.tab.sable"),
+                    b -> switchTab(Tab.SABLE)).bounds(tabStartX + (tabW + tabGap) * 2, tabY, tabW, 20).build());
+        } else {
+            tabSableBtn = null;
+        }
+
+        // Sidebar search box + bottom action buttons (visible only on Dimensions tab)
+        sidebarSearchBox = addRenderableWidget(new EditBox(this.font,
+                sidebarX + 6, sidebarY + 20, Math.max(40, sidebarW - 12), 16,
+                Component.translatable("endless_gravity.config.searchDimensions")));
+        sidebarSearchBox.setMaxLength(64);
+        sidebarSearchBox.setHint(Component.translatable("endless_gravity.config.searchDimensions"));
+        sidebarSearchBox.setValue(sidebarFilter);
+        sidebarSearchBox.setResponder(v -> {
+            sidebarFilter = v == null ? "" : v.trim().toLowerCase(Locale.ROOT);
+            leftScroll = 0.0;
+        });
+
+        int sbBtnY = sidebarY + sidebarH - 24;
+        addDimBtn = addRenderableWidget(Button.builder(
+                Component.translatable("endless_gravity.config.addDimensionShort"),
+                b -> {
+                    dimSubView = DimSubView.ADD_DIMENSION;
+                    pendingDimId = "";
+                    rebuildRightPanel(false);
+                }).bounds(sidebarX + 6, sbBtnY, sidebarW - 12, 20).build());
+        undoRemoveBtn = addRenderableWidget(Button.builder(
+                Component.translatable("endless_gravity.config.undoShort"),
+                b -> restoreLastRemoved()).bounds(sidebarX + 6, sbBtnY - 24, sidebarW - 12, 20).build());
+
+        // Footer Cancel & Save buttons
+        int footerY = this.height - FOOTER_H + 8;
+        int btnW = 96;
+        addRenderableWidget(Button.builder(
+                Component.translatable("gui.cancel"),
+                b -> onClose()).bounds(this.width - btnW * 2 - 18, footerY, btnW, 20).build());
+        addRenderableWidget(Button.builder(
+                Component.translatable("endless_gravity.config.saveAndClose"),
+                b -> {
+                    saveAll();
+                    onClose();
+                }).bounds(this.width - btnW - 10, footerY, btnW, 20).build());
+
+        updateTabChrome();
+        rebuildRightPanel(true);
+    }
+
+    private void computeLayout() {
+        int bodyTop = HEADER_H + 4;
+        int bodyH = Math.max(80, this.height - HEADER_H - FOOTER_H - 8);
+        if (activeTab == Tab.DIMENSIONS) {
+            sidebarX = 8;
+            sidebarY = bodyTop;
+            sidebarW = Math.max(145, Math.min(195, this.width / 4));
+            sidebarH = bodyH;
+            contentX = sidebarX + sidebarW + 8;
+            contentY = bodyTop;
+            contentW = Math.max(200, this.width - contentX - 8);
+            contentH = bodyH;
+        } else {
+            sidebarX = 0;
+            sidebarY = bodyTop;
+            sidebarW = 0;
+            sidebarH = bodyH;
+            int maxW = Math.min(640, this.width - 24);
+            contentX = (this.width - maxW) / 2;
+            contentY = bodyTop;
+            contentW = maxW;
+            contentH = bodyH;
+        }
+    }
+
+    private void switchTab(Tab next) {
+        if (activeTab == next) return;
+        activeTab = next;
+        dimSubView = DimSubView.EDITOR;
+        rightScroll = 0.0;
+        clearPanelFocus();
+        computeLayout();
+        updateTabChrome();
+        rebuildRightPanel(false);
+    }
+
+    private void updateTabChrome() {
+        tabDimsBtn.active = activeTab != Tab.DIMENSIONS;
+        tabGeneralBtn.active = activeTab != Tab.GENERAL;
+        if (tabSableBtn != null) tabSableBtn.active = activeTab != Tab.SABLE;
+
+        boolean showSidebar = activeTab == Tab.DIMENSIONS;
+        sidebarSearchBox.visible = showSidebar;
+        sidebarSearchBox.active = showSidebar;
+        addDimBtn.visible = showSidebar;
+        addDimBtn.active = showSidebar;
+        if (showSidebar) {
+            sidebarSearchBox.setX(sidebarX + 6);
+            sidebarSearchBox.setY(sidebarY + 20);
+            sidebarSearchBox.setWidth(Math.max(40, sidebarW - 12));
+            int sbBtnY = sidebarY + sidebarH - 24;
+            addDimBtn.setX(sidebarX + 6);
+            addDimBtn.setY(sbBtnY);
+            addDimBtn.setWidth(sidebarW - 12);
+            boolean hasUndo = !draft.removedProfiles.isEmpty();
+            undoRemoveBtn.visible = hasUndo;
+            undoRemoveBtn.active = hasUndo;
+            undoRemoveBtn.setX(sidebarX + 6);
+            undoRemoveBtn.setY(sbBtnY - 24);
+            undoRemoveBtn.setWidth(sidebarW - 12);
+            if (hasUndo) {
+                DimensionDraft last = draft.removedProfiles.get(draft.removedProfiles.size() - 1);
+                undoRemoveBtn.setTooltip(Tooltip.create(
+                        Component.translatable("endless_gravity.config.dimensionUndo", last.id)));
+            }
+        } else {
+            undoRemoveBtn.visible = false;
+            undoRemoveBtn.active = false;
+        }
+    }
+
+    private void clearPanelFocus() {
+        if (focusedPanelWidget != null) {
+            focusedPanelWidget.setFocused(false);
+            focusedPanelWidget = null;
+        }
+    }
+
+    /**
+     * Rebuilds only the right scrollable panel's items while preserving scroll position.
+     * Never calls Minecraft#setScreen, so there is zero flicker and zero lost scroll.
+     */
+    private void rebuildRightPanel(boolean keepScroll) {
+        clearPanelFocus();
+        panelItems.clear();
+        activeLayerBoxes.clear();
+        activeCanvas = null;
+
+        int pad = 10;
+        int innerW = contentW - pad * 2 - 8; // leave 8px for scrollbar
+        int y = pad;
+
+        if (activeTab == Tab.DIMENSIONS) {
+            y = switch (dimSubView) {
+                case ADD_DIMENSION -> buildAddDimensionPanel(pad, y, innerW);
+                case PRESETS -> buildPresetsPanel(pad, y, innerW);
+                case EDITOR -> buildDimensionEditorPanel(pad, y, innerW);
+            };
+        } else if (activeTab == Tab.GENERAL) {
+            y = buildGeneralPanel(pad, y, innerW);
+        } else if (activeTab == Tab.SABLE) {
+            y = buildSablePanel(pad, y, innerW);
+        }
+
+        rightContentHeight = y + 10;
+        double maxScroll = Math.max(0.0, rightContentHeight - contentH);
+        rightScroll = keepScroll ? AtmosphereLayers.clamp(rightScroll, 0.0, maxScroll) : 0.0;
+        updateTabChrome();
+        syncPanelWidgetPositions();
+    }
+
+    // ==================== DIMENSIONS TAB PANELS ====================
+
+    private int buildDimensionEditorPanel(int x, int y, int w) {
+        DimensionDraft profile = selectedProfile();
+        if (profile == null) {
+            panelItems.add(new TextItem(x, y + 8, w,
+                    Component.translatable("endless_gravity.config.dimensionNoProfiles"), TEXT_MUTED));
+            return y + 32;
+        }
+
+        // Row 1: Dimension ID title + Copy JSON + Reset + Remove buttons
+        int removeW = 62;
+        int resetW = 54;
+        int copyW = 68;
+        int rightBtnsW = removeW + resetW + copyW + 8;
+        panelItems.add(new SectionTitleItem(x, y + 4, Math.max(60, w - rightBtnsW - 8),
+                Component.literal(profile.id), ACCENT_LIGHT));
+
+        int bx = x + w - rightBtnsW;
+        Button copyBtn = Button.builder(
+                Component.translatable("endless_gravity.config.copyDatapackJson"),
+                b -> {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(
+                            Config.toPrettyDatapackJson(profile.toConfig()));
+                    setStatus(Component.translatable("endless_gravity.config.copiedDatapackJson", profile.id), ACCENT_GREEN);
+                }).bounds(bx, y, copyW, 20).build();
+        copyBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.copyDatapackJson.tooltip")));
+        panelItems.add(new WidgetItem(copyBtn, bx, y));
+        bx += copyW + 4;
+
+        Button resetBtn = Button.builder(
+                Component.translatable("endless_gravity.config.resetDefaults"),
+                b -> resetDimensionProfile(profile)).bounds(bx, y, resetW, 20).build();
+        resetBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.resetDimension.tooltip")));
+        panelItems.add(new WidgetItem(resetBtn, bx, y));
+        bx += resetW + 4;
+
+        Button removeBtn = Button.builder(
+                Component.translatable("endless_gravity.config.dimensionRemoveButton").copy().withColor(ACCENT_RED),
+                b -> removeProfile(profile)).bounds(bx, y, removeW, 20).build();
+        removeBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.dimensionRemoveButton.tooltip")));
+        panelItems.add(new WidgetItem(removeBtn, bx, y));
+        y += 28;
+
+        // Row 2: Mode segmented buttons + Fall Damage selector
+        int modeW = Math.min(110, (w - 140) / 2);
+        Button atmBtn = Button.builder(
+                Component.translatable("endless_gravity.config.dimensionMode.atmosphere"),
+                b -> {
+                    profile.mode = CustomDimConfig.Mode.ATMOSPHERE;
+                    rebuildRightPanel(false);
+                }).bounds(x, y, modeW, 20).build();
+        atmBtn.active = profile.mode != CustomDimConfig.Mode.ATMOSPHERE;
+        atmBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.dimensionMode.atmosphere.tooltip")));
+        panelItems.add(new WidgetItem(atmBtn, x, y));
+
+        Button fixBtn = Button.builder(
+                Component.translatable("endless_gravity.config.dimensionMode.fixed_gravity"),
+                b -> {
+                    profile.mode = CustomDimConfig.Mode.FIXED_GRAVITY;
+                    rebuildRightPanel(false);
+                }).bounds(x + modeW + 4, y, modeW, 20).build();
+        fixBtn.active = profile.mode != CustomDimConfig.Mode.FIXED_GRAVITY;
+        fixBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.dimensionMode.fixed_gravity.tooltip")));
+        panelItems.add(new WidgetItem(fixBtn, x + modeW + 4, y));
+
+        int fallX = x + modeW * 2 + 12;
+        int fallW = Math.max(100, w - (modeW * 2 + 12));
+        CycleButton<CustomDimConfig.FallDamageMode> fallBtn = CycleButton.<CustomDimConfig.FallDamageMode>builder(
+                        m -> Component.translatable("endless_gravity.config.dimensionFallDamageMode."
+                                + m.name().toLowerCase(Locale.ROOT)))
+                .withValues(CustomDimConfig.FallDamageMode.values())
+                .withInitialValue(profile.fallDamageMode)
+                .create(fallX, y, fallW, 20,
+                        Component.translatable("endless_gravity.config.dimensionFallDamageMode"),
+                        (btn, val) -> profile.fallDamageMode = val);
+        fallBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.dimensionFallDamageMode.tooltip")));
+        panelItems.add(new WidgetItem(fallBtn, fallX, y));
+        y += 28;
+
+        // Row 3: Quick presets strip (1 compact row!)
+        y = addQuickPresetsRow(x, y, w, profile);
+        y += 6;
+        panelItems.add(new DividerItem(x, y, w));
+        y += 10;
+
+        if (profile.mode == CustomDimConfig.Mode.FIXED_GRAVITY) {
+            panelItems.add(new SectionTitleItem(x, y, w,
+                    Component.translatable("endless_gravity.config.dimensionFixedGravity"), TEXT_WHITE));
+            y += 14;
+            panelItems.add(new TextItem(x, y, w,
+                    Component.translatable("endless_gravity.config.dimensionFixedGravityHelp"), TEXT_MUTED));
+            y += 16;
+
+            int colGap = 12;
+            int colW = (w - colGap) / 2;
+            y = addDoublePair(x, y, colW, colGap,
+                    "endless_gravity.config.playerGravityOffset", profile.playerOffset, -0.5, 0.5, 0.08, v -> profile.playerOffset = v,
+                    "endless_gravity.config.mobGravityOffset", profile.mobOffset, -0.5, 0.5, 0.08, v -> profile.mobOffset = v);
+            y = addDoublePair(x, y, colW, colGap,
+                    "endless_gravity.config.itemGravityOffset", profile.itemOffset, -0.5, 0.5, 0.04, v -> profile.itemOffset = v,
+                    "endless_gravity.config.arrowGravityOffset", profile.arrowOffset, -0.5, 0.5, 0.05, v -> profile.arrowOffset = v);
+            y = addDoublePair(x, y, colW, colGap,
+                    "endless_gravity.config.thrownGravityOffset", profile.thrownOffset, -0.5, 0.5, 0.03, v -> profile.thrownOffset = v,
+                    "endless_gravity.config.blockGravityOffset", profile.blockOffset, -0.5, 0.5, 0.04, v -> profile.blockOffset = v);
+
+            y += 6;
+            panelItems.add(new DividerItem(x, y, w));
+            y += 10;
+            panelItems.add(new SectionTitleItem(x, y, w,
+                    Component.translatable("endless_gravity.config.dimensionFixedAudio"), TEXT_WHITE));
+            y += 14;
+            panelItems.add(new TextItem(x, y, w,
+                    Component.translatable("endless_gravity.config.dimensionFixedAudioHelp"), TEXT_MUTED));
+            y += 16;
+            y = addDoublePair(x, y, colW, colGap,
+                    "endless_gravity.config.fixedMuffleGain", profile.fixedMuffleGain, 0.0, 1.0, 0.0, v -> profile.fixedMuffleGain = v,
+                    "endless_gravity.config.fixedMuffleGainHF", profile.fixedMuffleGainHF, 0.0, 1.0, 0.0, v -> profile.fixedMuffleGainHF = v);
+            return y + 4;
+        }
+
+        // ATMOSPHERE MODE
+        panelItems.add(new SectionTitleItem(x, y, w,
+                Component.translatable("endless_gravity.config.dimensionAtmosphere"), TEXT_WHITE));
+        y += 16;
+
+        int colGap = 12;
+        int colW = (w - colGap) / 2;
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.surfaceGravityOffset", profile.surfaceGravityOffset, -0.5, 0.5, VANILLA_GRAVITY,
+                v -> profile.surfaceGravityOffset = v,
+                "endless_gravity.config.atmosphereGravityMax", profile.atmosphereGravityMax, 0.0, 0.5, VANILLA_GRAVITY,
+                v -> profile.atmosphereGravityMax = v);
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.atmosphereBaseAltitude", profile.atmosphereBaseAltitude, CURVE_MIN_ALT, CURVE_MAX_ALT, 0.0,
+                v -> profile.atmosphereBaseAltitude = v,
+                "endless_gravity.config.noFallDamageAltitude", profile.noFallDamageAltitude, -1.0, CURVE_MAX_ALT, 0.0,
+                v -> profile.noFallDamageAltitude = v);
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.atmosphereMuffleGain", profile.atmosphereMuffleGain, 0.0, 1.0, 0.0,
+                v -> profile.atmosphereMuffleGain = v,
+                "endless_gravity.config.atmosphereMuffleGainHF", profile.atmosphereMuffleGainHF, 0.0, 1.0, 0.0,
+                v -> profile.atmosphereMuffleGainHF = v);
+
+        CycleButton<Boolean> nonLivingBtn = CycleButton.onOffBuilder(profile.atmosphereAffectNonLiving)
+                .create(x, y, w, 20,
+                        Component.translatable("endless_gravity.config.atmosphereAffectNonLiving"),
+                        (btn, val) -> profile.atmosphereAffectNonLiving = val);
+        nonLivingBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.atmosphereAffectNonLiving.tooltip")));
+        panelItems.add(new WidgetItem(nonLivingBtn, x, y));
+        y += 28;
+
+        // Interactive Curve Header + Add Layer button
+        int addLayerW = 112;
+        panelItems.add(new SectionTitleItem(x, y + 4, w - addLayerW - 8,
+                Component.translatable("endless_gravity.config.atmosphereLayers"), ACCENT_LIGHT));
+        if (profile.layers.size() < CustomDimConfig.MAX_ATMOSPHERE_LAYERS) {
+            Button addLayerBtn = Button.builder(
+                    Component.translatable("endless_gravity.config.addLayerShort"),
+                    b -> addLayer(profile)).bounds(x + w - addLayerW, y, addLayerW, 20).build();
+            addLayerBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.curveAddLayer.tooltip")));
+            panelItems.add(new WidgetItem(addLayerBtn, x + w - addLayerW, y));
+        }
+        y += 24;
+
+        // Interactive Canvas (live updates boxes below on drag — ZERO rebuild!)
+        CurveCanvas canvas = new CurveCanvas(profile, x, y, w, 128, this::onCanvasLayerDragged);
+        activeCanvas = canvas;
+        panelItems.add(canvas);
+        y += 134;
+
+        // Compact Layer Table (1 row per layer: #i | Alt (Y) | Pressure | [x])
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.curveManualHelp",
+                        profile.layers.size(), CustomDimConfig.MAX_ATMOSPHERE_LAYERS), TEXT_MUTED));
+        y += 14;
+
+        boolean canRemove = profile.layers.size() > 2;
+        int delW = canRemove ? 22 : 0;
+        int indexW = 28;
+        int labelAltW = 26;
+        int labelPresW = 26;
+        int boxW = Math.max(54, (w - indexW - labelAltW - labelPresW - delW - 22) / 2);
+
+        for (int i = 0; i < profile.layers.size(); i++) {
+            final int idx = i;
+            AtmosphereLayers.Layer layer = profile.layers.get(i);
+            int cx = x;
+            panelItems.add(new TextItem(cx, y + 5, indexW,
+                    Component.literal("#" + (i + 1)).withColor(TEXT_MUTED), TEXT_MUTED));
+            cx += indexW;
+
+            panelItems.add(new TextItem(cx, y + 5, labelAltW, Component.literal("Y:"), TEXT_DIM));
+            cx += labelAltW;
+
+            EditBox altBox = createNumericBox(cx, y, boxW, formatClean(layer.altitude()),
+                    raw -> onLayerAltitudeTyped(profile, idx, raw));
+            panelItems.add(new WidgetItem(altBox, cx, y));
+            cx += boxW + 8;
+
+            panelItems.add(new TextItem(cx, y + 5, labelPresW, Component.literal("P:"), TEXT_DIM));
+            cx += labelPresW;
+
+            EditBox presBox = createNumericBox(cx, y, boxW, formatClean(layer.pressure()),
+                    raw -> onLayerPressureTyped(profile, idx, raw));
+            panelItems.add(new WidgetItem(presBox, cx, y));
+            cx += boxW + 6;
+
+            activeLayerBoxes.add(new LayerRowBoxes(altBox, presBox));
+
+            if (canRemove) {
+                Button delBtn = Button.builder(Component.literal("×").withColor(ACCENT_RED),
+                        b -> removeLayer(profile, idx)).bounds(cx, y, delW, 18).build();
+                delBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.curveRemoveLayer.tooltip")));
+                panelItems.add(new WidgetItem(delBtn, cx, y));
+            }
+            y += 22;
+        }
+        return y;
+    }
+
+    private int addQuickPresetsRow(int x, int y, int w, DimensionDraft profile) {
+        List<String> keys = profile.mode == CustomDimConfig.Mode.FIXED_GRAVITY
+                ? List.of("vanilla", "light_gravity", "lunar")
+                : List.of("terrestrial", "gentle_atmosphere", "thin_atmosphere");
+        boolean showPresetMgr = profile.mode == CustomDimConfig.Mode.ATMOSPHERE;
+        int slots = keys.size() + (showPresetMgr ? 1 : 0);
+        int gap = 4;
+        int btnW = Math.max(60, (w - gap * (slots - 1)) / slots);
+        int cx = x;
+        for (String key : keys) {
+            Button btn = Button.builder(Component.translatable("endless_gravity.config.preset." + key),
+                    b -> applyBuiltInPreset(profile, key)).bounds(cx, y, btnW, 20).build();
+            btn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.preset." + key + ".tooltip")));
+            panelItems.add(new WidgetItem(btn, cx, y));
+            cx += btnW + gap;
+        }
+        if (showPresetMgr) {
+            Button mgrBtn = Button.builder(
+                    Component.translatable("endless_gravity.config.presetsButton", draft.atmospherePresets.size()),
+                    b -> {
+                        dimSubView = DimSubView.PRESETS;
+                        rebuildRightPanel(false);
+                    }).bounds(cx, y, w - (cx - x), 20).build();
+            mgrBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.customPresetsHelp")));
+            panelItems.add(new WidgetItem(mgrBtn, cx, y));
+        }
+        return y + 22;
+    }
+
+    private int buildAddDimensionPanel(int x, int y, int w) {
+        int backW = 72;
+        panelItems.add(new SectionTitleItem(x, y + 4, w - backW - 8,
+                Component.translatable("endless_gravity.config.dimensionCreate"), ACCENT_GREEN));
+        Button backBtn = Button.builder(Component.translatable("gui.back"),
+                b -> {
+                    dimSubView = DimSubView.EDITOR;
+                    rebuildRightPanel(false);
+                }).bounds(x + w - backW, y, backW, 20).build();
+        panelItems.add(new WidgetItem(backBtn, x + w - backW, y));
+        y += 28;
+
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.dimensionAdd"), TEXT_MUTED));
+        y += 12;
+
+        EditBox idBox = new EditBox(this.font, x, y, w, 20,
+                Component.translatable("endless_gravity.config.dimensionAdd"));
+        idBox.setMaxLength(128);
+        idBox.setValue(pendingDimId);
+        idBox.setResponder(v -> pendingDimId = v.trim());
+        panelItems.add(new WidgetItem(idBox, x, y));
+        y += 26;
+
+        // Mode choice
+        int halfW = (w - 6) / 2;
+        Button atmBtn = Button.builder(
+                Component.translatable("endless_gravity.config.dimensionMode.atmosphere"),
+                b -> {
+                    pendingDimMode = CustomDimConfig.Mode.ATMOSPHERE;
+                    rebuildRightPanel(true);
+                }).bounds(x, y, halfW, 20).build();
+        atmBtn.active = pendingDimMode != CustomDimConfig.Mode.ATMOSPHERE;
+        panelItems.add(new WidgetItem(atmBtn, x, y));
+
+        Button fixBtn = Button.builder(
+                Component.translatable("endless_gravity.config.dimensionMode.fixed_gravity"),
+                b -> {
+                    pendingDimMode = CustomDimConfig.Mode.FIXED_GRAVITY;
+                    rebuildRightPanel(true);
+                }).bounds(x + halfW + 6, y, halfW, 20).build();
+        fixBtn.active = pendingDimMode != CustomDimConfig.Mode.FIXED_GRAVITY;
+        panelItems.add(new WidgetItem(fixBtn, x + halfW + 6, y));
+        y += 28;
+
+        Button createBtn = Button.builder(
+                Component.translatable("endless_gravity.config.dimensionCreateButton").copy().withColor(ACCENT_GREEN),
+                b -> commitAddDimension()).bounds(x, y, w, 20).build();
+        panelItems.add(new WidgetItem(createBtn, x, y));
+        y += 30;
+
+        // Quick-pick available registered dimensions
+        List<String> available = discoverUnconfiguredDimensions();
+        if (!available.isEmpty()) {
+            panelItems.add(new DividerItem(x, y, w));
+            y += 10;
+            panelItems.add(new TextItem(x, y, w,
+                    Component.translatable("endless_gravity.config.quickPickDimension"), TEXT_MUTED));
+            y += 14;
+
+            int cols = w >= 320 ? 2 : 1;
+            int gap = 6;
+            int colW = (w - gap * (cols - 1)) / cols;
+            for (int i = 0; i < available.size(); i++) {
+                String dimId = available.get(i);
+                int col = i % cols;
+                int row = i / cols;
+                int bx = x + col * (colW + gap);
+                int by = y + row * 24;
+                Button pickBtn = Button.builder(Component.literal(dimId), b -> {
+                    pendingDimId = dimId;
+                    idBox.setValue(dimId);
+                }).bounds(bx, by, colW, 20).build();
+                pickBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.quickPickDimension.tooltip")));
+                panelItems.add(new WidgetItem(pickBtn, bx, by));
+            }
+            y += ((available.size() + cols - 1) / cols) * 24;
+        }
+        return y;
+    }
+
+    private int buildPresetsPanel(int x, int y, int w) {
+        DimensionDraft profile = selectedProfile();
+        int backW = 72;
+        panelItems.add(new SectionTitleItem(x, y + 4, w - backW - 8,
+                Component.translatable("endless_gravity.config.customPresets"), ACCENT_LIGHT));
+        Button backBtn = Button.builder(Component.translatable("gui.back"),
+                b -> {
+                    dimSubView = DimSubView.EDITOR;
+                    rebuildRightPanel(false);
+                }).bounds(x + w - backW, y, backW, 20).build();
+        panelItems.add(new WidgetItem(backBtn, x + w - backW, y));
+        y += 28;
+
+        // Save current atmosphere as preset
+        if (profile != null) {
+            panelItems.add(new TextItem(x, y, w,
+                    Component.translatable("endless_gravity.config.saveCurrentAsPreset"), TEXT_MUTED));
+            y += 12;
+            int saveW = 86;
+            EditBox nameBox = new EditBox(this.font, x, y, w - saveW - 6, 20,
+                    Component.translatable("endless_gravity.config.savePresetName"));
+            nameBox.setMaxLength(48);
+            nameBox.setValue(pendingPresetName);
+            nameBox.setResponder(v -> pendingPresetName = v);
+            panelItems.add(new WidgetItem(nameBox, x, y));
+
+            Button savePresetBtn = Button.builder(
+                    Component.translatable("endless_gravity.config.saveShort").copy().withColor(ACCENT_GREEN),
+                    b -> saveAtmospherePreset(profile)).bounds(x + w - saveW, y, saveW, 20).build();
+            panelItems.add(new WidgetItem(savePresetBtn, x + w - saveW, y));
+            y += 28;
+        }
+
+        // Saved presets list
+        panelItems.add(new DividerItem(x, y, w));
+        y += 10;
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.savedPresets", draft.atmospherePresets.size()), TEXT_WHITE));
+        y += 14;
+
+        for (AtmospherePreset preset : List.copyOf(draft.atmospherePresets)) {
+            int delW = 64;
+            int applyW = w - delW - 6;
+            Button applyBtn = Button.builder(Component.literal(preset.name()), b -> {
+                if (profile != null) {
+                    applyCustomPreset(profile, preset);
+                    dimSubView = DimSubView.EDITOR;
+                    rebuildRightPanel(false);
+                }
+            }).bounds(x, y, applyW, 20).build();
+            applyBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.myAtmospherePresets.tooltip")));
+            panelItems.add(new WidgetItem(applyBtn, x, y));
+
+            Button delBtn = Button.builder(
+                    Component.translatable("endless_gravity.config.deletePresetButton").copy().withColor(ACCENT_RED),
+                    b -> {
+                        draft.atmospherePresets.remove(preset);
+                        setStatus(Component.translatable("endless_gravity.config.presetStatus.deleted"), ACCENT_AMBER);
+                        rebuildRightPanel(true);
+                    }).bounds(x + applyW + 6, y, delW, 20).build();
+            panelItems.add(new WidgetItem(delBtn, x + applyW + 6, y));
+            y += 24;
+        }
+
+        // Import / Export JSON
+        y += 6;
+        panelItems.add(new DividerItem(x, y, w));
+        y += 10;
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.importPresetsJson"), TEXT_MUTED));
+        y += 12;
+
+        EditBox jsonBox = new EditBox(this.font, x, y, w, 20,
+                Component.translatable("endless_gravity.config.importPresetsJson"));
+        jsonBox.setMaxLength(16384);
+        jsonBox.setValue(pendingImportJson);
+        jsonBox.setResponder(v -> pendingImportJson = v);
+        panelItems.add(new WidgetItem(jsonBox, x, y));
+        y += 24;
+
+        int halfW = (w - 6) / 2;
+        Button impBtn = Button.builder(Component.translatable("endless_gravity.config.importPresets"),
+                b -> importPresets()).bounds(x, y, halfW, 20).build();
+        panelItems.add(new WidgetItem(impBtn, x, y));
+
+        Button expBtn = Button.builder(Component.translatable("endless_gravity.config.exportPresets"),
+                b -> {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(
+                            AtmospherePreset.exportJson(draft.atmospherePresets));
+                    setStatus(Component.translatable("endless_gravity.config.presetStatus.exported"), ACCENT_GREEN);
+                }).bounds(x + halfW + 6, y, halfW, 20).build();
+        panelItems.add(new WidgetItem(expBtn, x + halfW + 6, y));
+        return y + 26;
+    }
+
+    // ==================== GENERAL TAB ====================
+
+    private int buildGeneralPanel(int x, int y, int w) {
+        int colGap = 12;
+        int colW = (w - colGap) / 2;
+
+        // 1. Fall Damage & Atmosphere Physics
+        int resetGenW = 96;
+        panelItems.add(new SectionTitleItem(x, y + 4, w - resetGenW - 8,
+                Component.translatable("endless_gravity.config.group.fall_damage"), ACCENT_LIGHT));
+        Button resetGenBtn = Button.builder(
+                Component.translatable("endless_gravity.config.resetDefaults"),
+                b -> resetGeneralDefaults()).bounds(x + w - resetGenW, y, resetGenW, 18).build();
+        resetGenBtn.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.resetGeneral.tooltip")));
+        panelItems.add(new WidgetItem(resetGenBtn, x + w - resetGenW, y));
+        y += 20;
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.group.fall_damage.help"), TEXT_MUTED));
+        y += 16;
+
+        CycleButton<FallDamageMode> playerFall = CycleButton.<FallDamageMode>builder(
+                        m -> Component.translatable("endless_gravity.config.fallDamageMode." + m.name().toLowerCase(Locale.ROOT)))
+                .withValues(FallDamageMode.values())
+                .withInitialValue(draft.fallDamageMode)
+                .create(x, y, colW, 20,
+                        Component.translatable("endless_gravity.config.fallDamageMode"),
+                        (btn, val) -> draft.fallDamageMode = val);
+        panelItems.add(new WidgetItem(playerFall, x, y));
+
+        CycleButton<FallDamageMode> mobFall = CycleButton.<FallDamageMode>builder(
+                        m -> Component.translatable("endless_gravity.config.fallDamageMode." + m.name().toLowerCase(Locale.ROOT)))
+                .withValues(FallDamageMode.values())
+                .withInitialValue(draft.mobFallDamageMode)
+                .create(x + colW + colGap, y, colW, 20,
+                        Component.translatable("endless_gravity.config.mobFallDamageMode"),
+                        (btn, val) -> draft.mobFallDamageMode = val);
+        panelItems.add(new WidgetItem(mobFall, x + colW + colGap, y));
+        y += 24;
+
+        CycleButton<Boolean> dragToggle = CycleButton.onOffBuilder(draft.enableAtmosphericDrag)
+                .create(x, y, w, 20,
+                        Component.translatable("endless_gravity.config.enableAtmosphericDrag"),
+                        (btn, val) -> draft.enableAtmosphericDrag = val);
+        dragToggle.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.enableAtmosphericDrag.tooltip")));
+        panelItems.add(new WidgetItem(dragToggle, x, y));
+        y += 28;
+
+        // 2. Potions
+        panelItems.add(new DividerItem(x, y, w));
+        y += 10;
+        panelItems.add(new SectionTitleItem(x, y, w,
+                Component.translatable("endless_gravity.config.group.potions"), ACCENT_LIGHT));
+        y += 16;
+
+        CycleButton<Boolean> potToggle = CycleButton.onOffBuilder(draft.enablePotionGravity)
+                .create(x, y, w, 20,
+                        Component.translatable("endless_gravity.config.enablePotionGravity"),
+                        (btn, val) -> draft.enablePotionGravity = val);
+        panelItems.add(new WidgetItem(potToggle, x, y));
+        y += 26;
+
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.weightlessnessGravityOffset", draft.weightlessnessOffset, 0.0, 0.07, 0.0,
+                v -> draft.weightlessnessOffset = v,
+                "endless_gravity.config.heavinessGravityOffset", draft.heavinessOffset, 0.0, 0.07, 0.0,
+                v -> draft.heavinessOffset = v);
+
+        // 3. HUD & Client Visuals/Audio
+        panelItems.add(new DividerItem(x, y, w));
+        y += 10;
+        panelItems.add(new SectionTitleItem(x, y, w,
+                Component.translatable("endless_gravity.config.group.client"), ACCENT_LIGHT));
+        y += 14;
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.group.client.help"), TEXT_MUTED));
+        y += 16;
+
+        CycleButton<Boolean> hudToggle = CycleButton.onOffBuilder(draft.enableGravityHud)
+                .create(x, y, colW, 20,
+                        Component.translatable("endless_gravity.config.enableGravityHud"),
+                        (btn, val) -> draft.enableGravityHud = val);
+        panelItems.add(new WidgetItem(hudToggle, x, y));
+
+        CycleButton<Boolean> hudPresToggle = CycleButton.onOffBuilder(draft.hudShowPressure)
+                .create(x + colW + colGap, y, colW, 20,
+                        Component.translatable("endless_gravity.config.hudShowPressure"),
+                        (btn, val) -> draft.hudShowPressure = val);
+        panelItems.add(new WidgetItem(hudPresToggle, x + colW + colGap, y));
+        y += 24;
+
+        CycleButton<HudPosition> hudPosBtn = CycleButton.<HudPosition>builder(
+                        p -> Component.translatable("endless_gravity.config.hudPosition." + p.name().toLowerCase(Locale.ROOT)))
+                .withValues(HudPosition.values())
+                .withInitialValue(draft.hudPosition)
+                .create(x, y, colW, 20,
+                        Component.translatable("endless_gravity.config.hudPosition"),
+                        (btn, val) -> draft.hudPosition = val);
+        panelItems.add(new WidgetItem(hudPosBtn, x, y));
+
+        CycleButton<Boolean> hudCompactToggle = CycleButton.onOffBuilder(draft.hudCompact)
+                .create(x + colW + colGap, y, colW, 20,
+                        Component.translatable("endless_gravity.config.hudCompact"),
+                        (btn, val) -> draft.hudCompact = val);
+        hudCompactToggle.setTooltip(Tooltip.create(Component.translatable("endless_gravity.config.hudCompact.tooltip")));
+        panelItems.add(new WidgetItem(hudCompactToggle, x + colW + colGap, y));
+        y += 24;
+
+        CycleButton<Boolean> lpToggle = CycleButton.onOffBuilder(draft.enableLowPassFilter)
+                .create(x, y, w, 20,
+                        Component.translatable("endless_gravity.config.enableLowPassFilter"),
+                        (btn, val) -> draft.enableLowPassFilter = val);
+        panelItems.add(new WidgetItem(lpToggle, x, y));
+        y += 26;
+
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.lowPassGain", draft.lowPassGain, 0.0, 1.0, 0.0,
+                v -> draft.lowPassGain = v,
+                "endless_gravity.config.lowPassGainHF", draft.lowPassGainHF, 0.0, 1.0, 0.0,
+                v -> draft.lowPassGainHF = v);
+
+        y = addSingleDouble(x, y, colW,
+                "endless_gravity.config.particleGravityOffset", draft.particleGravityOffset, 0.0, 0.5, 0.0,
+                v -> draft.particleGravityOffset = v);
+
+        // 4. Immune Entities
+        panelItems.add(new DividerItem(x, y, w));
+        y += 10;
+        panelItems.add(new SectionTitleItem(x, y, w,
+                Component.translatable("endless_gravity.config.gravityImmuneEntities"), ACCENT_LIGHT));
+        y += 14;
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.gravityImmuneEntities.tooltip"), TEXT_MUTED));
+        y += 16;
+
+        int addW = 70;
+        EditBox immuneBox = new EditBox(this.font, x, y, w - addW - 6, 20,
+                Component.translatable("endless_gravity.config.gravityImmuneEntities"));
+        immuneBox.setMaxLength(128);
+        immuneBox.setValue(pendingImmuneId);
+        immuneBox.setResponder(v -> pendingImmuneId = v.trim());
+        panelItems.add(new WidgetItem(immuneBox, x, y));
+
+        Button addImmBtn = Button.builder(Component.literal("+ Add").withColor(ACCENT_GREEN), b -> {
+            String trimmed = pendingImmuneId.trim();
+            if (!trimmed.isEmpty() && ResourceLocation.tryParse(trimmed) != null
+                    && !draft.gravityImmuneEntities.contains(trimmed)) {
+                draft.gravityImmuneEntities.add(trimmed);
+                pendingImmuneId = "";
+                rebuildRightPanel(true);
+            }
+        }).bounds(x + w - addW, y, addW, 20).build();
+        panelItems.add(new WidgetItem(addImmBtn, x + w - addW, y));
+        y += 26;
+
+        for (int i = 0; i < draft.gravityImmuneEntities.size(); i++) {
+            final int idx = i;
+            String entityId = draft.gravityImmuneEntities.get(i);
+            panelItems.add(new TextItem(x + 4, y + 5, w - 34, Component.literal(entityId), TEXT_WHITE));
+            Button delBtn = Button.builder(Component.literal("×").withColor(ACCENT_RED), b -> {
+                draft.gravityImmuneEntities.remove(idx);
+                rebuildRightPanel(true);
+            }).bounds(x + w - 24, y, 24, 18).build();
+            panelItems.add(new WidgetItem(delBtn, x + w - 24, y));
+            y += 22;
+        }
+        return y;
+    }
+
+    // ==================== SABLE TAB ====================
+
+    private int buildSablePanel(int x, int y, int w) {
+        int colGap = 12;
+        int colW = (w - colGap) / 2;
+
+        panelItems.add(new TextItem(x, y, w,
+                Component.translatable("endless_gravity.config.restartWarning"), ACCENT_AMBER));
+        y += 18;
+
+        panelItems.add(new SectionTitleItem(x, y, w,
+                Component.translatable("endless_gravity.config.group.sable_end"), ACCENT_LIGHT));
+        y += 16;
+
+        CycleButton<Boolean> endSableBtn = CycleButton.onOffBuilder(draft.endSableGravity)
+                .create(x, y, w, 20,
+                        Component.translatable("endless_gravity.config.endSableGravity"),
+                        (btn, val) -> draft.endSableGravity = val);
+        panelItems.add(new WidgetItem(endSableBtn, x, y));
+        y += 26;
+
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.sableGravityY", draft.sableGravityY, -20.0, 0.0, 0.0,
+                v -> draft.sableGravityY = v,
+                "endless_gravity.config.sablePressure", draft.sablePressure, 0.0, 10.0, 0.0,
+                v -> draft.sablePressure = v);
+        y = addDoubleAndIntPair(x, y, colW, colGap,
+                "endless_gravity.config.sableDrag", draft.sableDrag, 0.0, 10.0, v -> draft.sableDrag = v,
+                "endless_gravity.config.sableDatapackPriority", draft.sableDatapackPriority, 1, 9999,
+                v -> draft.sableDatapackPriority = v);
+
+        panelItems.add(new DividerItem(x, y, w));
+        y += 10;
+        panelItems.add(new SectionTitleItem(x, y, w,
+                Component.translatable("endless_gravity.config.group.sable_overworld"), ACCENT_LIGHT));
+        y += 16;
+
+        CycleButton<Boolean> owSableBtn = CycleButton.onOffBuilder(draft.overworldSableGravity)
+                .create(x, y, colW, 20,
+                        Component.translatable("endless_gravity.config.overworldSableGravity"),
+                        (btn, val) -> draft.overworldSableGravity = val);
+        panelItems.add(new WidgetItem(owSableBtn, x, y));
+
+        CycleButton<Boolean> sableAtmBtn = CycleButton.onOffBuilder(draft.enableAtmosphere)
+                .create(x + colW + colGap, y, colW, 20,
+                        Component.translatable("endless_gravity.config.sableAtmosphereEnabled"),
+                        (btn, val) -> draft.enableAtmosphere = val);
+        panelItems.add(new WidgetItem(sableAtmBtn, x + colW + colGap, y));
+        y += 26;
+
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.atmosphereGravityMax", draft.atmosphereGravityMax, 0.0, 0.1, VANILLA_GRAVITY,
+                v -> draft.atmosphereGravityMax = v,
+                "endless_gravity.config.noFallDamageAltitude", draft.noFallDamageAltitude, 64.0, 6000.0, 0.0,
+                v -> draft.noFallDamageAltitude = v);
+        y = addDoublePair(x, y, colW, colGap,
+                "endless_gravity.config.atmosphereMuffleGain", draft.atmosphereMuffleGain, 0.0, 1.0, 0.0,
+                v -> draft.atmosphereMuffleGain = v,
+                "endless_gravity.config.atmosphereMuffleGainHF", draft.atmosphereMuffleGainHF, 0.0, 1.0, 0.0,
+                v -> draft.atmosphereMuffleGainHF = v);
+        y = addSingleInt(x, y, colW,
+                "endless_gravity.config.overworldSableDatapackPriority", draft.overworldSableDatapackPriority, 1, 9999,
+                v -> draft.overworldSableDatapackPriority = v);
+
+        return y;
+    }
+
+    // ==================== FIELD ROW BUILDERS ====================
+
+    private int addDoublePair(int x, int y, int colW, int gap,
+                              String keyA, double valA, double minA, double maxA, double baseG_A, DoubleConsumer setA,
+                              String keyB, double valB, double minB, double maxB, double baseG_B, DoubleConsumer setB) {
+        addFieldCell(x, y, colW, keyA, valA, minA, maxA, baseG_A, setA);
+        addFieldCell(x + colW + gap, y, colW, keyB, valB, minB, maxB, baseG_B, setB);
+        return y + 38;
+    }
+
+    private int addSingleDouble(int x, int y, int colW,
+                                String key, double val, double min, double max, double baseG, DoubleConsumer setter) {
+        addFieldCell(x, y, colW, key, val, min, max, baseG, setter);
+        return y + 38;
+    }
+
+    private int addDoubleAndIntPair(int x, int y, int colW, int gap,
+                                    String keyA, double valA, double minA, double maxA, DoubleConsumer setA,
+                                    String keyB, int valB, int minB, int maxB, IntConsumer setB) {
+        addFieldCell(x, y, colW, keyA, valA, minA, maxA, 0.0, setA);
+        addIntCell(x + colW + gap, y, colW, keyB, valB, minB, maxB, setB);
+        return y + 38;
+    }
+
+    private int addSingleInt(int x, int y, int colW, String key, int val, int min, int max, IntConsumer setter) {
+        addIntCell(x, y, colW, key, val, min, max, setter);
+        return y + 38;
+    }
+
+    private void addFieldCell(int x, int y, int w, String key, double initial,
+                              double min, double max, double baseG, DoubleConsumer setter) {
+        int badgeW = baseG > 0.0 ? 44 : 0;
+        panelItems.add(new TextItem(x, y, w - badgeW, Component.translatable(key), TEXT_MUTED));
+        GravityBadgeItem badge = null;
+        if (baseG > 0.0) {
+            badge = new GravityBadgeItem(x + w - badgeW, y, badgeW, baseG, initial);
+            panelItems.add(badge);
+        }
+        final GravityBadgeItem finalBadge = badge;
+        EditBox box = new EditBox(this.font, x, y + 12, w, 18, Component.translatable(key));
+        box.setMaxLength(20);
+        box.setValue(formatClean(initial));
+        String tooltipKey = key + ".tooltip";
+        if (net.minecraft.locale.Language.getInstance().has(tooltipKey)) {
+            box.setTooltip(Tooltip.create(Component.translatable(tooltipKey)));
+        }
+        box.setResponder(raw -> {
+            if (suppressFieldCallbacks) return;
+            try {
+                double parsed = Double.parseDouble(raw.trim());
+                if (Double.isFinite(parsed) && parsed >= min && parsed <= max) {
+                    box.setTextColor(0xE0E0E0);
+                    setter.accept(parsed);
+                    if (finalBadge != null) finalBadge.offset = parsed;
+                } else {
+                    box.setTextColor(ACCENT_RED);
+                }
+            } catch (NumberFormatException e) {
+                box.setTextColor(ACCENT_RED);
+            }
+        });
+        panelItems.add(new WidgetItem(box, x, y + 12));
+    }
+
+    private void addIntCell(int x, int y, int w, String key, int initial, int min, int max, IntConsumer setter) {
+        panelItems.add(new TextItem(x, y, w, Component.translatable(key), TEXT_MUTED));
+        EditBox box = new EditBox(this.font, x, y + 12, w, 18, Component.translatable(key));
+        box.setMaxLength(12);
+        box.setValue(Integer.toString(initial));
+        box.setResponder(raw -> {
+            if (suppressFieldCallbacks) return;
+            try {
+                int parsed = Integer.parseInt(raw.trim());
+                if (parsed >= min && parsed <= max) {
+                    box.setTextColor(0xE0E0E0);
+                    setter.accept(parsed);
+                } else {
+                    box.setTextColor(ACCENT_RED);
+                }
+            } catch (NumberFormatException e) {
+                box.setTextColor(ACCENT_RED);
+            }
+        });
+        panelItems.add(new WidgetItem(box, x, y + 12));
+    }
+
+    private EditBox createNumericBox(int x, int y, int w, String initial, Consumer<String> responder) {
+        EditBox box = new EditBox(this.font, x, y, w, 18, Component.empty());
+        box.setMaxLength(16);
+        box.setValue(initial);
+        box.setResponder(raw -> {
+            if (!suppressFieldCallbacks) responder.accept(raw);
+        });
+        return box;
+    }
+
+    // ==================== PROFILE & LAYER ACTIONS (IN-PLACE!) ====================
+
+    private void onCanvasLayerDragged(int index, double altitude, double pressure) {
+        if (index < 0 || index >= activeLayerBoxes.size()) return;
+        LayerRowBoxes boxes = activeLayerBoxes.get(index);
+        suppressFieldCallbacks = true;
+        try {
+            boxes.altBox.setValue(formatClean(Math.rint(altitude)));
+            boxes.altBox.setTextColor(0xE0E0E0);
+            boxes.presBox.setValue(formatClean(Math.round(pressure * 1000.0) / 1000.0));
+            boxes.presBox.setTextColor(0xE0E0E0);
+        } finally {
+            suppressFieldCallbacks = false;
+        }
+    }
+
+    private void onLayerAltitudeTyped(DimensionDraft profile, int index, String raw) {
+        if (index < 0 || index >= profile.layers.size() || index >= activeLayerBoxes.size()) return;
+        EditBox box = activeLayerBoxes.get(index).altBox;
+        try {
+            double val = Double.parseDouble(raw.trim());
+            double min = index == 0 ? CURVE_MIN_ALT : profile.layers.get(index - 1).altitude() + 1.0;
+            double max = index == profile.layers.size() - 1 ? CURVE_MAX_ALT : profile.layers.get(index + 1).altitude() - 1.0;
+            if (Double.isFinite(val) && val >= min && val <= max) {
+                box.setTextColor(0xE0E0E0);
+                AtmosphereLayers.Layer old = profile.layers.get(index);
+                profile.layers.set(index, new AtmosphereLayers.Layer(Math.rint(val), old.pressure()));
+            } else {
+                box.setTextColor(ACCENT_RED);
+            }
+        } catch (NumberFormatException e) {
+            box.setTextColor(ACCENT_RED);
+        }
+    }
+
+    private void onLayerPressureTyped(DimensionDraft profile, int index, String raw) {
+        if (index < 0 || index >= profile.layers.size() || index >= activeLayerBoxes.size()) return;
+        EditBox box = activeLayerBoxes.get(index).presBox;
+        try {
+            double val = Double.parseDouble(raw.trim());
+            if (Double.isFinite(val) && val >= 0.0 && val <= 10.0) {
+                box.setTextColor(0xE0E0E0);
+                AtmosphereLayers.Layer old = profile.layers.get(index);
+                profile.layers.set(index, new AtmosphereLayers.Layer(old.altitude(), val));
+            } else {
+                box.setTextColor(ACCENT_RED);
+            }
+        } catch (NumberFormatException e) {
+            box.setTextColor(ACCENT_RED);
+        }
+    }
+
+    private void addLayer(DimensionDraft profile) {
+        if (profile.layers.size() >= CustomDimConfig.MAX_ATMOSPHERE_LAYERS) return;
+        double bestGap = 0.0;
+        double altitude = 0.0;
+        double prev = CURVE_MIN_ALT;
+        for (int i = 0; i <= profile.layers.size(); i++) {
+            double next = i == profile.layers.size() ? CURVE_MAX_ALT : profile.layers.get(i).altitude();
+            double gap = next - prev;
+            if (gap > bestGap) {
+                bestGap = gap;
+                altitude = Math.floor((prev + next) / 2.0);
+            }
+            prev = next;
+        }
+        if (bestGap < 2.0) return;
+        profile.layers.add(new AtmosphereLayers.Layer(altitude, AtmosphereLayers.getPressure(profile.layers, altitude)));
+        profile.layers.sort(Comparator.comparingDouble(AtmosphereLayers.Layer::altitude));
+        rebuildRightPanel(true);
+    }
+
+    private void removeLayer(DimensionDraft profile, int index) {
+        if (profile.layers.size() <= 2 || index < 0 || index >= profile.layers.size()) return;
+        profile.layers.remove(index);
+        rebuildRightPanel(true);
+    }
+
+    private void applyBuiltInPreset(DimensionDraft profile, String preset) {
+        if (profile.mode == CustomDimConfig.Mode.FIXED_GRAVITY) {
+            switch (preset) {
+                case "vanilla" -> setFixed(profile, 0, 0, 0, 0, 0, 0);
+                case "light_gravity" -> setFixed(profile, 0.025, 0.02, 0.01, 0.015, 0.01, 0.02);
+                case "lunar" -> setFixed(profile, 0.055, 0.025, 0.025, 0.03, 0.018, 0.035);
+                default -> {}
+            }
+        } else {
+            switch (preset) {
+                case "terrestrial" -> {
+                    profile.surfaceGravityOffset = 0.0;
+                    profile.atmosphereGravityMax = 0.075;
+                    profile.atmosphereBaseAltitude = 319;
+                    profile.noFallDamageAltitude = 4500;
+                    profile.atmosphereMuffleGain = 0.01;
+                    profile.atmosphereMuffleGainHF = 0.005;
+                    profile.layers.clear();
+                    profile.layers.addAll(AtmosphereLayers.defaults());
+                }
+                case "gentle_atmosphere" -> {
+                    profile.surfaceGravityOffset = 0.0;
+                    profile.atmosphereGravityMax = 0.04;
+                    profile.atmosphereBaseAltitude = 319;
+                    profile.noFallDamageAltitude = -1;
+                    profile.atmosphereMuffleGain = 0.15;
+                    profile.atmosphereMuffleGainHF = 0.1;
+                    profile.layers.clear();
+                    profile.layers.addAll(AtmosphereLayers.defaults());
+                }
+                case "thin_atmosphere" -> {
+                    profile.surfaceGravityOffset = 0.0;
+                    profile.atmosphereGravityMax = 0.05;
+                    profile.atmosphereBaseAltitude = 64;
+                    profile.noFallDamageAltitude = 1800;
+                    profile.atmosphereMuffleGain = 0.02;
+                    profile.atmosphereMuffleGainHF = 0.01;
+                    profile.layers.clear();
+                    profile.layers.addAll(List.of(
+                            new AtmosphereLayers.Layer(-64, 1.0),
+                            new AtmosphereLayers.Layer(64, 0.75),
+                            new AtmosphereLayers.Layer(400, 0.25),
+                            new AtmosphereLayers.Layer(1200, 0.08),
+                            new AtmosphereLayers.Layer(2000, 0.0),
+                            new AtmosphereLayers.Layer(3000, 0.0),
+                            new AtmosphereLayers.Layer(4500, 0.0),
+                            new AtmosphereLayers.Layer(6000, 0.0)));
+                }
+                default -> {}
+            }
+        }
+        rebuildRightPanel(true);
+    }
+
+    private void applyCustomPreset(DimensionDraft profile, AtmospherePreset preset) {
+        profile.atmosphereGravityMax = preset.gravityMax();
+        profile.atmosphereBaseAltitude = preset.startAltitude();
+        profile.noFallDamageAltitude = preset.noFallDamageAbove() == null ? -1 : preset.noFallDamageAbove();
+        profile.atmosphereMuffleGain = preset.muffleGain();
+        profile.atmosphereMuffleGainHF = preset.muffleGainHF();
+        profile.layers.clear();
+        profile.layers.addAll(AtmosphereLayers.parseUncached(preset.layers()));
+        setStatus(Component.translatable("endless_gravity.config.presetStatus.applied", preset.name()), ACCENT_GREEN);
+    }
+
+    private void saveAtmospherePreset(DimensionDraft profile) {
+        String name = pendingPresetName.trim();
+        if (name.isEmpty() || name.length() > 48) {
+            setStatus(Component.translatable("endless_gravity.config.presetStatus.invalid_name"), ACCENT_RED);
+            return;
+        }
+        AtmospherePreset preset;
+        try {
+            preset = new AtmospherePreset(name, profile.atmosphereGravityMax,
+                    profile.atmosphereBaseAltitude,
+                    profile.noFallDamageAltitude < 0 ? null : profile.noFallDamageAltitude,
+                    profile.atmosphereMuffleGain, profile.atmosphereMuffleGainHF,
+                    AtmosphereLayers.serialize(profile.layers));
+        } catch (IllegalArgumentException e) {
+            setStatus(Component.translatable("endless_gravity.config.presetStatus.invalid_preset"), ACCENT_RED);
+            return;
+        }
+        int existing = -1;
+        for (int i = 0; i < draft.atmospherePresets.size(); i++) {
+            if (draft.atmospherePresets.get(i).name().equalsIgnoreCase(name)) {
+                existing = i;
+                break;
+            }
+        }
+        if (existing >= 0) {
+            draft.atmospherePresets.set(existing, preset);
+        } else if (draft.atmospherePresets.size() >= AtmospherePreset.MAX_PRESETS) {
+            setStatus(Component.translatable("endless_gravity.config.presetStatus.limit"), ACCENT_RED);
+            return;
+        } else {
+            draft.atmospherePresets.add(preset);
+        }
+        pendingPresetName = "";
+        setStatus(Component.translatable("endless_gravity.config.presetStatus.saved"), ACCENT_GREEN);
+        rebuildRightPanel(true);
+    }
+
+    private void importPresets() {
+        try {
+            List<AtmospherePreset> imported = AtmospherePreset.parseImport(pendingImportJson);
+            List<AtmospherePreset> merged = new ArrayList<>(draft.atmospherePresets);
+            for (AtmospherePreset preset : imported) {
+                int existing = -1;
+                for (int i = 0; i < merged.size(); i++) {
+                    if (merged.get(i).name().equalsIgnoreCase(preset.name())) {
+                        existing = i;
+                        break;
+                    }
+                }
+                if (existing >= 0) merged.set(existing, preset);
+                else merged.add(preset);
+            }
+            if (merged.size() > AtmospherePreset.MAX_PRESETS) {
+                setStatus(Component.translatable("endless_gravity.config.presetStatus.limit"), ACCENT_RED);
+                return;
+            }
+            draft.atmospherePresets.clear();
+            draft.atmospherePresets.addAll(merged);
+            pendingImportJson = "";
+            setStatus(Component.translatable("endless_gravity.config.presetStatus.imported"), ACCENT_GREEN);
+            rebuildRightPanel(true);
+        } catch (RuntimeException e) {
+            setStatus(Component.translatable("endless_gravity.config.presetStatus.invalid_json"), ACCENT_RED);
+        }
+    }
+
+    private void commitAddDimension() {
+        if (draft.profiles.size() >= Config.MAX_CUSTOM_DIMENSIONS) {
+            setStatus(Component.translatable("endless_gravity.config.dimensionStatus.limit"), ACCENT_RED);
+            return;
+        }
+        String raw = pendingDimId.trim();
+        ResourceLocation parsed = raw.contains(":") ? ResourceLocation.tryParse(raw) : null;
+        if (parsed == null) {
+            setStatus(Component.translatable("endless_gravity.config.dimensionStatus.invalid"), ACCENT_RED);
+            return;
+        }
+        String normalized = parsed.toString();
+        if (draft.profiles.stream().anyMatch(p -> p.id.equals(normalized))) {
+            setStatus(Component.translatable("endless_gravity.config.dimensionId.duplicate"), ACCENT_RED);
+            return;
+        }
+        DimensionDraft created = new DimensionDraft(Config.createDimensionProfile(normalized, pendingDimMode));
+        draft.profiles.add(created);
+        draft.profiles.sort((a, b) -> a.id.compareToIgnoreCase(b.id));
+        selectedDimId = normalized;
+        dimSubView = DimSubView.EDITOR;
+        setStatus(Component.translatable("endless_gravity.config.dimensionStatus.added"), ACCENT_GREEN);
+        rebuildRightPanel(false);
+    }
+
+    private void removeProfile(DimensionDraft profile) {
+        draft.profiles.remove(profile);
+        draft.removedProfiles.add(profile);
+        if (selectedDimId.equals(profile.id)) {
+            selectedDimId = draft.profiles.isEmpty() ? "" : draft.profiles.get(0).id;
+        }
+        rebuildRightPanel(false);
+    }
+
+    private void restoreLastRemoved() {
+        if (draft.removedProfiles.isEmpty()) return;
+        DimensionDraft last = draft.removedProfiles.remove(draft.removedProfiles.size() - 1);
+        if (draft.profiles.stream().anyMatch(p -> p.id.equals(last.id))) {
+            setStatus(Component.translatable("endless_gravity.config.dimensionStatus.duplicate"), ACCENT_RED);
+            updateTabChrome();
+            return;
+        }
+        draft.profiles.add(last);
+        draft.profiles.sort((a, b) -> a.id.compareToIgnoreCase(b.id));
+        selectedDimId = last.id;
+        dimSubView = DimSubView.EDITOR;
+        rebuildRightPanel(false);
+    }
+
+    private List<String> discoverUnconfiguredDimensions() {
+        Set<String> ids = new LinkedHashSet<>();
+        var mc = Minecraft.getInstance();
+        if (mc.player != null && mc.player.connection != null) {
+            mc.player.connection.levels().forEach(key -> ids.add(key.location().toString()));
+        }
+        ids.add("minecraft:overworld");
+        ids.add("minecraft:the_nether");
+        ids.add("minecraft:the_end");
+        Set<String> configured = new HashSet<>();
+        draft.profiles.forEach(p -> configured.add(p.id));
+        return ids.stream().filter(id -> !configured.contains(id)).sorted().limit(12).toList();
+    }
+
+    private static void setFixed(DimensionDraft p, double player, double mob, double item,
+                                 double arrow, double thrown, double block) {
+        p.playerOffset = player;
+        p.mobOffset = mob;
+        p.itemOffset = item;
+        p.arrowOffset = arrow;
+        p.thrownOffset = thrown;
+        p.blockOffset = block;
+    }
+
+    private List<DimensionDraft> filteredProfiles() {
+        if (sidebarFilter.isEmpty()) return draft.profiles;
+        List<DimensionDraft> out = new ArrayList<>();
+        for (DimensionDraft p : draft.profiles) {
+            if (p.id.toLowerCase(Locale.ROOT).contains(sidebarFilter)) {
+                out.add(p);
+            }
+        }
+        return out;
+    }
+
+    private void resetDimensionProfile(DimensionDraft profile) {
+        CustomDimConfig def;
+        if ("minecraft:overworld".equals(profile.id)) {
+            def = Config.defaultOverworldProfile();
+        } else if ("minecraft:the_end".equals(profile.id)) {
+            def = Config.defaultEndProfile();
+        } else {
+            def = Config.defaultGenericProfile(profile.id, profile.mode);
+        }
+        DimensionDraft fresh = new DimensionDraft(def);
+        profile.mode = fresh.mode;
+        profile.playerOffset = fresh.playerOffset;
+        profile.mobOffset = fresh.mobOffset;
+        profile.itemOffset = fresh.itemOffset;
+        profile.arrowOffset = fresh.arrowOffset;
+        profile.thrownOffset = fresh.thrownOffset;
+        profile.blockOffset = fresh.blockOffset;
+        profile.atmosphereGravityMax = fresh.atmosphereGravityMax;
+        profile.atmosphereBaseAltitude = fresh.atmosphereBaseAltitude;
+        profile.noFallDamageAltitude = fresh.noFallDamageAltitude;
+        profile.atmosphereMuffleGain = fresh.atmosphereMuffleGain;
+        profile.atmosphereMuffleGainHF = fresh.atmosphereMuffleGainHF;
+        profile.surfaceGravityOffset = fresh.surfaceGravityOffset;
+        profile.atmosphereAffectNonLiving = fresh.atmosphereAffectNonLiving;
+        profile.fallDamageMode = fresh.fallDamageMode;
+        profile.fixedMuffleGain = fresh.fixedMuffleGain;
+        profile.fixedMuffleGainHF = fresh.fixedMuffleGainHF;
+        profile.layers.clear();
+        profile.layers.addAll(fresh.layers);
+        setStatus(Component.translatable("endless_gravity.config.resetDone"), ACCENT_GREEN);
+        rebuildRightPanel(true);
+    }
+
+    private void resetGeneralDefaults() {
+        draft.fallDamageMode = FallDamageMode.fromInt(1);
+        draft.mobFallDamageMode = FallDamageMode.fromInt(1);
+        draft.enableAtmosphericDrag = false;
+        draft.enablePotionGravity = true;
+        draft.weightlessnessOffset = 0.05;
+        draft.heavinessOffset = 0.02;
+        draft.enableGravityHud = false;
+        draft.hudPosition = HudPosition.TOP_LEFT;
+        draft.hudShowPressure = true;
+        draft.hudCompact = false;
+        draft.enableLowPassFilter = true;
+        draft.lowPassGain = 0.05;
+        draft.lowPassGainHF = 0.05;
+        draft.particleGravityOffset = 0.1;
+        setStatus(Component.translatable("endless_gravity.config.resetDone"), ACCENT_GREEN);
+        rebuildRightPanel(true);
+    }
+
+    // ==================== SAVE ====================
+
+    private void saveAll() {
+        Config.saveAtmospherePresets(draft.atmospherePresets);
+
+        // Client-only settings always apply & persist
+        Config.COMMON.enableGravityHud.set(draft.enableGravityHud);
+        Config.COMMON.hudPosition.set(draft.hudPosition.ordinal());
+        Config.COMMON.hudShowPressure.set(draft.hudShowPressure);
+        Config.COMMON.hudCompact.set(draft.hudCompact);
+        Config.COMMON.enableLowPassFilter.set(draft.enableLowPassFilter);
+        Config.COMMON.lowPassGain.set(draft.lowPassGain);
+        Config.COMMON.lowPassGainHF.set(draft.lowPassGainHF);
+        Config.COMMON.particleGravityOffset.set(draft.particleGravityOffset);
+
+        if (ConfigSyncClient.isServerSyncActive()) {
+            ConfigSyncClient.persistClientOnlyChanges();
+            return;
+        }
+
+        // Gameplay settings
+        Config.COMMON.fallDamageMode.set(draft.fallDamageMode.ordinal());
+        Config.COMMON.mobFallDamageMode.set(draft.mobFallDamageMode.ordinal());
+        Config.COMMON.enableAtmosphericDrag.set(draft.enableAtmosphericDrag);
+        Config.COMMON.enablePotionGravity.set(draft.enablePotionGravity);
+        Config.COMMON.weightlessnessGravityOffset.set(draft.weightlessnessOffset);
+        Config.COMMON.heavinessGravityOffset.set(draft.heavinessOffset);
+        Config.COMMON.gravityImmuneEntities.set(new ArrayList<>(draft.gravityImmuneEntities));
+
+        if (sableLoaded) {
+            Config.COMMON.endSableGravity.set(draft.endSableGravity);
+            Config.COMMON.sableGravityY.set(draft.sableGravityY);
+            Config.COMMON.sablePressure.set(draft.sablePressure);
+            Config.COMMON.sableDrag.set(draft.sableDrag);
+            Config.COMMON.sableDatapackPriority.set(draft.sableDatapackPriority);
+            Config.COMMON.overworldSableGravity.set(draft.overworldSableGravity);
+            Config.COMMON.enableAtmosphere.set(draft.enableAtmosphere);
+            Config.COMMON.atmosphereGravityMax.set(draft.atmosphereGravityMax);
+            Config.COMMON.noFallDamageAltitude.set(draft.noFallDamageAltitude);
+            Config.COMMON.atmosphereMuffleGain.set(draft.atmosphereMuffleGain);
+            Config.COMMON.atmosphereMuffleGainHF.set(draft.atmosphereMuffleGainHF);
+            Config.COMMON.overworldSableDatapackPriority.set(draft.overworldSableDatapackPriority);
+        }
+
+        List<CustomDimConfig> savedProfiles = new ArrayList<>();
+        for (DimensionDraft p : draft.profiles) {
+            savedProfiles.add(p.toConfig());
+        }
+        Config.replaceCustomDimensions(savedProfiles, true);
+        if (sableLoaded) {
+            SableDatapackHandler.generateDatapack();
+        }
+        Config.COMMON_SPEC.save();
+
+        var server = Minecraft.getInstance().getSingleplayerServer();
+        if (server != null) {
+            ConfigSync.broadcast(server);
+        }
+    }
+
+    @Override
+    public void onClose() {
+        Minecraft.getInstance().setScreen(parent);
+    }
+
+    // ==================== RENDERING ====================
+
+    private void syncPanelWidgetPositions() {
+        int scrollInt = (int) Math.round(rightScroll);
+        for (PanelItem item : panelItems) {
+            item.syncPosition(contentX, contentY - scrollInt);
+        }
+    }
+
+    @Override
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        deferredTooltip = null;
+        this.renderBackground(g, mouseX, mouseY, delta);
+
+        // Header bar
+        g.fill(0, 0, this.width, HEADER_H, BG_HEADER);
+        g.fill(0, HEADER_H - 1, this.width, HEADER_H, BORDER_SUBTLE);
+        g.drawString(this.font, this.title, 12, 13, TEXT_WHITE, true);
+
+        // Left sidebar (Dimensions tab)
+        if (activeTab == Tab.DIMENSIONS) {
+            renderSidebar(g, mouseX, mouseY);
+        }
+
+        // Right main panel
+        renderRightPanel(g, mouseX, mouseY, delta);
+
+        // Footer bar
+        int footerTop = this.height - FOOTER_H;
+        g.fill(0, footerTop, this.width, this.height, BG_HEADER);
+        g.fill(0, footerTop, this.width, footerTop + 1, BORDER_SUBTLE);
+        if (!statusText.getString().isEmpty()) {
+            int maxStatusW = Math.max(80, this.width - 230);
+            String clipped = this.font.plainSubstrByWidth(statusText.getString(), maxStatusW);
+            g.drawString(this.font, clipped, 12, footerTop + 14, statusColor, false);
+        }
+
+        // Render fixed chrome widgets (tabs, sidebar buttons, Cancel/Save)
+        for (var renderable : this.renderables) {
+            renderable.render(g, mouseX, mouseY, delta);
+        }
+
+        // Render deferred tooltips on top of everything (never clipped by scissor!)
+        if (deferredTooltip != null) {
+            g.renderTooltip(this.font, deferredTooltip, deferredTooltipX, deferredTooltipY);
+        }
+    }
+
+    private void renderSidebar(GuiGraphics g, int mouseX, int mouseY) {
+        g.fill(sidebarX, sidebarY, sidebarX + sidebarW, sidebarY + sidebarH, BG_SIDEBAR);
+        drawBorder(g, sidebarX, sidebarY, sidebarW, sidebarH, BORDER_SUBTLE);
+
+        List<DimensionDraft> visible = filteredProfiles();
+        int listTop = sidebarY + 42;
+        int bottomReserve = draft.removedProfiles.isEmpty() ? 30 : 54;
+        int listBottom = sidebarY + sidebarH - bottomReserve;
+        int listH = Math.max(20, listBottom - listTop);
+
+        g.drawString(this.font,
+                Component.translatable("endless_gravity.config.dimensionExistingProfiles", visible.size()),
+                sidebarX + 8, sidebarY + 6, TEXT_MUTED, false);
+
+        int rowH = 24;
+        int totalH = visible.size() * rowH;
+        leftScroll = AtmosphereLayers.clamp(leftScroll, 0.0, Math.max(0.0, totalH - listH));
+
+        g.enableScissor(sidebarX + 1, listTop, sidebarX + sidebarW - 1, listBottom);
+        int scrollInt = (int) Math.round(leftScroll);
+        for (int i = 0; i < visible.size(); i++) {
+            DimensionDraft p = visible.get(i);
+            int ry = listTop + i * rowH - scrollInt;
+            if (ry + rowH < listTop || ry > listBottom) continue;
+
+            boolean selected = dimSubView == DimSubView.EDITOR && p.id.equals(selectedDimId);
+            boolean hovered = mouseX >= sidebarX + 2 && mouseX < sidebarX + sidebarW - 2
+                    && mouseY >= Math.max(listTop, ry) && mouseY < Math.min(listBottom, ry + rowH);
+            if (selected) {
+                g.fill(sidebarX + 2, ry, sidebarX + sidebarW - 2, ry + rowH - 1, BG_ROW_SELECTED);
+                g.fill(sidebarX + 2, ry, sidebarX + 4, ry + rowH - 1, ACCENT_LIGHT);
+            } else if (hovered) {
+                g.fill(sidebarX + 2, ry, sidebarX + sidebarW - 2, ry + rowH - 1, BG_ROW_HOVER);
+            }
+
+            boolean isAtm = p.mode == CustomDimConfig.Mode.ATMOSPHERE;
+            int badgeColor = isAtm ? ACCENT_GREEN : ACCENT_AMBER;
+            String badgeText = isAtm ? "ATM" : "FIX";
+            int badgeW = this.font.width(badgeText) + 4;
+            int maxNameW = sidebarW - badgeW - 18;
+            String shortId = p.id.startsWith("minecraft:") ? p.id.substring("minecraft:".length()) : p.id;
+            String display = this.font.plainSubstrByWidth(shortId, maxNameW);
+            g.drawString(this.font, display, sidebarX + 8, ry + 8, selected ? TEXT_WHITE : TEXT_MUTED, false);
+            g.drawString(this.font, badgeText, sidebarX + sidebarW - badgeW - 4, ry + 8, badgeColor, false);
+
+            if (hovered && !display.equals(p.id)) {
+                deferredTooltip = Component.literal(p.id);
+                deferredTooltipX = mouseX;
+                deferredTooltipY = mouseY;
+            }
+        }
+        g.disableScissor();
+
+        if (totalH > listH) {
+            drawScrollbar(g, sidebarX + sidebarW - 4, listTop, listH, totalH, leftScroll);
+        }
+    }
+
+    private void renderRightPanel(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        g.fill(contentX, contentY, contentX + contentW, contentY + contentH, BG_PANEL);
+        drawBorder(g, contentX, contentY, contentW, contentH, BORDER_SUBTLE);
+
+        syncPanelWidgetPositions();
+
+        boolean inPanel = mouseX >= contentX && mouseX < contentX + contentW
+                && mouseY >= contentY && mouseY < contentY + contentH;
+        int effMouseX = inPanel ? mouseX : -10000;
+        int effMouseY = inPanel ? mouseY : -10000;
+
+        g.enableScissor(contentX + 1, contentY + 1, contentX + contentW - 1, contentY + contentH - 1);
+        int scrollInt = (int) Math.round(rightScroll);
+        for (PanelItem item : panelItems) {
+            item.render(g, contentX, contentY - scrollInt, effMouseX, effMouseY, delta);
+        }
+        g.disableScissor();
+
+        if (rightContentHeight > contentH) {
+            drawScrollbar(g, contentX + contentW - 5, contentY + 2, contentH - 4, rightContentHeight, rightScroll);
+        }
+    }
+
+    private static void drawBorder(GuiGraphics g, int x, int y, int w, int h, int color) {
+        g.fill(x, y, x + w, y + 1, color);
+        g.fill(x, y + h - 1, x + w, y + h, color);
+        g.fill(x, y, x + 1, y + h, color);
+        g.fill(x + w - 1, y, x + w, y + h, color);
+    }
+
+    private static void drawScrollbar(GuiGraphics g, int x, int y, int viewH, int totalH, double scroll) {
+        g.fill(x, y, x + 3, y + viewH, 0x26FFFFFF);
+        int thumbH = Math.max(18, (int) ((double) viewH * viewH / totalH));
+        double frac = totalH > viewH ? scroll / (totalH - viewH) : 0.0;
+        int thumbY = y + (int) Math.round(frac * (viewH - thumbH));
+        g.fill(x, thumbY, x + 3, thumbY + thumbH, 0x88999999);
+    }
+
+    // ==================== INPUT HANDLING ====================
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        // Fixed header/footer/sidebar buttons first
+        if (super.mouseClicked(mouseX, mouseY, button)) {
+            clearPanelFocus();
+            return true;
+        }
+
+        // Left sidebar dimension list click
+        if (activeTab == Tab.DIMENSIONS && button == 0) {
+            int listTop = sidebarY + 42;
+            int bottomReserve = draft.removedProfiles.isEmpty() ? 30 : 54;
+            int listBottom = sidebarY + sidebarH - bottomReserve;
+            if (mouseX >= sidebarX + 2 && mouseX < sidebarX + sidebarW - 2
+                    && mouseY >= listTop && mouseY < listBottom) {
+                List<DimensionDraft> visible = filteredProfiles();
+                int idx = (int) ((mouseY - listTop + leftScroll) / 24);
+                if (idx >= 0 && idx < visible.size()) {
+                    String clickedId = visible.get(idx).id;
+                    if (!clickedId.equals(selectedDimId) || dimSubView != DimSubView.EDITOR) {
+                        selectedDimId = clickedId;
+                        dimSubView = DimSubView.EDITOR;
+                        rebuildRightPanel(false);
+                    }
+                    return true;
+                }
+            }
+        }
+
+        // Right scrollable panel click
+        if (mouseX >= contentX && mouseX < contentX + contentW
+                && mouseY >= contentY && mouseY < contentY + contentH) {
+            syncPanelWidgetPositions();
+            for (PanelItem item : panelItems) {
+                if (item.mouseClicked(mouseX, mouseY, button)) {
+                    if (item instanceof WidgetItem wi) {
+                        if (focusedPanelWidget != wi.widget) {
+                            clearPanelFocus();
+                            focusedPanelWidget = wi.widget;
+                            focusedPanelWidget.setFocused(true);
+                        }
+                    } else {
+                        clearPanelFocus();
+                    }
+                    return true;
+                }
+            }
+        }
+        clearPanelFocus();
+        return false;
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (activeCanvas != null && activeCanvas.mouseDragged(mouseX, mouseY, button)) {
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (activeCanvas != null && activeCanvas.mouseReleased(mouseX, mouseY, button)) {
+            return true;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (activeTab == Tab.DIMENSIONS
+                && mouseX >= sidebarX && mouseX < sidebarX + sidebarW
+                && mouseY >= sidebarY && mouseY < sidebarY + sidebarH) {
+            int bottomReserve = draft.removedProfiles.isEmpty() ? 30 : 54;
+            int listH = Math.max(20, sidebarH - 20 - bottomReserve);
+            int totalH = draft.profiles.size() * 24;
+            leftScroll = AtmosphereLayers.clamp(leftScroll - scrollY * 18.0, 0.0, Math.max(0.0, totalH - listH));
+            return true;
+        }
+        if (mouseX >= contentX && mouseX < contentX + contentW
+                && mouseY >= contentY && mouseY < contentY + contentH) {
+            double maxScroll = Math.max(0.0, rightContentHeight - contentH);
+            rightScroll = AtmosphereLayers.clamp(rightScroll - scrollY * 22.0, 0.0, maxScroll);
+            syncPanelWidgetPositions();
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (focusedPanelWidget != null && focusedPanelWidget.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (focusedPanelWidget != null && focusedPanelWidget.charTyped(codePoint, modifiers)) {
+            return true;
+        }
+        return super.charTyped(codePoint, modifiers);
+    }
+
+    private static String formatClean(double v) {
+        if (Math.abs(v - Math.rint(v)) < 1e-6) {
+            return String.format(Locale.ROOT, "%.0f", v);
+        }
+        String s = String.format(Locale.ROOT, "%.4f", v);
+        int end = s.length();
+        while (end > 1 && s.charAt(end - 1) == '0') end--;
+        if (s.charAt(end - 1) == '.') end--;
+        return s.substring(0, end);
+    }
+
+    // ==================== PANEL ITEMS ====================
+
+    private interface PanelItem {
+        default void syncPosition(int originX, int originY) {}
+        void render(GuiGraphics g, int originX, int originY, int mouseX, int mouseY, float delta);
+        default boolean mouseClicked(double mouseX, double mouseY, int button) { return false; }
+    }
+
+    private record LayerRowBoxes(EditBox altBox, EditBox presBox) {}
+
+    private static final class WidgetItem implements PanelItem {
+        final AbstractWidget widget;
+        final int relX, relY;
+
+        WidgetItem(AbstractWidget widget, int relX, int relY) {
+            this.widget = widget;
+            this.relX = relX;
+            this.relY = relY;
+        }
+
+        @Override
+        public void syncPosition(int originX, int originY) {
+            widget.setX(originX + relX);
+            widget.setY(originY + relY);
+        }
+
+        @Override
+        public void render(GuiGraphics g, int originX, int originY, int mouseX, int mouseY, float delta) {
+            widget.render(g, mouseX, mouseY, delta);
+        }
+
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            return widget.mouseClicked(mouseX, mouseY, button);
+        }
+    }
+
+    private final class TextItem implements PanelItem {
+        final int relX, relY, maxW, color;
+        final Component text;
+
+        TextItem(int relX, int relY, int maxW, Component text, int color) {
+            this.relX = relX;
+            this.relY = relY;
+            this.maxW = maxW;
+            this.text = text;
+            this.color = color;
+        }
+
+        @Override
+        public void render(GuiGraphics g, int originX, int originY, int mouseX, int mouseY, float delta) {
+            String clipped = font.plainSubstrByWidth(text.getString(), maxW);
+            g.drawString(font, clipped, originX + relX, originY + relY, color, false);
+        }
+    }
+
+    private final class SectionTitleItem implements PanelItem {
+        final int relX, relY, maxW, color;
+        final Component text;
+
+        SectionTitleItem(int relX, int relY, int maxW, Component text, int color) {
+            this.relX = relX;
+            this.relY = relY;
+            this.maxW = maxW;
+            this.text = text;
+            this.color = color;
+        }
+
+        @Override
+        public void render(GuiGraphics g, int originX, int originY, int mouseX, int mouseY, float delta) {
+            String clipped = font.plainSubstrByWidth(text.getString(), maxW);
+            g.drawString(font, clipped, originX + relX, originY + relY, color, true);
+        }
+    }
+
+    private static final class DividerItem implements PanelItem {
+        final int relX, relY, w;
+
+        DividerItem(int relX, int relY, int w) {
+            this.relX = relX;
+            this.relY = relY;
+            this.w = w;
+        }
+
+        @Override
+        public void render(GuiGraphics g, int originX, int originY, int mouseX, int mouseY, float delta) {
+            g.fill(originX + relX, originY + relY, originX + relX + w, originY + relY + 1, BORDER_SUBTLE);
+        }
+    }
+
+    private final class GravityBadgeItem implements PanelItem {
+        final int relX, relY, w;
+        final double baseGravity;
+        double offset;
+
+        GravityBadgeItem(int relX, int relY, int w, double baseGravity, double offset) {
+            this.relX = relX;
+            this.relY = relY;
+            this.w = w;
+            this.baseGravity = baseGravity;
+            this.offset = offset;
+        }
+
+        @Override
+        public void render(GuiGraphics g, int originX, int originY, int mouseX, int mouseY, float delta) {
+            double ratio = Math.max(0.0, (baseGravity - offset) / baseGravity);
+            String text = String.format(Locale.ROOT, "%.2fg", ratio);
+            int color = Math.abs(offset) < 1e-6 ? TEXT_DIM : (offset > 0 ? ACCENT_LIGHT : ACCENT_AMBER);
+            int tw = font.width(text);
+            g.drawString(font, text, originX + relX + w - tw, originY + relY, color, false);
+        }
+    }
+
+    @FunctionalInterface
+    private interface LayerDragListener {
+        void onDragged(int index, double altitude, double pressure);
+    }
+
+    private final class CurveCanvas implements PanelItem {
+        private static final int CURVE_COLOR = 0xFF8AB896;
+        private static final int GRAVITY_COLOR = 0xFFD8D8D8;
+        private static final int START_MARKER = 0x88A0A0A0;
+        private static final int NO_FALL_MARKER = 0x88C9A66B;
+        private static final int POINT_COLOR = 0xFFE6E6E6;
+
+        private final DimensionDraft profile;
+        private final List<AtmosphereLayers.Layer> layers;
+        private final int relX, relY, w, h;
+        private final LayerDragListener onDragged;
+
+        private int chartX, chartY, chartW, chartH;
+        private int selectedPoint = -1;
+        private double dragStartX, dragStartAlt, dragAltRange;
+
+        CurveCanvas(DimensionDraft profile, int relX, int relY, int w, int h, LayerDragListener onDragged) {
+            this.profile = profile;
+            this.layers = profile.layers;
+            this.relX = relX;
+            this.relY = relY;
+            this.w = w;
+            this.h = h;
+            this.onDragged = onDragged;
+        }
+
+        @Override
+        public void render(GuiGraphics g, int originX, int originY, int mouseX, int mouseY, float delta) {
+            int x = originX + relX;
+            int y = originY + relY;
+            g.fill(x, y, x + w, y + h, BG_CARD);
+            drawBorder(g, x, y, w, h, BORDER_SUBTLE);
+
+            // Legend bar at top
+            int lx = x + 6;
+            int ly = y + 4;
+            g.fill(lx, ly + 2, lx + 6, ly + 6, CURVE_COLOR);
+            g.drawString(font, "P", lx + 9, ly, TEXT_MUTED, false);
+            lx += 22;
+            g.fill(lx, ly + 2, lx + 6, ly + 6, GRAVITY_COLOR);
+            g.drawString(font, "G", lx + 9, ly, TEXT_MUTED, false);
+            lx += 22;
+            g.fill(lx, ly + 2, lx + 6, ly + 6, START_MARKER);
+            g.drawString(font, "Start", lx + 9, ly, TEXT_DIM, false);
+            lx += 38;
+            g.fill(lx, ly + 2, lx + 6, ly + 6, NO_FALL_MARKER);
+            g.drawString(font, "NoFall", lx + 9, ly, TEXT_DIM, false);
+
+            chartX = x + 34;
+            chartY = y + 18;
+            chartW = Math.max(80, w - 44);
+            chartH = h - 34;
+
+            g.fill(chartX, chartY, chartX + chartW, chartY + chartH, 0xD40C0C0C);
+            drawBorder(g, chartX, chartY, chartW, chartH, BORDER_SUBTLE);
+
+            for (int i = 1; i < 4; i++) {
+                int gy = chartY + i * chartH / 4;
+                int gx = chartX + i * chartW / 4;
+                g.fill(chartX + 1, gy, chartX + chartW - 1, gy + 1, 0x1EFFFFFF);
+                g.fill(gx, chartY + 1, gx + 1, chartY + chartH - 1, 0x1EFFFFFF);
+            }
+
+            // Altitude markers
+            drawMarker(g, profile.atmosphereBaseAltitude, START_MARKER);
+            if (profile.noFallDamageAltitude >= 0.0) {
+                drawMarker(g, profile.noFallDamageAltitude, NO_FALL_MARKER);
+            }
+
+            // Gravity curve (blue)
+            for (int px = chartX; px < chartX + chartW; px++) {
+                double alt = xToAltitude(px);
+                int py = valueToY(gravityRatioAt(alt));
+                g.fill(px, py, px + 1, py + 2, GRAVITY_COLOR);
+            }
+
+            // Pressure curve (green)
+            for (int i = 0; i < layers.size() - 1; i++) {
+                int x1 = altitudeToX(layers.get(i).altitude());
+                int x2 = altitudeToX(layers.get(i + 1).altitude());
+                int y1 = valueToY(layers.get(i).pressure());
+                int y2 = valueToY(layers.get(i + 1).pressure());
+                int span = Math.max(1, x2 - x1);
+                for (int px = x1; px <= x2; px++) {
+                    int py = (int) Math.round(y1 + (double) (px - x1) / span * (y2 - y1));
+                    g.fill(px, py, px + 2, py + 2, CURVE_COLOR);
+                }
+            }
+
+            // Points
+            for (int i = 0; i < layers.size(); i++) {
+                int px = altitudeToX(layers.get(i).altitude());
+                int py = valueToY(layers.get(i).pressure());
+                int r = i == selectedPoint ? 4 : 3;
+                g.fill(px - r - 1, py - r - 1, px + r + 2, py + r + 2,
+                        i == selectedPoint ? TEXT_WHITE : 0xFF0C0C0C);
+                g.fill(px - r, py - r, px + r + 1, py + r + 1, POINT_COLOR);
+            }
+
+            // Axis labels
+            double pMax = pressureMax();
+            g.drawString(font, String.format(Locale.ROOT, "%.1f", pMax), x + 5, chartY, TEXT_DIM, false);
+            g.drawString(font, "0", x + 20, chartY + chartH - 7, TEXT_DIM, false);
+            String minLbl = formatClean(altitudeMin());
+            String maxLbl = formatClean(altitudeMax());
+            g.drawString(font, minLbl, chartX, chartY + chartH + 4, TEXT_DIM, false);
+            g.drawString(font, maxLbl, chartX + chartW - font.width(maxLbl), chartY + chartH + 4, TEXT_DIM, false);
+
+            // Hover crosshair & deferred tooltip
+            if (insideChart(mouseX, mouseY)) {
+                g.fill(mouseX, chartY, mouseX + 1, chartY + chartH, 0x44FFFFFF);
+                g.fill(chartX, mouseY, chartX + chartW, mouseY + 1, 0x44FFFFFF);
+                double alt = xToAltitude(mouseX);
+                double p = AtmosphereLayers.getPressure(layers, alt);
+                double gRatio = gravityRatioAt(alt);
+                deferredTooltip = Component.literal(String.format(Locale.ROOT,
+                        "Y %.0f  |  P %.2f atm  |  G %.2fg", alt, p, gRatio));
+                deferredTooltipX = mouseX;
+                deferredTooltipY = mouseY;
+            }
+        }
+
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (button != 0 || !insideChart(mouseX, mouseY)) return false;
+            double bestDist = Double.MAX_VALUE;
+            int bestIdx = -1;
+            for (int i = 0; i < layers.size(); i++) {
+                double dx = altitudeToX(layers.get(i).altitude()) - mouseX;
+                double dy = valueToY(layers.get(i).pressure()) - mouseY;
+                double d = dx * dx + dy * dy;
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestIdx = i;
+                }
+            }
+            if (bestDist > 18 * 18 || bestIdx < 0) return false;
+            selectedPoint = bestIdx;
+            dragStartX = mouseX;
+            dragStartAlt = layers.get(selectedPoint).altitude();
+            dragAltRange = Math.max(1.0, altitudeMax() - altitudeMin());
+            moveSelected(mouseX, mouseY);
+            return true;
+        }
+
+        boolean mouseDragged(double mouseX, double mouseY, int button) {
+            if (button != 0 || selectedPoint < 0) return false;
+            moveSelected(mouseX, mouseY);
+            return true;
+        }
+
+        boolean mouseReleased(double mouseX, double mouseY, int button) {
+            if (button != 0 || selectedPoint < 0) return false;
+            selectedPoint = -1;
+            return true;
+        }
+
+        private void moveSelected(double mouseX, double mouseY) {
+            double alt = (selectedPoint == 0 || selectedPoint == layers.size() - 1)
+                    ? dragStartAlt + (mouseX - dragStartX) * dragAltRange / chartW
+                    : xToAltitude(mouseX);
+            double lo = selectedPoint == 0 ? CURVE_MIN_ALT : layers.get(selectedPoint - 1).altitude() + 1.0;
+            double hi = selectedPoint == layers.size() - 1 ? CURVE_MAX_ALT : layers.get(selectedPoint + 1).altitude() - 1.0;
+            alt = Math.rint(AtmosphereLayers.clamp(alt, lo, hi));
+            double p = Math.round(yToValue(mouseY) * 1000.0) / 1000.0;
+            layers.set(selectedPoint, new AtmosphereLayers.Layer(alt, p));
+            onDragged.onDragged(selectedPoint, alt, p);
+        }
+
+        private void drawMarker(GuiGraphics g, double alt, int color) {
+            if (alt < altitudeMin() || alt > altitudeMax()) return;
+            int mx = altitudeToX(alt);
+            for (int my = chartY + 2; my < chartY + chartH - 2; my += 4) {
+                g.fill(mx, my, mx + 1, Math.min(my + 2, chartY + chartH - 1), color);
+            }
+        }
+
+        private double gravityRatioAt(double alt) {
+            double progress = AtmosphereLayers.getGravityProgress(layers, profile.atmosphereBaseAltitude, alt);
+            double offset;
+            if (profile.surfaceGravityOffset == 0.0) {
+                offset = progress * profile.atmosphereGravityMax;
+            } else {
+                double target = Math.max(profile.surfaceGravityOffset, profile.atmosphereGravityMax);
+                offset = profile.surfaceGravityOffset + progress * (target - profile.surfaceGravityOffset);
+            }
+            return Math.max(0.0, (VANILLA_GRAVITY - offset) / VANILLA_GRAVITY);
+        }
+
+        private boolean insideChart(double mx, double my) {
+            return mx >= chartX && mx <= chartX + chartW && my >= chartY && my <= chartY + chartH;
+        }
+
+        private double pressureMax() {
+            double max = 1.25;
+            for (AtmosphereLayers.Layer l : layers) max = Math.max(max, l.pressure());
+            return Math.max(1.25, Math.ceil(max));
+        }
+
+        private double altitudeMin() { return layers.get(0).altitude(); }
+        private double altitudeMax() { return layers.get(layers.size() - 1).altitude(); }
+
+        private int altitudeToX(double alt) {
+            double span = altitudeMax() - altitudeMin();
+            if (span <= 0.0) return chartX;
+            double t = AtmosphereLayers.clamp((alt - altitudeMin()) / span, 0.0, 1.0);
+            return chartX + (int) Math.round(t * chartW);
+        }
+
+        private int valueToY(double val) {
+            double t = AtmosphereLayers.clamp(val / pressureMax(), 0.0, 1.0);
+            return chartY + chartH - (int) Math.round(t * chartH);
+        }
+
+        private double xToAltitude(double mx) {
+            double span = altitudeMax() - altitudeMin();
+            if (span <= 0.0) return altitudeMin();
+            return altitudeMin() + AtmosphereLayers.clamp((mx - chartX) / chartW, 0.0, 1.0) * span;
+        }
+
+        private double yToValue(double my) {
+            return pressureMax() * (1.0 - AtmosphereLayers.clamp((my - chartY) / chartH, 0.0, 1.0));
+        }
+    }
+
+    // ==================== DRAFT STATE ====================
+
     private static final class DimensionDraft {
         private String id;
         private CustomDimConfig.Mode mode;
-        private double playerOffset;
-        private double mobOffset;
-        private double itemOffset;
-        private double arrowOffset;
-        private double thrownOffset;
-        private double blockOffset;
-        private double atmosphereGravityMax;
-        private double atmosphereBaseAltitude;
-        private double noFallDamageAltitude;
-        private double atmosphereMuffleGain;
-        private double atmosphereMuffleGainHF;
+        private double playerOffset, mobOffset, itemOffset, arrowOffset, thrownOffset, blockOffset;
+        private double atmosphereGravityMax, atmosphereBaseAltitude, noFallDamageAltitude;
+        private double atmosphereMuffleGain, atmosphereMuffleGainHF, surfaceGravityOffset;
+        private double fixedMuffleGain, fixedMuffleGainHF;
+        private boolean atmosphereAffectNonLiving;
+        private CustomDimConfig.FallDamageMode fallDamageMode;
         private final List<AtmosphereLayers.Layer> layers = new ArrayList<>();
-        private boolean curveExpanded;
-        private boolean presetsExpanded;
-        private String presetName = "";
+
         private DimensionDraft(CustomDimConfig config) {
             id = config.getDimensionId();
             mode = config.getMode();
@@ -82,13 +2140,15 @@ public class EndlessGravityConfigScreen {
             blockOffset = config.getBlockGravityOffset();
             atmosphereGravityMax = config.getAtmosphereGravityMax();
             atmosphereBaseAltitude = config.getAtmosphereBaseAltitude();
-            noFallDamageAltitude = config.getNoFallDamageAltitude() == null
-                    ? -1.0 : config.getNoFallDamageAltitude();
+            noFallDamageAltitude = config.getNoFallDamageAltitude() == null ? -1.0 : config.getNoFallDamageAltitude();
             atmosphereMuffleGain = config.getAtmosphereMuffleGain();
             atmosphereMuffleGainHF = config.getAtmosphereMuffleGainHF();
-            List<AtmosphereLayers.Layer> configuredLayers =
-                    AtmosphereLayers.parseUncached(config.getAtmosphereLayers());
-            layers.addAll(configuredLayers);
+            surfaceGravityOffset = config.getSurfaceGravityOffset();
+            atmosphereAffectNonLiving = config.isAtmosphereAffectNonLiving();
+            fallDamageMode = config.getFallDamageMode();
+            fixedMuffleGain = config.getFixedMuffleGain();
+            fixedMuffleGainHF = config.getFixedMuffleGainHF();
+            layers.addAll(config.getParsedAtmosphereLayers());
         }
 
         private CustomDimConfig toConfig() {
@@ -97,1162 +2157,52 @@ public class EndlessGravityConfigScreen {
                     atmosphereGravityMax, atmosphereBaseAltitude,
                     noFallDamageAltitude < 0.0 ? null : noFallDamageAltitude,
                     atmosphereMuffleGain, atmosphereMuffleGainHF,
-                    AtmosphereLayers.serialize(layers));
+                    AtmosphereLayers.serialize(layers),
+                    surfaceGravityOffset, atmosphereAffectNonLiving, fallDamageMode,
+                    fixedMuffleGain, fixedMuffleGainHF);
         }
     }
 
     private static final class EditorDraft {
-        private final List<AtmosphereLayers.Layer> globalLayers = new ArrayList<>();
-        private final List<DimensionDraft> dimensionDrafts = new ArrayList<>();
+        private final List<DimensionDraft> profiles = new ArrayList<>();
         private final List<DimensionDraft> removedProfiles = new ArrayList<>();
-        private DimensionDraft newDimension = newDimensionDraft();
-        private String dimensionStatus = "";
-        private String expandedProfileId = "";
-        private boolean newDimensionExpanded;
         private final List<AtmospherePreset> atmospherePresets = new ArrayList<>();
-        private String importJson = "";
-        private String presetStatus = "";
 
-        private static DimensionDraft newDimensionDraft() {
-            DimensionDraft newDraft = new DimensionDraft(
-                    Config.createDimensionProfile("", CustomDimConfig.Mode.ATMOSPHERE));
-            newDraft.mode = CustomDimConfig.Mode.FIXED_GRAVITY;
-            return newDraft;
-        }
+        // General
+        private FallDamageMode fallDamageMode = FallDamageMode.fromInt(Config.COMMON.fallDamageMode.get());
+        private FallDamageMode mobFallDamageMode = FallDamageMode.fromInt(Config.COMMON.mobFallDamageMode.get());
+        private boolean enableAtmosphericDrag = Config.COMMON.enableAtmosphericDrag.get();
+        private boolean enablePotionGravity = Config.COMMON.enablePotionGravity.get();
+        private double weightlessnessOffset = Config.COMMON.weightlessnessGravityOffset.get();
+        private double heavinessOffset = Config.COMMON.heavinessGravityOffset.get();
+        private boolean enableGravityHud = Config.COMMON.enableGravityHud.get();
+        private HudPosition hudPosition = HudPosition.fromInt(Config.COMMON.hudPosition.get());
+        private boolean hudShowPressure = Config.COMMON.hudShowPressure.get();
+        private boolean hudCompact = Config.COMMON.hudCompact.get();
+        private boolean enableLowPassFilter = Config.COMMON.enableLowPassFilter.get();
+        private double lowPassGain = Config.COMMON.lowPassGain.get();
+        private double lowPassGainHF = Config.COMMON.lowPassGainHF.get();
+        private double particleGravityOffset = Config.COMMON.particleGravityOffset.get();
+        private final List<String> gravityImmuneEntities = new ArrayList<>(Config.COMMON.gravityImmuneEntities.get());
+
+        // Sable
+        private boolean endSableGravity = Config.COMMON.endSableGravity.get();
+        private double sableGravityY = Config.COMMON.sableGravityY.get();
+        private double sablePressure = Config.COMMON.sablePressure.get();
+        private double sableDrag = Config.COMMON.sableDrag.get();
+        private int sableDatapackPriority = Config.COMMON.sableDatapackPriority.get();
+        private boolean overworldSableGravity = Config.COMMON.overworldSableGravity.get();
+        private boolean enableAtmosphere = Config.COMMON.enableAtmosphere.get();
+        private double atmosphereGravityMax = Config.COMMON.atmosphereGravityMax.get();
+        private double noFallDamageAltitude = Config.COMMON.noFallDamageAltitude.get();
+        private double atmosphereMuffleGain = Config.COMMON.atmosphereMuffleGain.get();
+        private double atmosphereMuffleGainHF = Config.COMMON.atmosphereMuffleGainHF.get();
+        private int overworldSableDatapackPriority = Config.COMMON.overworldSableDatapackPriority.get();
 
         private EditorDraft() {
-            List<AtmosphereLayers.Layer> parsed =
-                    AtmosphereLayers.parse(Config.COMMON.atmosphereLayers.get());
-            for (int i = 0; i < AtmosphereLayers.LAYER_COUNT; i++) {
-                globalLayers.add(i < parsed.size() ? parsed.get(i) : AtmosphereLayers.defaults().get(i));
-            }
-            Config.getCustomDimensions().forEach(config -> dimensionDrafts.add(new DimensionDraft(config)));
-            atmospherePresets.addAll(Config.getAtmospherePresets());
-        }
-    }
-
-    private static final class ActionEntry extends TextListEntry {
-        private final Button button;
-
-        private ActionEntry(Component label, Runnable action) {
-            this(label, action, null);
-        }
-
-        private ActionEntry(Component label, Runnable action, Component tooltip) {
-            super(Component.empty(), Component.empty());
-            button = Button.builder(label, ignored -> action.run()).bounds(0, 0, 220, 20).build();
-            if (tooltip != null) button.setTooltip(Tooltip.create(tooltip));
-        }
-
-        @Override
-        public int getItemHeight() {
-            return 24;
-        }
-
-        @Override
-        public void render(GuiGraphics graphics, int index, int y, int x, int entryWidth, int entryHeight,
-                           int mouseX, int mouseY, boolean hovered, float delta) {
-            int buttonX = x + Math.max(0, entryWidth - 220 - 8);
-            button.setX(buttonX);
-            button.setY(y + 2);
-            button.render(graphics, mouseX, mouseY, delta);
-        }
-
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return this.button.mouseClicked(mouseX, mouseY, button);
-        }
-    }
-
-    private static final class ModeChoiceEntry extends TextListEntry {
-        private final Button atmosphereButton;
-        private final Button fixedGravityButton;
-
-        private ModeChoiceEntry(CustomDimConfig.Mode selected, Runnable selectAtmosphere,
-                                Runnable selectFixedGravity) {
-            super(Component.empty(), Component.empty());
-            atmosphereButton = Button.builder(
-                    Component.translatable("endless_gravity.config.dimensionMode.atmosphere"),
-                    ignored -> selectAtmosphere.run()).bounds(0, 0, 150, 20).build();
-            atmosphereButton.setTooltip(Tooltip.create(
-                    Component.translatable("endless_gravity.config.dimensionMode.atmosphere.tooltip")));
-            fixedGravityButton = Button.builder(
-                    Component.translatable("endless_gravity.config.dimensionMode.fixed_gravity"),
-                    ignored -> selectFixedGravity.run()).bounds(0, 0, 150, 20).build();
-            fixedGravityButton.setTooltip(Tooltip.create(
-                    Component.translatable("endless_gravity.config.dimensionMode.fixed_gravity.tooltip")));
-            atmosphereButton.active = selected != CustomDimConfig.Mode.ATMOSPHERE;
-            fixedGravityButton.active = selected != CustomDimConfig.Mode.FIXED_GRAVITY;
-        }
-
-        @Override
-        public int getItemHeight() {
-            return 24;
-        }
-
-        @Override
-        public void render(GuiGraphics graphics, int index, int y, int x, int entryWidth, int entryHeight,
-                           int mouseX, int mouseY, boolean hovered, float delta) {
-            int buttonWidth = 150;
-            int gap = 8;
-            int startX = x + (entryWidth - buttonWidth * 2 - gap) / 2;
-            atmosphereButton.setX(startX);
-            atmosphereButton.setY(y + 2);
-            fixedGravityButton.setX(startX + buttonWidth + gap);
-            fixedGravityButton.setY(y + 2);
-            atmosphereButton.render(graphics, mouseX, mouseY, delta);
-            fixedGravityButton.render(graphics, mouseX, mouseY, delta);
-        }
-
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            return atmosphereButton.mouseClicked(mouseX, mouseY, button)
-                    || fixedGravityButton.mouseClicked(mouseX, mouseY, button);
-        }
-    }
-
-    private static final class PresetEntry extends TextListEntry {
-        private final List<Button> buttons = new ArrayList<>();
-
-        private PresetEntry(List<String> presetKeys, java.util.function.Consumer<String> apply) {
-            super(Component.empty(), Component.empty());
-            for (String key : presetKeys) {
-                Button button = Button.builder(Component.translatable("endless_gravity.config.preset." + key),
-                        ignored -> apply.accept(key)).bounds(0, 0, 112, 20).build();
-                button.setTooltip(Tooltip.create(
-                        Component.translatable("endless_gravity.config.preset." + key + ".tooltip")));
-                buttons.add(button);
-            }
-        }
-
-        @Override
-        public int getItemHeight() {
-            return Math.max(1, (buttons.size() + 2) / 3) * 24;
-        }
-
-        @Override
-        public void render(GuiGraphics graphics, int index, int y, int x, int entryWidth, int entryHeight,
-                           int mouseX, int mouseY, boolean hovered, float delta) {
-            int buttonWidth = 112;
-            int gap = 5;
-            int columns = Math.min(3, buttons.size());
-            int totalWidth = columns * buttonWidth + Math.max(0, columns - 1) * gap;
-            int startX = x + (entryWidth - totalWidth) / 2;
-            for (int i = 0; i < buttons.size(); i++) {
-                Button button = buttons.get(i);
-                button.setX(startX + (i % 3) * (buttonWidth + gap));
-                button.setY(y + 2 + (i / 3) * 24);
-                button.render(graphics, mouseX, mouseY, delta);
-            }
-        }
-
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            for (Button preset : buttons) {
-                if (preset.mouseClicked(mouseX, mouseY, button)) return true;
-            }
-            return false;
-        }
-    }
-
-    private static final class CustomPresetEntry extends TextListEntry {
-        private record PresetButtons(Button apply, Button delete) {}
-
-        private final List<PresetButtons> presets = new ArrayList<>();
-
-        private CustomPresetEntry(List<AtmospherePreset> presets,
-                                  java.util.function.Consumer<AtmospherePreset> apply,
-                                  java.util.function.Consumer<AtmospherePreset> delete) {
-            super(Component.empty(), Component.empty());
-            for (AtmospherePreset preset : presets) {
-                Button applyButton = Button.builder(Component.literal(preset.name()),
-                        ignored -> apply.accept(preset)).bounds(0, 0, 210, 20).build();
-                applyButton.setTooltip(Tooltip.create(Component.translatable(
-                        "endless_gravity.config.myAtmospherePresets.tooltip")));
-                Button deleteButton = Button.builder(
-                        Component.translatable("endless_gravity.config.deletePresetButton"),
-                        ignored -> delete.accept(preset)).bounds(0, 0, 82, 20).build();
-                deleteButton.setTooltip(Tooltip.create(Component.translatable(
-                        "endless_gravity.config.deletePresetButton.tooltip")));
-                this.presets.add(new PresetButtons(applyButton, deleteButton));
-            }
-        }
-
-        @Override public int getItemHeight() { return Math.max(1, presets.size()) * 24; }
-
-        @Override
-        public void render(GuiGraphics graphics, int index, int y, int x, int entryWidth, int entryHeight,
-                           int mouseX, int mouseY, boolean hovered, float delta) {
-            int totalWidth = 210 + 6 + 82;
-            int startX = x + (entryWidth - totalWidth) / 2;
-            for (int i = 0; i < presets.size(); i++) {
-                PresetButtons buttons = presets.get(i);
-                buttons.apply().setX(startX);
-                buttons.apply().setY(y + 2 + i * 24);
-                buttons.delete().setX(startX + 216);
-                buttons.delete().setY(y + 2 + i * 24);
-                buttons.apply().render(graphics, mouseX, mouseY, delta);
-                buttons.delete().render(graphics, mouseX, mouseY, delta);
-            }
-        }
-
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            for (PresetButtons preset : presets) {
-                if (preset.apply().mouseClicked(mouseX, mouseY, button)
-                        || preset.delete().mouseClicked(mouseX, mouseY, button)) return true;
-            }
-            return false;
-        }
-    }
-
-    private static final class AtmosphereCurveEntry extends TextListEntry {
-        private static final int CURVE_COLOR = 0xFF9AB8A5;
-        private static final int POINT_COLOR = 0xFFE4C08A;
-        private final List<AtmosphereLayers.Layer> layers;
-        private int chartX;
-        private int chartY;
-        private int chartWidth;
-        private int chartHeight;
-        private int selectedPoint = -1;
-        private double dragStartX;
-        private double dragStartAltitude;
-        private double dragAltitudeRange;
-
-        private AtmosphereCurveEntry(List<AtmosphereLayers.Layer> layers) {
-            super(Component.empty(), Component.empty());
-            this.layers = layers;
-        }
-
-        @Override
-        public int getItemHeight() {
-            return 112;
-        }
-
-        @Override
-        public void render(GuiGraphics graphics, int index, int y, int x, int entryWidth, int entryHeight,
-                           int mouseX, int mouseY, boolean hovered, float delta) {
-            chartX = x + 36;
-            chartY = y + 9;
-            chartWidth = Math.max(100, entryWidth - 48);
-            chartHeight = 76;
-            double pressureMax = pressureMax();
-            graphics.fill(chartX, chartY, chartX + chartWidth, chartY + chartHeight, 0xAA171A1D);
-            graphics.fill(chartX, chartY, chartX + chartWidth, chartY + 1, 0xFF394148);
-            graphics.fill(chartX, chartY + chartHeight - 1, chartX + chartWidth,
-                    chartY + chartHeight, 0xFF394148);
-            graphics.fill(chartX, chartY, chartX + 1, chartY + chartHeight, 0xFF394148);
-            graphics.fill(chartX + chartWidth - 1, chartY, chartX + chartWidth,
-                    chartY + chartHeight, 0xFF394148);
-
-            for (int i = 0; i <= 4; i++) {
-                int gridY = chartY + i * chartHeight / 4;
-                graphics.fill(chartX + 1, gridY, chartX + chartWidth - 1, gridY + 1, 0x334F595E);
-            }
-            for (int i = 0; i <= 4; i++) {
-                int gridX = chartX + i * chartWidth / 4;
-                graphics.fill(gridX, chartY + 1, gridX + 1, chartY + chartHeight - 1, 0x334F595E);
-            }
-
-            for (int i = 0; i < layers.size() - 1; i++) {
-                AtmosphereLayers.Layer first = layers.get(i);
-                AtmosphereLayers.Layer second = layers.get(i + 1);
-                int x1 = altitudeToX(first.altitude());
-                int x2 = altitudeToX(second.altitude());
-                int y1 = pressureToY(first.pressure());
-                int y2 = pressureToY(second.pressure());
-                int span = Math.max(1, x2 - x1);
-                for (int px = x1; px <= x2; px++) {
-                    double t = (double) (px - x1) / span;
-                    int py = (int) Math.round(y1 + t * (y2 - y1));
-                    graphics.fill(px, py, px + 2, py + 2, CURVE_COLOR);
-                }
-            }
-            for (int i = 0; i < layers.size(); i++) {
-                AtmosphereLayers.Layer layer = layers.get(i);
-                int pointX = altitudeToX(layer.altitude());
-                int pointY = pressureToY(layer.pressure());
-                int radius = i == selectedPoint ? 4 : 3;
-                graphics.fill(pointX - radius - 1, pointY - radius - 1, pointX + radius + 2,
-                        pointY + radius + 2, 0xFF171A1D);
-                graphics.fill(pointX - radius, pointY - radius, pointX + radius + 1,
-                        pointY + radius + 1, POINT_COLOR);
-            }
-            boolean overChart = insideChart(mouseX, mouseY);
-            if (overChart) {
-                graphics.fill((int) mouseX, chartY, (int) mouseX + 1, chartY + chartHeight, 0x55FFFFFF);
-                graphics.fill(chartX, (int) mouseY, chartX + chartWidth, (int) mouseY + 1, 0x55FFFFFF);
-                double altitude = xToAltitude(mouseX);
-                double curvePressure = AtmosphereLayers.getPressure(layers, altitude);
-                double cursorPressure = yToPressure(mouseY);
-                graphics.renderTooltip(Minecraft.getInstance().font,
-                        Component.literal(String.format(Locale.ROOT,
-                                "Y %.1f  |  P %.3f  |  Cursor %.3f", altitude, curvePressure, cursorPressure)),
-                        (int) mouseX, (int) mouseY);
-            }
-            graphics.drawString(Minecraft.getInstance().font, String.format(Locale.ROOT, "%.2f", pressureMax),
-                    x + 3, chartY - 2, TEXT_GRAY);
-            graphics.drawString(Minecraft.getInstance().font, "0", x + 18, chartY + chartHeight - 4, TEXT_GRAY);
-            String minLabel = String.format(Locale.ROOT, "%.0f", altitudeMin());
-            String maxLabel = String.format(Locale.ROOT, "%.0f", altitudeMax());
-            graphics.drawString(Minecraft.getInstance().font, minLabel,
-                    chartX, chartY + chartHeight + 4, TEXT_GRAY);
-            graphics.drawString(Minecraft.getInstance().font, maxLabel,
-                    chartX + chartWidth - Minecraft.getInstance().font.width(maxLabel),
-                    chartY + chartHeight + 4, TEXT_GRAY);
-        }
-
-        @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button != 0 || !insideChart(mouseX, mouseY)) return false;
-            double nearestDistance = Double.MAX_VALUE;
-            int nearest = -1;
-            for (int i = 0; i < layers.size(); i++) {
-                double dx = altitudeToX(layers.get(i).altitude()) - mouseX;
-                double dy = pressureToY(layers.get(i).pressure()) - mouseY;
-                double distance = dx * dx + dy * dy;
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearest = i;
-                }
-            }
-            if (nearestDistance > 20 * 20) return false;
-            selectedPoint = nearest;
-            dragStartX = mouseX;
-            dragStartAltitude = layers.get(selectedPoint).altitude();
-            dragAltitudeRange = altitudeMax() - altitudeMin();
-            moveSelected(mouseX, mouseY);
-            return true;
-        }
-
-        @Override
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-            if (button != 0 || selectedPoint < 0) return false;
-            moveSelected(mouseX, mouseY);
-            return true;
-        }
-
-        @Override
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
-            if (button != 0 || selectedPoint < 0) return false;
-            selectedPoint = -1;
-            return true;
-        }
-
-        private boolean insideChart(double mouseX, double mouseY) {
-            return mouseX >= chartX && mouseX <= chartX + chartWidth
-                    && mouseY >= chartY && mouseY <= chartY + chartHeight;
-        }
-
-        private int altitudeToX(double altitude) {
-            double t = (altitude - altitudeMin()) / (altitudeMax() - altitudeMin());
-            return chartX + (int) Math.round(AtmosphereLayers.clamp(t, 0.0, 1.0) * chartWidth);
-        }
-
-        private int pressureToY(double pressure) {
-            double t = AtmosphereLayers.clamp(pressure / pressureMax(), 0.0, 1.0);
-            return chartY + chartHeight - (int) Math.round(t * chartHeight);
-        }
-
-        private double pressureMax() {
-            double max = layers.stream().mapToDouble(AtmosphereLayers.Layer::pressure).max().orElse(1.25);
-            return Math.max(1.25, Math.ceil(max));
-        }
-
-        private double xToAltitude(double mouseX) {
-            return AtmosphereLayers.clamp(
-                    (mouseX - chartX) / chartWidth, 0.0, 1.0) * (altitudeMax() - altitudeMin())
-                    + altitudeMin();
-        }
-
-        private double yToPressure(double mouseY) {
-            return pressureMax() * (1.0 - AtmosphereLayers.clamp(
-                    (mouseY - chartY) / chartHeight, 0.0, 1.0));
-        }
-
-        private double altitudeMin() {
-            return layers.get(0).altitude();
-        }
-
-        private double altitudeMax() {
-            return layers.get(layers.size() - 1).altitude();
-        }
-
-        private void moveSelected(double mouseX, double mouseY) {
-            double altitude = selectedPoint == 0 || selectedPoint == layers.size() - 1
-                    ? dragStartAltitude + (mouseX - dragStartX) * dragAltitudeRange / chartWidth
-                    : xToAltitude(mouseX);
-            double lowerBound = selectedPoint == 0 ? CURVE_MIN_ALTITUDE
-                    : layers.get(selectedPoint - 1).altitude() + 1.0;
-            double upperBound = selectedPoint == layers.size() - 1 ? CURVE_MAX_ALTITUDE
-                    : layers.get(selectedPoint + 1).altitude() - 1.0;
-            altitude = AtmosphereLayers.clamp(altitude, lowerBound, upperBound);
-            double pressure = yToPressure(mouseY);
-            layers.set(selectedPoint, new AtmosphereLayers.Layer(altitude, pressure));
-        }
-    }
-
-    private static final class DividerEntry extends TextListEntry {
-        private DividerEntry() {
-            super(Component.empty(), Component.empty());
-        }
-
-        @Override
-        public int getItemHeight() {
-            return 8;
-        }
-
-        @Override
-        public void render(GuiGraphics graphics, int index, int y, int x, int entryWidth, int entryHeight,
-                           int mouseX, int mouseY, boolean hovered, float delta) {
-            int dividerY = y + entryHeight / 2;
-            graphics.fill(x + 6, dividerY, x + entryWidth - 6, dividerY + 1, DIVIDER_COLOR);
-        }
-    }
-
-    private static final class Factory {
-        private final Screen parent;
-        private final boolean sableLoaded;
-        private final EditorDraft draft;
-        private final List<ConfigCategory> categories = new ArrayList<>();
-
-        Factory(Screen parent) {
-            this(parent, new EditorDraft());
-        }
-
-        private Factory(Screen parent, EditorDraft draft) {
-            this.parent = parent;
-            this.draft = draft;
-            this.sableLoaded = ModList.get().isLoaded("sable");
-        }
-
-        Screen build() {
-            ConfigBuilder builder = ConfigBuilder.create()
-                    .setParentScreen(parent)
-                    .setTitle(Component.translatable("endless_gravity.config.title"))
-                    .setDoesConfirmSave(false)
-                    .setSavingRunnable(this::finishSave);
-
-            ConfigEntryBuilder entry = builder.entryBuilder();
-
-            buildDimensions(builder, entry);
-            buildGeneral(builder, entry);
-            return builder.build();
-        }
-
-        private void buildDimensions(ConfigBuilder builder, ConfigEntryBuilder entry) {
-            ConfigCategory cat = category(builder, "endless_gravity.config.section.dimensions");
-            categories.add(cat);
-            SubCategoryBuilder addProfile = entry.startSubCategory(
-                    text("endless_gravity.config.dimensionCreate"))
-                    .setExpanded(draft.newDimensionExpanded);
-            addProfile.add(entry.startStrField(text("endless_gravity.config.dimensionAdd"), draft.newDimension.id)
-                    .setTooltip(text("endless_gravity.config.dimensionAdd.tooltip"))
-                    .setErrorSupplier(raw -> dimensionIdError(raw, true))
-                    .setSaveConsumer(value -> draft.newDimension.id = value.trim())
-                    .build());
-            addProfile.add(new ModeChoiceEntry(draft.newDimension.mode,
-                    () -> setMode(draft.newDimension, CustomDimConfig.Mode.ATMOSPHERE),
-                    () -> setMode(draft.newDimension, CustomDimConfig.Mode.FIXED_GRAVITY)));
-            if (!draft.dimensionStatus.isEmpty()) {
-                boolean added = draft.dimensionStatus.equals("added");
-                addProfile.add(entry.startTextDescription(
-                        colored("endless_gravity.config.dimensionStatus." + draft.dimensionStatus,
-                                added ? TEXT_GREEN : TEXT_RED)).build());
-            }
-            addProfileSettings(addProfile, entry, draft.newDimension);
-            addProfile.add(new ActionEntry(text("endless_gravity.config.dimensionCreateButton"),
-                    this::addPendingDimension, text("endless_gravity.config.dimensionCreateButton.tooltip")));
-            cat.addEntry(addProfile.build());
-
-            SubCategoryBuilder presetManager = entry.startSubCategory(
-                    text("endless_gravity.config.customPresets"))
-                    .setExpanded(false)
-                    .setTooltip(text("endless_gravity.config.customPresetsHelp"));
-            presetManager.add(entry.startStrField(text("endless_gravity.config.importPresetsJson"), draft.importJson)
-                    .setTooltip(text("endless_gravity.config.importPresetsJson.tooltip"))
-                    .setSaveConsumer(value -> draft.importJson = value)
-                    .build());
-            presetManager.add(new ActionEntry(text("endless_gravity.config.importPresets"),
-                    this::importAtmospherePresets, text("endless_gravity.config.importPresets.tooltip")));
-            presetManager.add(new ActionEntry(text("endless_gravity.config.exportPresets"),
-                    this::exportAtmospherePresets, text("endless_gravity.config.exportPresets.tooltip")));
-            if (!draft.presetStatus.isEmpty()) {
-                presetManager.add(entry.startTextDescription(
-                        text("endless_gravity.config.presetStatus." + draft.presetStatus)).build());
-            }
-            if (!draft.atmospherePresets.isEmpty()) {
-                presetManager.add(entry.startTextDescription(text("endless_gravity.config.savedPresets",
-                        draft.atmospherePresets.size())).build());
-            }
-            cat.addEntry(presetManager.build());
-
-            cat.addEntry(entry.startTextDescription(text("endless_gravity.config.dimensionExistingProfiles",
-                    draft.dimensionDrafts.size())).build());
-            if (draft.dimensionDrafts.isEmpty()) {
-                cat.addEntry(entry.startTextDescription(text("endless_gravity.config.dimensionNoProfiles")).build());
-            }
-            List<DimensionDraft> sortedDrafts = draft.dimensionDrafts.stream()
-                    .sorted((a, b) -> a.id.compareToIgnoreCase(b.id)).toList();
-            for (DimensionDraft profileDraft : sortedDrafts) {
-                SubCategoryBuilder profile = entry.startSubCategory(
-                        Component.literal(profileDraft.id)
-                                .append(Component.literal("  |  ").withColor(TEXT_GRAY))
-                                .append(modeName(profileDraft.mode).copy().withColor(modeColor(profileDraft.mode))))
-                                .setExpanded(profileDraft.id.equals(draft.expandedProfileId));
-                profile.add(new ModeChoiceEntry(profileDraft.mode,
-                        () -> setMode(profileDraft, CustomDimConfig.Mode.ATMOSPHERE),
-                        () -> setMode(profileDraft, CustomDimConfig.Mode.FIXED_GRAVITY)));
-                addProfileSettings(profile, entry, profileDraft);
-                profile.add(new ActionEntry(colored("endless_gravity.config.dimensionRemoveButton", TEXT_RED),
-                        () -> removeProfile(profileDraft),
-                        text("endless_gravity.config.dimensionRemoveButton.tooltip")));
-                cat.addEntry(profile.build());
-            }
-            cat.addEntry(entry.startTextDescription(text("endless_gravity.config.dimensionProfilesSaveHint")).build());
-            if (!draft.removedProfiles.isEmpty()) {
-                cat.addEntry(entry.startTextDescription(text("endless_gravity.config.dimensionUndoHeader")).build());
-                for (DimensionDraft removed : List.copyOf(draft.removedProfiles)) {
-                    cat.addEntry(new ActionEntry(text("endless_gravity.config.dimensionUndo", removed.id),
-                            () -> restoreProfile(removed),
-                            text("endless_gravity.config.dimensionUndo.tooltip")));
-                }
-            }
-        }
-
-        private Optional<Component> dimensionIdError(String raw, boolean checkDuplicate) {
-            String id = raw.trim();
-            if (id.isEmpty()) return Optional.empty();
-            if (!id.contains(":") || ResourceLocation.tryParse(id) == null) {
-                return Optional.of(text("endless_gravity.config.dimensionId.invalid"));
-            }
-            if (checkDuplicate && draft.dimensionDrafts.stream().anyMatch(existing -> existing.id.equals(id))) {
-                return Optional.of(text("endless_gravity.config.dimensionId.duplicate"));
-            }
-            return Optional.empty();
-        }
-
-        private void addProfileSettings(SubCategoryBuilder destination, ConfigEntryBuilder entry,
-                                        DimensionDraft profile) {
-            SubCategoryBuilder presets = entry.startSubCategory(
-                    text("endless_gravity.config.dimensionPresets"))
-                    .setExpanded(profile.presetsExpanded)
-                    .setTooltip(text("endless_gravity.config.dimensionPresets.tooltip"));
-            List<String> presetKeys = profile.mode == CustomDimConfig.Mode.FIXED_GRAVITY
-                    ? List.of("vanilla", "light_gravity", "lunar")
-                    : List.of("terrestrial", "gentle_atmosphere", "thin_atmosphere");
-            presets.add(new PresetEntry(presetKeys, preset -> applyPreset(profile, preset)));
-
-            if (profile.mode == CustomDimConfig.Mode.FIXED_GRAVITY) {
-                destination.add(presets.build());
-                SubCategoryBuilder gravity = entry.startSubCategory(
-                        colored("endless_gravity.config.dimensionFixedGravity", TEXT_BLUE))
-                        .setExpanded(true)
-                        .setTooltip(text("endless_gravity.config.dimensionFixedGravity.tooltip"));
-                addProfileDouble(gravity, entry, "endless_gravity.config.playerGravityOffset",
-                        profile.playerOffset, -0.5, 0.5, 0.055, value -> profile.playerOffset = value);
-                addProfileDouble(gravity, entry, "endless_gravity.config.mobGravityOffset",
-                        profile.mobOffset, -0.5, 0.5, 0.025, value -> profile.mobOffset = value);
-                addProfileDouble(gravity, entry, "endless_gravity.config.itemGravityOffset",
-                        profile.itemOffset, -0.5, 0.5, 0.025, value -> profile.itemOffset = value);
-                addProfileDouble(gravity, entry, "endless_gravity.config.arrowGravityOffset",
-                        profile.arrowOffset, -0.5, 0.5, 0.03, value -> profile.arrowOffset = value);
-                addProfileDouble(gravity, entry, "endless_gravity.config.thrownGravityOffset",
-                        profile.thrownOffset, -0.5, 0.5, 0.018, value -> profile.thrownOffset = value);
-                addProfileDouble(gravity, entry, "endless_gravity.config.blockGravityOffset",
-                        profile.blockOffset, -0.5, 0.5, 0.035, value -> profile.blockOffset = value);
-                destination.add(gravity.build());
-                return;
-            }
-
-            if (!draft.atmospherePresets.isEmpty()) {
-                presets.add(entry.startTextDescription(text("endless_gravity.config.myAtmospherePresets")).build());
-                presets.add(new CustomPresetEntry(draft.atmospherePresets,
-                        preset -> applyAtmospherePreset(profile, preset),
-                        preset -> deleteAtmospherePreset(profile, preset)));
-            }
-            presets.add(entry.startStrField(text("endless_gravity.config.savePresetName"), profile.presetName)
-                    .setTooltip(text("endless_gravity.config.savePresetName.tooltip"))
-                    .setSaveConsumer(value -> profile.presetName = value)
-                    .build());
-            presets.add(new ActionEntry(text("endless_gravity.config.saveCurrentAsPreset"),
-                    () -> saveAtmospherePreset(profile),
-                    text("endless_gravity.config.saveCurrentAsPreset.tooltip")));
-            destination.add(presets.build());
-
-            SubCategoryBuilder atmosphere = entry.startSubCategory(
-                    colored("endless_gravity.config.dimensionAtmosphere", TEXT_BLUE))
-                    .setExpanded(true)
-                    .setTooltip(text("endless_gravity.config.dimensionAtmosphere.tooltip"));
-            addProfileDouble(atmosphere, entry, "endless_gravity.config.atmosphereGravityMax",
-                    profile.atmosphereGravityMax, 0.0, 0.5, 0.075,
-                    value -> profile.atmosphereGravityMax = value);
-            addProfileDouble(atmosphere, entry, "endless_gravity.config.atmosphereBaseAltitude",
-                    profile.atmosphereBaseAltitude, -2048.0, 30000.0, 319.0,
-                    value -> profile.atmosphereBaseAltitude = value);
-            addProfileDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGain",
-                    profile.atmosphereMuffleGain, 0.0, 1.0, 0.01,
-                    value -> profile.atmosphereMuffleGain = value);
-            addProfileDouble(atmosphere, entry, "endless_gravity.config.atmosphereMuffleGainHF",
-                    profile.atmosphereMuffleGainHF, 0.0, 1.0, 0.005,
-                    value -> profile.atmosphereMuffleGainHF = value);
-            addProfileDouble(atmosphere, entry, "endless_gravity.config.noFallDamageAltitude",
-                    profile.noFallDamageAltitude, -1.0, 30000.0, 4500.0,
-                    value -> profile.noFallDamageAltitude = value);
-            SubCategoryBuilder curve = entry.startSubCategory(
-                    colored("endless_gravity.config.atmosphereLayers", TEXT_BLUE))
-                    .setExpanded(profile.curveExpanded)
-                    .setTooltip(text("endless_gravity.config.curveGraphHelp"));
-            curve.add(new AtmosphereCurveEntry(profile.layers));
-            for (int i = 0; i < profile.layers.size(); i++) {
-                int index = i;
-                AtmosphereLayers.Layer layer = profile.layers.get(i);
-                SubCategoryBuilder row = entry.startSubCategory(
-                        text("endless_gravity.config.curveLayer", i + 1))
-                        .setExpanded(true)
-                        .setTooltip(text("endless_gravity.config.curveLayer.tooltip"));
-                row.add(entry.startDoubleField(text("endless_gravity.config.columnAltitude"), layer.altitude())
-                        .setMin(-2048).setMax(30000)
-                        .setTooltip(text("endless_gravity.config.columnAltitude.tooltip"))
-                        .setSaveConsumer(value -> setLayerAltitude(profile, index, value))
-                        .build());
-                row.add(entry.startDoubleField(text("endless_gravity.config.columnPressure"), layer.pressure())
-                        .setMin(0).setMax(10)
-                        .setTooltip(text("endless_gravity.config.columnPressure.tooltip"))
-                        .setSaveConsumer(value -> setLayerPressure(profile, index, value))
-                        .build());
-                if (profile.layers.size() > 2) {
-                    row.add(new ActionEntry(text("endless_gravity.config.curveRemoveLayer"),
-                        () -> removeLayer(profile, index),
-                        text("endless_gravity.config.curveRemoveLayer.tooltip")));
-                }
-                curve.add(row.build());
-            }
-            if (profile.layers.size() < CustomDimConfig.MAX_ATMOSPHERE_LAYERS) {
-                curve.add(new ActionEntry(text("endless_gravity.config.curveAddLayer"),
-                        () -> addLayer(profile),
-                        text("endless_gravity.config.curveAddLayer.tooltip")));
-            }
-            atmosphere.add(curve.build());
-            destination.add(atmosphere.build());
-        }
-
-        private static void setLayerAltitude(DimensionDraft profile, int index, double value) {
-            double min = index == 0 ? CURVE_MIN_ALTITUDE
-                    : Math.ceil(profile.layers.get(index - 1).altitude() + 1);
-            double max = index == profile.layers.size() - 1 ? CURVE_MAX_ALTITUDE
-                    : Math.floor(profile.layers.get(index + 1).altitude() - 1);
-            AtmosphereLayers.Layer old = profile.layers.get(index);
-            profile.layers.set(index, new AtmosphereLayers.Layer(
-                    AtmosphereLayers.clamp(Math.rint(value), min, max), old.pressure()));
-        }
-
-        private static void setLayerPressure(DimensionDraft profile, int index, double value) {
-            AtmosphereLayers.Layer old = profile.layers.get(index);
-            profile.layers.set(index, new AtmosphereLayers.Layer(old.altitude(),
-                    AtmosphereLayers.clamp(value, 0, 10)));
-        }
-
-        private void addLayer(DimensionDraft profile) {
-            saveCurrentEntries();
-            if (profile.layers.size() >= CustomDimConfig.MAX_ATMOSPHERE_LAYERS) return;
-            expandProfile(profile);
-            profile.curveExpanded = true;
-            double bestGap = 0;
-            double altitude = 0;
-            double previousAltitude = CURVE_MIN_ALTITUDE;
-            for (int i = 0; i <= profile.layers.size(); i++) {
-                double nextAltitude = i == profile.layers.size()
-                        ? CURVE_MAX_ALTITUDE : profile.layers.get(i).altitude();
-                double gap = nextAltitude - previousAltitude;
-                if (gap > bestGap) {
-                    bestGap = gap;
-                    altitude = Math.floor((previousAltitude + nextAltitude) / 2);
-                }
-                previousAltitude = nextAltitude;
-            }
-            if (bestGap < 2) return;
-            profile.layers.add(new AtmosphereLayers.Layer(altitude,
-                    AtmosphereLayers.getPressure(profile.layers, altitude)));
-            profile.layers.sort(java.util.Comparator.comparingDouble(AtmosphereLayers.Layer::altitude));
-            refresh();
-        }
-
-        private void removeLayer(DimensionDraft profile, int index) {
-            saveCurrentEntries();
-            if (profile.layers.size() <= 2 || index < 0 || index >= profile.layers.size()) return;
-            expandProfile(profile);
-            profile.curveExpanded = true;
-            profile.layers.remove(index);
-            refresh();
-        }
-
-        private void applyPreset(DimensionDraft profile, String preset) {
-            saveCurrentEntries();
-            expandProfile(profile);
-            profile.presetsExpanded = true;
-            if (profile.mode == CustomDimConfig.Mode.FIXED_GRAVITY) {
-                switch (preset) {
-                    case "vanilla" -> setFixedGravity(profile, 0, 0, 0, 0, 0, 0);
-                    case "light_gravity" -> setFixedGravity(profile, 0.025, 0.02, 0.01, 0.015, 0.01, 0.02);
-                    case "lunar" -> setFixedGravity(profile, 0.055, 0.025, 0.025, 0.03, 0.018, 0.035);
-                    default -> throw new IllegalArgumentException("Unknown fixed-gravity preset: " + preset);
-                }
-            } else {
-                switch (preset) {
-                    case "terrestrial" -> {
-                        profile.atmosphereGravityMax = 0.075;
-                        profile.atmosphereBaseAltitude = 319;
-                        profile.noFallDamageAltitude = 4500;
-                        profile.atmosphereMuffleGain = 0.01;
-                        profile.atmosphereMuffleGainHF = 0.005;
-                        profile.layers.clear();
-                        profile.layers.addAll(AtmosphereLayers.defaults());
-                    }
-                    case "gentle_atmosphere" -> {
-                        profile.atmosphereGravityMax = 0.04;
-                        profile.atmosphereBaseAltitude = 319;
-                        profile.noFallDamageAltitude = -1;
-                        profile.atmosphereMuffleGain = 0.15;
-                        profile.atmosphereMuffleGainHF = 0.1;
-                        profile.layers.clear();
-                        profile.layers.addAll(AtmosphereLayers.defaults());
-                    }
-                    case "thin_atmosphere" -> {
-                        profile.atmosphereGravityMax = 0.05;
-                        profile.atmosphereBaseAltitude = 64;
-                        profile.noFallDamageAltitude = 1800;
-                        profile.atmosphereMuffleGain = 0.02;
-                        profile.atmosphereMuffleGainHF = 0.01;
-                        profile.layers.clear();
-                        profile.layers.addAll(List.of(
-                                new AtmosphereLayers.Layer(-64, 1.0),
-                                new AtmosphereLayers.Layer(64, 0.75),
-                                new AtmosphereLayers.Layer(400, 0.25),
-                                new AtmosphereLayers.Layer(1200, 0.08),
-                                new AtmosphereLayers.Layer(2000, 0.0),
-                                new AtmosphereLayers.Layer(3000, 0.0),
-                                new AtmosphereLayers.Layer(4500, 0.0),
-                                new AtmosphereLayers.Layer(6000, 0.0)));
-                    }
-                    default -> throw new IllegalArgumentException("Unknown atmosphere preset: " + preset);
-                }
-            }
-            draft.dimensionStatus = "";
-            refresh();
-        }
-
-        private void applyAtmospherePreset(DimensionDraft profile, AtmospherePreset preset) {
-            saveCurrentEntries();
-            expandProfile(profile);
-            profile.presetsExpanded = true;
-            profile.atmosphereGravityMax = preset.gravityMax();
-            profile.atmosphereBaseAltitude = preset.startAltitude();
-            profile.noFallDamageAltitude = preset.noFallDamageAbove() == null ? -1 : preset.noFallDamageAbove();
-            profile.atmosphereMuffleGain = preset.muffleGain();
-            profile.atmosphereMuffleGainHF = preset.muffleGainHF();
-            profile.layers.clear();
-            profile.layers.addAll(AtmosphereLayers.parseUncached(preset.layers()));
-            draft.dimensionStatus = "";
-            refresh();
-        }
-
-        private void saveAtmospherePreset(DimensionDraft profile) {
-            saveCurrentEntries();
-            String name = profile.presetName.trim();
-            if (name.isEmpty() || name.length() > 48) {
-                draft.presetStatus = "invalid_name";
-                refresh();
-                return;
-            }
-            AtmospherePreset preset;
-            try {
-                preset = new AtmospherePreset(name, profile.atmosphereGravityMax,
-                        profile.atmosphereBaseAltitude,
-                        profile.noFallDamageAltitude < 0 ? null : profile.noFallDamageAltitude,
-                        profile.atmosphereMuffleGain, profile.atmosphereMuffleGainHF,
-                        AtmosphereLayers.serialize(profile.layers));
-            } catch (IllegalArgumentException e) {
-                draft.presetStatus = "invalid_preset";
-                refresh();
-                return;
-            }
-            int existing = -1;
-            for (int i = 0; i < draft.atmospherePresets.size(); i++) {
-                if (draft.atmospherePresets.get(i).name().equalsIgnoreCase(name)) {
-                    existing = i;
-                    break;
-                }
-            }
-            if (existing >= 0) draft.atmospherePresets.set(existing, preset);
-            else if (draft.atmospherePresets.size() >= AtmospherePreset.MAX_PRESETS) {
-                draft.presetStatus = "limit";
-                refresh();
-                return;
-            } else draft.atmospherePresets.add(preset);
-            profile.presetName = "";
-            draft.presetStatus = "saved";
-            profile.presetsExpanded = true;
-            expandProfile(profile);
-            refresh();
-        }
-
-        private void deleteAtmospherePreset(DimensionDraft profile, AtmospherePreset preset) {
-            saveCurrentEntries();
-            draft.atmospherePresets.remove(preset);
-            draft.presetStatus = "deleted";
-            profile.presetsExpanded = true;
-            expandProfile(profile);
-            refresh();
-        }
-
-        private void importAtmospherePresets() {
-            saveCurrentEntries();
-            try {
-                List<AtmospherePreset> imported = AtmospherePreset.parseImport(draft.importJson);
-                List<AtmospherePreset> merged = new ArrayList<>(draft.atmospherePresets);
-                for (AtmospherePreset preset : imported) {
-                    int existing = -1;
-                    for (int i = 0; i < merged.size(); i++) {
-                        if (merged.get(i).name().equalsIgnoreCase(preset.name())) {
-                            existing = i;
-                            break;
-                        }
-                    }
-                    if (existing >= 0) merged.set(existing, preset);
-                    else merged.add(preset);
-                }
-                if (merged.size() > AtmospherePreset.MAX_PRESETS) {
-                    throw new IllegalArgumentException("At most " + AtmospherePreset.MAX_PRESETS + " presets are supported");
-                }
-                draft.atmospherePresets.clear();
-                draft.atmospherePresets.addAll(merged);
-                draft.presetStatus = "imported";
-                draft.importJson = "";
-            } catch (RuntimeException e) {
-                draft.presetStatus = "invalid_json";
-            }
-            refresh();
-        }
-
-        private void exportAtmospherePresets() {
-            saveCurrentEntries();
-            Minecraft.getInstance().keyboardHandler.setClipboard(
-                    AtmospherePreset.exportJson(draft.atmospherePresets));
-            draft.presetStatus = "exported";
-            refresh();
-        }
-
-        private static void setFixedGravity(DimensionDraft profile, double player, double mob, double item,
-                                            double arrow, double thrown, double block) {
-            profile.playerOffset = player;
-            profile.mobOffset = mob;
-            profile.itemOffset = item;
-            profile.arrowOffset = arrow;
-            profile.thrownOffset = thrown;
-            profile.blockOffset = block;
-        }
-
-        private void addPendingDimension() {
-            saveCurrentEntries();
-
-            String id = draft.newDimension.id.trim();
-            Optional<Component> error = dimensionIdError(id, true);
-            if (error.isPresent()) {
-                draft.dimensionStatus = "invalid";
-                refresh();
-                return;
-            }
-            ResourceLocation parsedId = ResourceLocation.tryParse(id);
-            if (parsedId == null || !id.contains(":")) {
-                draft.dimensionStatus = "invalid";
-                refresh();
-                return;
-            }
-            draft.newDimension.id = parsedId.toString();
-            draft.dimensionDrafts.add(draft.newDimension);
-            draft.newDimension = EditorDraft.newDimensionDraft();
-            draft.newDimensionExpanded = false;
-            draft.dimensionStatus = "added";
-            refresh();
-        }
-
-        private void setMode(DimensionDraft profile, CustomDimConfig.Mode mode) {
-            if (profile.mode == mode) return;
-            saveCurrentEntries();
-            expandProfile(profile);
-            profile.mode = mode;
-            refresh();
-        }
-
-        private void expandProfile(DimensionDraft profile) {
-            if (profile == draft.newDimension) {
-                draft.newDimensionExpanded = true;
-            } else {
-                draft.expandedProfileId = profile.id;
-            }
-        }
-
-        private void removeProfile(DimensionDraft profile) {
-            saveCurrentEntries();
-            draft.dimensionDrafts.remove(profile);
-            draft.removedProfiles.add(profile);
-            refresh();
-        }
-
-        private void restoreProfile(DimensionDraft profile) {
-            saveCurrentEntries();
-            if (draft.dimensionDrafts.stream().anyMatch(existing -> existing.id.equals(profile.id))) {
-                draft.dimensionStatus = "duplicate";
-                refresh();
-                return;
-            }
-            draft.removedProfiles.remove(profile);
-            draft.dimensionDrafts.add(profile);
-            draft.dimensionStatus = "";
-            refresh();
-        }
-
-        private void saveCurrentEntries() {
-            categories.forEach(category -> category.getEntries().forEach(raw -> {
-                if (raw instanceof AbstractConfigListEntry<?> entry) entry.save();
-            }));
-        }
-
-        private void refresh() {
-            Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(new Factory(parent, draft).build()));
-        }
-
-        private static int modeColor(CustomDimConfig.Mode mode) {
-            return mode == CustomDimConfig.Mode.ATMOSPHERE ? TEXT_GREEN : TEXT_AMBER;
-        }
-
-        private void addProfileDouble(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                                      double current, double min, double max, double defaultValue,
-                                      java.util.function.DoubleConsumer save) {
-            group.add(entry.startDoubleField(text(key), current)
-                    .setMin(min).setMax(max).setDefaultValue(defaultValue)
-                    .setTooltip(text(key + ".tooltip"))
-                    .setSaveConsumer(value -> save.accept(value))
-                    .build());
-        }
-
-        private static Component modeName(CustomDimConfig.Mode mode) {
-            String key = "endless_gravity.config.dimensionMode."
-                    + mode.name().toLowerCase(Locale.ROOT);
-            return text(key);
-        }
-
-        private void buildGeneral(ConfigBuilder builder, ConfigEntryBuilder entry) {
-            ConfigCategory cat = category(builder, "endless_gravity.config.section.general");
-            categories.add(cat);
-            cat.addEntry(entry.startTextDescription(text("endless_gravity.config.generalHelp")).build());
-
-            SubCategoryBuilder fallDamage = group(entry, "endless_gravity.config.group.fall_damage")
-                    .setExpanded(true);
-            fallDamage.add(entry.startTextDescription(text("endless_gravity.config.group.fall_damage.help")).build());
-            var mode = entry.startEnumSelector(text("endless_gravity.config.fallDamageMode"), FallDamageMode.class,
-                            FallDamageMode.fromInt(Config.COMMON.fallDamageMode.get()))
-                    .setDefaultValue(FallDamageMode.DISABLED)
-                    .setEnumNameProvider(e -> colored("endless_gravity.config.fallDamageMode."
-                                    + ((FallDamageMode) e).name().toLowerCase(Locale.ROOT),
-                            switch ((FallDamageMode) e) {
-                                case DISABLED -> TEXT_RED;
-                                default -> TEXT_WHITE;
-                            }))
-                    .setSaveConsumer(m -> Config.COMMON.fallDamageMode.set(m.ordinal()))
-                    .build();
-            fallDamage.add(mode);
-
-            var mobMode = entry.startEnumSelector(text("endless_gravity.config.mobFallDamageMode"), FallDamageMode.class,
-                            FallDamageMode.fromInt(Config.COMMON.mobFallDamageMode.get()))
-                    .setDefaultValue(FallDamageMode.DISABLED)
-                    .setEnumNameProvider(e -> colored("endless_gravity.config.fallDamageMode."
-                                    + ((FallDamageMode) e).name().toLowerCase(Locale.ROOT),
-                            switch ((FallDamageMode) e) {
-                                case DISABLED -> TEXT_RED;
-                                default -> TEXT_WHITE;
-                            }))
-                    .setSaveConsumer(m -> Config.COMMON.mobFallDamageMode.set(m.ordinal()))
-                    .build();
-            fallDamage.add(mobMode);
-            cat.addEntry(fallDamage.build());
-
-            SubCategoryBuilder gameplay = group(entry, "endless_gravity.config.group.gameplay");
-            gameplay.add(entry.startTextDescription(text("endless_gravity.config.group.gameplay.help")).build());
-            var immune = entry.startStrList(text("endless_gravity.config.gravityImmuneEntities"),
-                            new ArrayList<String>(Config.COMMON.gravityImmuneEntities.get()))
-                    .setDefaultValue(List.of())
-                    .setTooltip(text("endless_gravity.config.gravityImmuneEntities.tooltip"))
-                    .setSaveConsumer(list -> Config.COMMON.gravityImmuneEntities.set(list))
-                    .build();
-            gameplay.add(immune);
-
-            SubCategoryBuilder potions = group(entry, "endless_gravity.config.group.potions");
-            addToggle(potions, entry, "endless_gravity.config.enablePotionGravity", Config.COMMON.enablePotionGravity, true);
-            addDouble(potions, entry, "endless_gravity.config.weightlessnessGravityOffset", Config.COMMON.weightlessnessGravityOffset,
-                    0.0, 0.07, 0.05, TEXT_WHITE);
-            addDouble(potions, entry, "endless_gravity.config.heavinessGravityOffset", Config.COMMON.heavinessGravityOffset,
-                    0.0, 0.07, 0.02, TEXT_GRAY);
-            gameplay.add(potions.build());
-            cat.addEntry(gameplay.build());
-
-            SubCategoryBuilder client = group(entry, "endless_gravity.config.group.client");
-            client.add(entry.startTextDescription(text("endless_gravity.config.group.client.help")).build());
-            SubCategoryBuilder gravity = group(entry, "endless_gravity.config.group.gravity");
-            addDouble(gravity, entry, "endless_gravity.config.particleGravityOffset", Config.COMMON.particleGravityOffset,
-                    0.0, 0.5, 0.1, TEXT_WHITE);
-            client.add(gravity.build());
-
-            SubCategoryBuilder hud = group(entry, "endless_gravity.config.group.hud");
-            addToggle(hud, entry, "endless_gravity.config.enableGravityHud", Config.COMMON.enableGravityHud, false);
-            client.add(hud.build());
-
-            SubCategoryBuilder audio = group(entry, "endless_gravity.config.group.audio");
-            addToggle(audio, entry, "endless_gravity.config.enableLowPassFilter", Config.COMMON.enableLowPassFilter, true);
-            addDouble(audio, entry, "endless_gravity.config.lowPassGain", Config.COMMON.lowPassGain,
-                    0.0, 1.0, 0.35, TEXT_WHITE);
-            addDouble(audio, entry, "endless_gravity.config.lowPassGainHF", Config.COMMON.lowPassGainHF,
-                    0.0, 1.0, 0.25, TEXT_GRAY);
-            client.add(audio.build());
-            cat.addEntry(client.build());
-
-            if (sableLoaded) {
-                SubCategoryBuilder sable = group(entry, "endless_gravity.config.group.sable");
-                sable.add(entry.startTextDescription(text("endless_gravity.config.group.sable.help")).build());
-                SubCategoryBuilder sableEnd = group(entry, "endless_gravity.config.group.sable_end");
-                sableEnd.add(entry.startTextDescription(colored("endless_gravity.config.restartWarning", TEXT_AMBER)).build());
-                addToggle(sableEnd, entry, "endless_gravity.config.endSableGravity", Config.COMMON.endSableGravity, true);
-                addDouble(sableEnd, entry, "endless_gravity.config.sableGravityY", Config.COMMON.sableGravityY,
-                        -20.0, 0.0, -4.0, TEXT_WHITE);
-                addDouble(sableEnd, entry, "endless_gravity.config.sablePressure", Config.COMMON.sablePressure,
-                        0.0, 10.0, 0.0, TEXT_GRAY);
-                addDouble(sableEnd, entry, "endless_gravity.config.sableDrag", Config.COMMON.sableDrag,
-                        0.0, 10.0, 0.05, TEXT_GRAY);
-                addIntSlider(sableEnd, entry, "endless_gravity.config.sableDatapackPriority", Config.COMMON.sableDatapackPriority,
-                        1, 9999, 9999, TEXT_GRAY);
-                sable.add(sableEnd.build());
-
-                SubCategoryBuilder sableOverworld = group(entry, "endless_gravity.config.group.sable_overworld");
-                sableOverworld.add(entry.startTextDescription(colored("endless_gravity.config.restartWarning", TEXT_AMBER)).build());
-                addToggle(sableOverworld, entry, "endless_gravity.config.sableAtmosphereEnabled",
-                        Config.COMMON.enableAtmosphere, true);
-                addDouble(sableOverworld, entry, "endless_gravity.config.atmosphereGravityMax", Config.COMMON.atmosphereGravityMax,
-                        0.0, 0.1, 0.075, TEXT_WHITE);
-                addDouble(sableOverworld, entry, "endless_gravity.config.noFallDamageAltitude", Config.COMMON.noFallDamageAltitude,
-                        64.0, 6000.0, 4500.0, TEXT_WHITE);
-                addDouble(sableOverworld, entry, "endless_gravity.config.atmosphereMuffleGain", Config.COMMON.atmosphereMuffleGain,
-                        0.0, 1.0, 0.01, TEXT_WHITE);
-                addDouble(sableOverworld, entry, "endless_gravity.config.atmosphereMuffleGainHF", Config.COMMON.atmosphereMuffleGainHF,
-                        0.0, 1.0, 0.005, TEXT_GRAY);
-                addToggle(sableOverworld, entry, "endless_gravity.config.overworldSableGravity", Config.COMMON.overworldSableGravity, true);
-                addIntSlider(sableOverworld, entry, "endless_gravity.config.overworldSableDatapackPriority", Config.COMMON.overworldSableDatapackPriority,
-                        1, 9999, 9999, TEXT_GRAY);
-                sable.add(sableOverworld.build());
-
-                SubCategoryBuilder fallbackCurve = entry.startSubCategory(
-                                text("endless_gravity.config.sableAtmosphereCurve"))
-                        .setExpanded(false)
-                        .setTooltip(text("endless_gravity.config.atmosphereLayers.tooltip"));
-                addGlobalLayers(fallbackCurve, entry);
-                sable.add(fallbackCurve.build());
-                cat.addEntry(sable.build());
-            }
-        }
-
-        private void addGlobalLayers(SubCategoryBuilder layersSub, ConfigEntryBuilder entry) {
-            for (int i = 0; i < AtmosphereLayers.LAYER_COUNT; i++) {
-                final int index = i;
-                AtmosphereLayers.Layer layer = draft.globalLayers.get(index);
-                SubCategoryBuilder layerSub = entry.startSubCategory(
-                                colored("endless_gravity.config.layerShort", TEXT_GRAY, index + 1))
-                        .setExpanded(false);
-                layerSub.add(entry.startDoubleField(text("endless_gravity.config.columnAltitude"), layer.altitude())
-                        .setMin(-64.0).setMax(6000.0)
-                        .setDefaultValue(AtmosphereLayers.defaults().get(index).altitude())
-                        .setSaveConsumer(value -> draft.globalLayers.set(index,
-                                new AtmosphereLayers.Layer(value, draft.globalLayers.get(index).pressure())))
-                        .build());
-                layerSub.add(entry.startDoubleField(text("endless_gravity.config.columnPressure"), layer.pressure())
-                        .setMin(0.0).setMax(2.0)
-                        .setDefaultValue(AtmosphereLayers.defaults().get(index).pressure())
-                        .setSaveConsumer(value -> draft.globalLayers.set(index,
-                                new AtmosphereLayers.Layer(draft.globalLayers.get(index).altitude(), value)))
-                        .build());
-                layersSub.add(layerSub.build());
-            }
-        }
-
-        private void addToggle(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                               ModConfigSpec.BooleanValue value, boolean defaultValue) {
-            group.add(entry.startBooleanToggle(text(key), value.get())
-                    .setDefaultValue(defaultValue)
-                    .setSaveConsumer(value::set)
-                    .setYesNoTextSupplier(v -> colored("endless_gravity.config." + v, v ? TEXT_GREEN : TEXT_GRAY))
-                    .build());
-        }
-
-        private void addDouble(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                               ModConfigSpec.DoubleValue value, double min, double max, double defaultValue, int color) {
-            group.add(entry.startDoubleField(colored(key, color), value.get())
-                    .setMin(min).setMax(max).setDefaultValue(defaultValue)
-                    .setSaveConsumer(value::set)
-                    .build());
-        }
-
-        private void addDouble(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                               ModConfigSpec.DoubleValue value, double min, double max, double defaultValue, int color,
-                               String tooltipKey) {
-            group.add(entry.startDoubleField(colored(key, color), value.get())
-                    .setMin(min).setMax(max).setDefaultValue(defaultValue)
-                    .setTooltip(text(tooltipKey))
-                    .setSaveConsumer(value::set)
-                    .build());
-        }
-
-        private void addIntSlider(SubCategoryBuilder group, ConfigEntryBuilder entry, String key,
-                                  ModConfigSpec.IntValue value, int min, int max, int defaultValue, int color) {
-            group.add(entry.startIntSlider(colored(key, color), value.get(), min, max)
-                    .setDefaultValue(defaultValue)
-                    .setSaveConsumer(value::set)
-                    .build());
-        }
-
-        private void finishSave() {
-            Config.COMMON.atmosphereLayers.set(AtmosphereLayers.serialize(draft.globalLayers));
-            List<CustomDimConfig> savedProfiles = new ArrayList<>();
-            for (DimensionDraft profile : draft.dimensionDrafts) {
-                savedProfiles.add(profile.toConfig());
-            }
-            if (savedProfiles.size() > 512) {
-                throw new IllegalArgumentException("At most 512 dimension profiles are supported");
-            }
-            Config.replaceCustomDimensions(savedProfiles, !ConfigSyncClient.isServerSyncActive());
-            Config.saveAtmospherePresets(draft.atmospherePresets);
-            if (sableLoaded && !ConfigSyncClient.isServerSyncActive()) {
-                SableDatapackHandler.generateDatapack();
-            }
-            // NeoForge does not autosave; persist the player's edits explicitly. Skip while a remote
-            // server's synced config is applied, so we never overwrite the player's own config file.
-            if (!ConfigSyncClient.isServerSyncActive()) {
-                Config.COMMON_SPEC.save();
-            }
-        }
-
-        private static SubCategoryBuilder group(ConfigEntryBuilder entry, String key) {
-            return entry.startSubCategory(colored(key, TEXT_BLUE)).setExpanded(false);
-        }
-
-        private static ConfigCategory category(ConfigBuilder builder, String key) {
-            return builder.getOrCreateCategory(text(key));
-        }
-
-        private static Component text(String key, Object... args) {
-            return Component.translatable(key, args);
-        }
-
-        private static Component colored(String key, int color, Object... args) {
-            return Component.translatable(key, args).withColor(color);
+            Config.getCustomDimensions().forEach(c -> profiles.add(new DimensionDraft(c)));
+            profiles.sort((a, b) -> a.id.compareToIgnoreCase(b.id));
+            atmospherePresets.addAll(Config.getAtmospherePresetsSafe());
         }
     }
 }

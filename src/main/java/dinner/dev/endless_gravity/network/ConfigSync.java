@@ -9,6 +9,7 @@ public final class ConfigSync {
     private ConfigSync() {}
 
     public static void broadcast(MinecraftServer server) {
-        PacketDistributor.sendToAllPlayers(ConfigSyncPayload.fromConfig());
+        if (server == null) return;
+        PacketDistributor.sendToAllPlayers(ConfigSyncPayload.fromServer(server));
     }
 }

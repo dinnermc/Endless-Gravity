@@ -16,7 +16,6 @@ repositories {
     maven { url = "https://maven.blamejared.com" }
     maven { url = "https://maven.createmod.net" }
     maven { url = "https://maven.ithundxr.dev/snapshots" }
-    maven { url = "https://maven.shedaniel.me" }
     exclusiveContent {
         forRepository {
             maven {
@@ -35,7 +34,16 @@ base {
     archivesName = mod_id
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+    withJavadocJar()
+}
+
+tasks.withType(Javadoc).configureEach {
+    options.addStringOption('Xdoclint:none', '-quiet')
+    failOnError = false
+}
 
 sourceSets {
     client
@@ -100,15 +108,9 @@ dependencies {
             prefer sable_companion_version
         }
     }
-    jarJar(api("me.shedaniel.cloth:cloth-config-neoforge:${cloth_config_version}")) {
-        version {
-            strictly "[${cloth_config_version},)"
-            prefer cloth_config_version
-        }
-    }
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testRuntimeOnly 'com.google.code.gson:gson:2.10.1'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
 }
 
 tasks.named('test') {
@@ -134,8 +136,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
                              mod_license            : mod_license,
                              mod_version            : mod_version,
                              mod_authors            : mod_authors,
-                             mod_description        : mod_description,
-                             cloth_config_version   : cloth_config_version]
+                             mod_description        : mod_description]
     inputs.properties replaceProperties
     expand replaceProperties
     from "src/main/templates"

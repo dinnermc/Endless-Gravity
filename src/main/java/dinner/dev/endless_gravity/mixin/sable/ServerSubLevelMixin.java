@@ -6,47 +6,39 @@ import dev.ryanhcode.sable.api.physics.force.QueuedForceGroup;
 import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
 import dev.ryanhcode.sable.api.physics.mass.MassData;
 import dev.ryanhcode.sable.companion.SubLevelAccess;
+import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
-import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.AtmosphereLayers;
+import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.CustomDimConfig;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
+import dinner.dev.endless_gravity.GravityGameRules;
 import dinner.dev.endless_gravity.compat.sable.AtmosphereForceGroups;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Method;
-
-@Mixin(targets = "dev.ryanhcode.sable.sublevel.ServerSubLevel", remap = false)
+@Mixin(value = ServerSubLevel.class, remap = false)
 public abstract class ServerSubLevelMixin {
 
-    private static final Logger LOGGER = LogUtils.getLogger();
-    private static final Vector3d WORLD_UP = new Vector3d(0.0, 1.0, 0.0);
+    @Unique private static final Logger endlessgravity$LOGGER = LogUtils.getLogger();
+    @Unique private static final Vector3d endlessgravity$WORLD_UP = new Vector3d(0.0, 1.0, 0.0);
+    /** Tuned reference gravity scale for Overworld Sable lift (decoupled from The End's sableGravityY). */
+    @Unique private static final double endlessgravity$OVERWORLD_SABLE_GRAVITY = 4.0;
+    @Unique private static final double endlessgravity$MAX_FORCE_MAGNITUDE = 1e6;
+    @Unique private static boolean endlessgravity$forceErrorLogged = false;
 
-    private static Method getMassTrackerMethod;
-    private static Method getOrCreateQueuedForceGroupMethod;
-    private static boolean reflectionInitialized = false;
-    private static boolean reflectionFailed = false;
-    private static boolean forceErrorLogged = false;
-
-    private static void initReflection(Class<?> targetClass) {
-        // Sable changes its API without notice: if this starts failing at runtime,
-        // check the reflected methods here before anything else.
-        if (reflectionInitialized) return;
-        reflectionInitialized = true;
-        try {
-            getMassTrackerMethod = targetClass.getMethod("getMassTracker");
-            getOrCreateQueuedForceGroupMethod = targetClass.getMethod("getOrCreateQueuedForceGroup", ForceGroup.class);
-        } catch (Exception e) {
-            reflectionFailed = true;
-            LOGGER.error("Failed to initialize reflection for Sable ServerSubLevelMixin", e);
-        }
-    }
+    @Shadow public abstract ServerLevel getLevel();
+    @Shadow public abstract MassData getMassTracker();
+    @Shadow public abstract QueuedForceGroup getOrCreateQueuedForceGroup(ForceGroup group);
 
     @Inject(
         method = "prePhysicsTick(Ldev/ryanhcode/sable/sublevel/system/SubLevelPhysicsSystem;Ldev/ryanhcode/sable/api/physics/handle/RigidBodyHandle;D)V",
@@ -58,59 +50,57 @@ public abstract class ServerSubLevelMixin {
         // Cosmonautics owns gravity in its own sub-levels; don't stack our lift on top.
         if (EndlessGravityAPI.isCosmonauticsInstalled()) return;
 
-        initReflection(this.getClass());
-        if (reflectionFailed) return;
+        ServerLevel hostLevel = this.getLevel();
+        if (hostLevel == null || hostLevel.dimension() != Level.OVERWORLD) return;
+        if (!GravityGameRules.enabled(hostLevel)) return;
 
         try {
             SubLevelAccess subLevelAccess = (SubLevelAccess) this;
-            double altitudeY = subLevelAccess.logicalPose().position().y();
-            CustomDimConfig overworldProfile = Config.getCustomDimConfig("minecraft:overworld").orElse(null);
+            var pose = subLevelAccess.logicalPose();
+            double altitudeY = pose.position().y();
+            CustomDimConfig overworldProfile = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
             boolean usesOverworldProfile = overworldProfile != null
                     && overworldProfile.getMode() == CustomDimConfig.Mode.ATMOSPHERE;
             double spaceProgress = usesOverworldProfile
                     ? overworldProfile.getAtmosphereGravityProgress(altitudeY)
                     : AtmosphereLayers.getGravityProgress(altitudeY);
-            if (spaceProgress <= 0) return;
+            if (spaceProgress <= 0.0) return;
 
-            MassData massData = (MassData) getMassTrackerMethod.invoke(this);
+            MassData massData = this.getMassTracker();
             if (massData == null) return;
 
             double mass = massData.getMass();
-            if (mass <= 0 || mass > 1e9 || Double.isNaN(mass) || Double.isInfinite(mass)) return;
+            if (mass <= 0.0 || mass > 1e9 || !Double.isFinite(mass)) return;
 
             Vector3dc centerOfMass = massData.getCenterOfMass();
             if (centerOfMass == null) return;
 
-            double sableGravity = Math.abs(Config.COMMON.sableGravityY.get());
             double gravityCompensation = AtmosphereLayers.getSableGravityCompensationFraction(
                     usesOverworldProfile ? overworldProfile.getAtmosphereGravityMax()
                             : Config.COMMON.atmosphereGravityMax.get());
-            double levitationAccel = sableGravity * spaceProgress * gravityCompensation;
-            if (Double.isNaN(levitationAccel) || Double.isInfinite(levitationAccel) || levitationAccel > sableGravity) return;
+            double levitationAccel = endlessgravity$OVERWORLD_SABLE_GRAVITY * spaceProgress * gravityCompensation;
+            if (!Double.isFinite(levitationAccel) || levitationAccel <= 0.0
+                    || levitationAccel > endlessgravity$OVERWORLD_SABLE_GRAVITY) return;
 
-            double forceMagnitude = mass * levitationAccel;
+            double forceMagnitude = Math.min(mass * levitationAccel, endlessgravity$MAX_FORCE_MAGNITUDE);
+            if (!Double.isFinite(forceMagnitude) || forceMagnitude <= 0.0) return;
 
             // Apply along world-up in sub-level space so rotation doesn't skew the direction.
-            var pose = subLevelAccess.logicalPose();
-            Vector3d localUp = pose.transformNormalInverse(WORLD_UP, new Vector3d());
-            Vector3d forceVector = new Vector3d(
-                localUp.x * forceMagnitude,
-                localUp.y * forceMagnitude,
-                localUp.z * forceMagnitude
-            );
-            if (Double.isNaN(forceVector.y) || Double.isInfinite(forceVector.y) || Math.abs(forceVector.y) > 1e6) return;
+            Vector3d forceVector = pose.transformNormalInverse(endlessgravity$WORLD_UP, new Vector3d())
+                    .mul(forceMagnitude);
+            if (!forceVector.isFinite()) return;
 
             ForceGroup spaceForceGroup = AtmosphereForceGroups.GRAVITY_REDUCTION.get();
             if (spaceForceGroup != null) {
-                QueuedForceGroup queuedForceGroup = (QueuedForceGroup) getOrCreateQueuedForceGroupMethod.invoke(this, spaceForceGroup);
+                QueuedForceGroup queuedForceGroup = this.getOrCreateQueuedForceGroup(spaceForceGroup);
                 if (queuedForceGroup != null) {
                     queuedForceGroup.applyAndRecordPointForce(centerOfMass, forceVector);
                 }
             }
         } catch (Exception e) {
-            if (!forceErrorLogged) {
-                forceErrorLogged = true;
-                LOGGER.error("Error applying space gravity reduction to Sable sub-level", e);
+            if (!endlessgravity$forceErrorLogged) {
+                endlessgravity$forceErrorLogged = true;
+                endlessgravity$LOGGER.error("Error applying space gravity reduction to Sable sub-level", e);
             }
         }
     }

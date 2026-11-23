@@ -17,14 +17,15 @@
 
 ## Features
 
-- **Per-dimension profiles**: configure The End, the Overworld, and modded dimensions as either an atmosphere or fixed gravity, from the config screen or `config/endless_gravity/dimensions.json`
-- **Fixed gravity**: separate offsets for players, mobs, items, arrows, thrown projectiles, and falling blocks
-- **Atmosphere**: pressure layers, gravity ramp, audio muffling, and fall-damage altitude are configured per dimension; only players and mobs receive atmosphere gravity
-- **Fall damage**: normal or disabled in The End and Sable sub-levels, and no fall damage above a configurable altitude in the Overworld
+- **Per-dimension profiles**: configure The End, the Overworld, and modded dimensions as either an atmosphere or fixed gravity from the config screen (with quick dimension picker), `config/endless_gravity/dimensions.json`, or datapacks (`data/<namespace>/endless_gravity/dimensions/*.json`)
+- **Fixed gravity**: separate offsets for players, mobs, items, arrows, thrown projectiles, falling blocks, primed TNT, and XP orbs
+- **Atmosphere**: pressure layers, optional surface gravity offset, altitude gravity ramp (shown directly on the interactive curve graph), optional pressure-based air drag, optional item/projectile/block scaling, audio muffling, and fall-damage altitude per dimension
+- **Fall damage**: normal, proportional (scales safe fall height and damage with effective gravity), or disabled — configurable globally and per dimension
+- **Potions & HUD**: brewable *Weightlessness* (Awkward + Shulker Shell) and *Heaviness* (Awkward + Iron Ingot) potions (including Long with Redstone and Level II with Glowstone), plus a minimalist Gravity & Pressure HUD (standard or compact) with toggle keybind
 - **Sable integration**: physics datapack (gravity, pressure, drag) generated automatically for The End and the Overworld, with configurable priorities
-- **Modded config screen**: Cloth Config (bundled, no extra install) with a single *Dimensions* editor and a *General* category; add and remove profiles by resource ID
-- **Addon API**: stable `GravityApi` (query the gravity the mod would apply, register modifiers to change or cancel it) plus the `endless_gravity:gravity_immune` entity type tag
-- **Compatible** with any modded dimension or Sable sub-level; config is synced from server to client on login
+- **Native config screen**: built-in two-pane minimalist UI with zero external dependencies, dimension filter, interactive atmosphere curve editor, one-click *Copy JSON* datapack export, and draft isolation until Save
+- **Addon API & datapacks**: stable `GravityApi` (entity and position-based queries, biome/biome-tag gravity overrides via `data/<ns>/endless_gravity/biomes/*.json`, client audio-muffle modifiers via `registerAudioMuffleModifier`, multiplicative `scaleGravity`, priority-ordered modifiers) plus the `endless_gravity:gravity_immune` tag
+- **Compatible** with any modded dimension or Sable sub-level; config, dimension profiles, and the `endlessGravity` game rule are synced from server to client on login and reload
 
 ## Configuration
 
@@ -84,11 +85,12 @@ The stable public API is `dinner.dev.endless_gravity.api.GravityApi`. Everything
 `dinner.dev.endless_gravity.api` package is versioned by `GravityApi.API_VERSION`; classes outside it
 (`EndlessGravityAPI`, config, mixins) are internal and may change without notice.
 
-- `getGravityOffset(entity)`: the upward offset the mod would apply this tick (`0.0` if none), resolved through the exact same code path the mod itself uses
-- `getGravityContext(entity)` / `channelFor(entity)`: the full calculation (source, offset, cancellation) and the entity's gravity channel (`PLAYER`, `MOB`, `ITEM`, `ARROW`, `THROWN`, `BLOCK`)
-- `getPressure(y)`, `getAtmosphereProgress(y)`, `getAtmosphereOffset(y)`, `getRealY(entity)`: read the configured atmosphere curve and project positions out of Sable sub-levels
-- `registerModifier(id, priority, modifier)`: run custom logic whenever an offset is resolved (the "calculate gravity" event); `ctx.setOffset`, `ctx.addOffset` and `ctx.cancel` control the result. Higher priority runs first, and a per-entity modifier (`setEntityModifier`) runs last
+- `getGravityOffset(entity)` / `getGravityOffset(level, pos, channel)`: the upward offset the mod would apply (`0.0` if none), for a live entity or any world position
+- `getGravityContext(entity)` / `channelFor(entity)`: the full calculation (source, offset, `baseGravity()`, `effectiveGravity()`, `scaleGravity(factor)`, cancellation) and the entity's gravity channel (`PLAYER`, `MOB`, `ITEM`, `ARROW`, `THROWN`, `BLOCK`)
+- `getPressure(level, y)`, `getAtmosphereProgress(level, y)`, `getAtmosphereOffset(level, y)`, `getRealY(entity)`: read dimension-specific or Overworld atmosphere curves and project positions out of Sable sub-levels
+- `registerModifier(id, priority, modifier)` / `getRegisteredModifiers()`: run custom logic whenever an offset is resolved; `ctx.setOffset`, `ctx.addOffset`, `ctx.scaleGravity`, `ctx.cancel`, and `ctx.uncancel` control the result. Higher priority runs first (ties broken deterministically by ID), and a per-entity modifier (`setEntityModifier`) runs last
 - `GRAVITY_IMMUNE` tag: add entity types to `data/endless_gravity/tags/entity_type/gravity_immune.json` to make them ignore reduced gravity
+- **Datapack profiles**: place JSON files under `data/<namespace>/endless_gravity/dimensions/<path>.json` to ship built-in gravity/atmosphere defaults for custom dimensions (user `config/endless_gravity/dimensions.json` always overrides datapacks)
 
 ### Depending on the API
 
@@ -114,13 +116,12 @@ Both builds share the same config and behavior for The End and the Overworld. Th
 |---|---|---|
 | Create: Cosmonautics integration | Overworld gravity backs off when it is installed | Not supported |
 | Sable sub-level physics and datapacks | Supported | Not supported |
-| Custom dimensions — players | Reduced gravity applied | Not applied (mobs only) |
 
 ## Requirements
 
 - Minecraft 1.21.1
 - NeoForge 21.1+
-- Cloth Config — bundled (via Jar-in-Jar), no manual install
+- No required library dependencies
 - Sable (optional — the mod runs without it; only the Sable sub-level physics and datapacks are skipped)
 - Create: Cosmonautics (optional — when installed, it owns Overworld gravity and Endless Gravity backs off)
 

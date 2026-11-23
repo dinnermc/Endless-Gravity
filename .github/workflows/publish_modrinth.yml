@@ -99,7 +99,7 @@ jobs:
           attach() {
             for JAR in "$1"/*.jar; do
               [ -e "$JAR" ] || continue
-              case "$JAR" in *-dev.jar|*-sources.jar) continue;; esac
+              case "$JAR" in *-dev.jar|*-sources.jar|*-javadoc.jar) continue;; esac
               gh release upload "$GITHUB_REF_NAME" "$JAR" --clobber
             done
           }

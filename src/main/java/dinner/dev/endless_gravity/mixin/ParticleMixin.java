@@ -1,9 +1,9 @@
 package dinner.dev.endless_gravity.mixin;
 
-import dinner.dev.endless_gravity.EndlessGravityAPI;
 import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.CustomDimConfig;
-import dinner.dev.endless_gravity.GravityHandler;
+import dinner.dev.endless_gravity.EndlessGravityAPI;
+import dinner.dev.endless_gravity.GravityGameRules;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.TerrainParticle;
@@ -19,24 +19,28 @@ public abstract class ParticleMixin {
     @Shadow @Final protected ClientLevel level;
     @Shadow protected double y;
     @Shadow protected double yd;
-    @Shadow protected float gravity;
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void endless_gravity$reduceGravity(CallbackInfo ci) {
         // Only affect block-breaking particles (TerrainParticle == block dust), never other particle types.
         if (!((Object) this instanceof TerrainParticle)) return;
+        if (!GravityGameRules.enabled(this.level)) return;
 
         double offset = 0.0;
         if (EndlessGravityAPI.isEnd(this.level)) {
-            if (!GravityHandler.isEndEntityGravity()) return;
-            offset = GravityHandler.getParticleGravityOffset();
+            if (!Config.COMMON.endEntityGravity.get()) return;
+            offset = Config.COMMON.particleGravityOffset.get();
         } else {
-            // Particles retain the built-in Overworld atmosphere behavior only.
-            if (!GravityHandler.isOverworld(this.level)) return;
-            if (EndlessGravityAPI.isCosmonauticsInstalled()) return;
-            CustomDimConfig profile = Config.getCustomDimConfig(this.level.dimension().location().toString()).orElse(null);
-            if (profile == null || profile.getMode() != CustomDimConfig.Mode.ATMOSPHERE) return;
-            offset = profile.getAtmosphereGravityOffset(this.y);
+            if (EndlessGravityAPI.isOverworldOrSable(this.level) && EndlessGravityAPI.isCosmonauticsInstalled()) return;
+            CustomDimConfig profile = Config.getCustomDimConfig(this.level.dimension().location()).orElse(null);
+            if (profile == null) return;
+            if (profile.getMode() == CustomDimConfig.Mode.ATMOSPHERE) {
+                offset = profile.getAtmosphereGravityOffset(this.y);
+            } else {
+                offset = profile.getBlockGravityOffset() != 0.0
+                        ? profile.getBlockGravityOffset()
+                        : profile.getPlayerGravityOffset();
+            }
         }
         if (offset > 0.0) {
             // Apply a subtle fraction of the offset for slow motion effect

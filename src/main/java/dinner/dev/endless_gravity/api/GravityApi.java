@@ -3,11 +3,16 @@ package dinner.dev.endless_gravity.api;
 import dinner.dev.endless_gravity.AtmosphereLayers;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
 import dinner.dev.endless_gravity.GravityResolver;
+import dinner.dev.endless_gravity.MuffleState;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.List;
 
 /**
  * Stable public API for Endless Gravity.
@@ -49,19 +54,34 @@ public final class GravityApi {
         return EndlessGravityAPI.isGravityImmune(entity);
     }
 
-    /** Atmospheric pressure at a world Y, from the configured pressure curve (1.0 = full atmosphere). */
+    /** Atmospheric pressure at a world Y, from the Overworld/global pressure curve (1.0 = full atmosphere). */
     public static double getPressure(double y) {
-        return AtmosphereLayers.getPressure(y);
+        return EndlessGravityAPI.getPressure(y);
     }
 
-    /** How far into the atmosphere a world Y is, 0.0 (base) to 1.0 (vacuum). */
+    /** Atmospheric pressure at a world Y for a specific level's configured atmosphere profile. */
+    public static double getPressure(Level level, double y) {
+        return EndlessGravityAPI.getPressure(level, y);
+    }
+
+    /** How far into the atmosphere a world Y is, 0.0 (base) to 1.0 (vacuum), using the Overworld/global curve. */
     public static double getAtmosphereProgress(double y) {
-        return AtmosphereLayers.getProgress(y);
+        return EndlessGravityAPI.getAtmosphereProgress(y);
     }
 
-    /** Upward atmosphere offset Endless Gravity would apply at a world Y (smooth ramp from Y=319). */
+    /** How far into the atmosphere a world Y is for a specific level (0.0 if not in atmosphere mode). */
+    public static double getAtmosphereProgress(Level level, double y) {
+        return EndlessGravityAPI.getAtmosphereProgress(level, y);
+    }
+
+    /** Upward atmosphere offset Endless Gravity would apply at a world Y in the Overworld. */
     public static double getAtmosphereOffset(double y) {
         return EndlessGravityAPI.getAtmosphereOffset(y);
+    }
+
+    /** Upward atmosphere offset Endless Gravity would apply at a world Y in the given level. */
+    public static double getAtmosphereOffset(Level level, double y) {
+        return EndlessGravityAPI.getAtmosphereOffset(level, y);
     }
 
     /**
@@ -82,6 +102,19 @@ public final class GravityApi {
         if (channel == null) return 0.0;
         GravityContext context = GravityResolver.compute(entity, channel);
         return context.applicable() ? context.offset() : 0.0;
+    }
+
+    /**
+     * Resolve the configured dimension gravity offset at a world position without needing
+     * an {@link Entity} instance. Useful for shaders, vehicles, custom particles and HUDs.
+     */
+    public static double getGravityOffset(Level level, Vec3 pos, GravityChannel channel) {
+        return GravityResolver.computeAtPosition(level, pos, channel);
+    }
+
+    /** Convenience overload of {@link #getGravityOffset(Level, Vec3, GravityChannel)}. */
+    public static double getGravityOffset(Level level, double x, double y, double z, GravityChannel channel) {
+        return GravityResolver.computeAtPosition(level, new Vec3(x, y, z), channel);
     }
 
     /**
@@ -131,5 +164,58 @@ public final class GravityApi {
     /** Remove an entity's modifier, if any. */
     public static void clearEntityModifier(Entity entity) {
         GravityModifierRegistry.clearEntityModifier(entity);
+    }
+
+    /** Immutable snapshot of all registered global modifiers in execution order. */
+    public static List<GravityModifierRegistry.Entry> getRegisteredModifiers() {
+        return GravityModifierRegistry.getRegisteredModifiers();
+    }
+
+    // ==================== BIOME GRAVITY OVERRIDES ====================
+
+    /** Register (or replace) a programmatic biome gravity override rule. */
+    public static void registerBiomeRule(BiomeGravityRule rule) {
+        BiomeGravityRegistry.registerApiRule(rule);
+    }
+
+    /** Remove a programmatic biome gravity override rule by id. */
+    public static boolean unregisterBiomeRule(ResourceLocation id) {
+        return BiomeGravityRegistry.unregisterApiRule(id.toString());
+    }
+
+    /** Immutable snapshot of active biome gravity rules in descending priority order. */
+    public static List<BiomeGravityRule> getBiomeRules() {
+        return BiomeGravityRegistry.activeRules();
+    }
+
+    // ==================== CLIENT AUDIO MUFFLE HOOK ====================
+
+    /**
+     * Register a client-side modifier for Endless Gravity's OpenAL low-pass audio filter.
+     * Higher priority runs first; calling {@link AudioMuffleContext#cancel()} restores clear
+     * audio (e.g. inside pressurized cabins or sealed spacesuits).
+     */
+    public static void registerAudioMuffleModifier(ResourceLocation id, int priority, AudioMuffleModifier modifier) {
+        AudioMuffleRegistry.register(id, priority, modifier);
+    }
+
+    /** Remove a previously registered audio muffle modifier. Safe to call if absent. */
+    public static void unregisterAudioMuffleModifier(ResourceLocation id) {
+        AudioMuffleRegistry.unregister(id);
+    }
+
+    /** True on the client when the OpenAL low-pass audio filter is currently attenuating world sound. */
+    public static boolean isAudioMuffled() {
+        return MuffleState.isActive();
+    }
+
+    /** Current applied overall audio gain ({@code 1.0} = clear, lower = quieter). */
+    public static float getAudioMuffleGain() {
+        return MuffleState.getCurrentGain();
+    }
+
+    /** Current applied high-frequency audio gain ({@code 1.0} = clear, lower = more muffled). */
+    public static float getAudioMuffleGainHF() {
+        return MuffleState.getCurrentGainHF();
     }
 }

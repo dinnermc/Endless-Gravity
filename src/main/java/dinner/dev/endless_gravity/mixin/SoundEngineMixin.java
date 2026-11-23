@@ -3,10 +3,17 @@ package dinner.dev.endless_gravity.mixin;
 import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.CustomDimConfig;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
+import dinner.dev.endless_gravity.MuffleChannelAccess;
 import dinner.dev.endless_gravity.MuffleState;
-import com.mojang.blaze3d.audio.Channel;
+import dinner.dev.endless_gravity.api.AudioMuffleContext;
+import dinner.dev.endless_gravity.api.AudioMuffleRegistry;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.ChannelAccess;
 import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.client.sounds.SoundEngineExecutor;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,79 +23,33 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Field;
-import java.util.Set;
-
-import static org.lwjgl.openal.AL10.*;
-import static org.lwjgl.openal.EXTEfx.*;
+import java.util.Map;
 
 @Mixin(SoundEngine.class)
 public abstract class SoundEngineMixin {
 
-    @Shadow @Final private com.mojang.blaze3d.audio.Library library;
-
-    @Unique private static boolean endlessgravity$refsResolved = false;
-    @Unique private static Field endlessgravity$libraryStaticChannels;
-    @Unique private static Field endlessgravity$libraryStreamingChannels;
-    @Unique private static Field endlessgravity$channelPoolActiveChannels;
-    @Unique private static Field endlessgravity$channelSource;
-    @Unique private static final Set<Channel> endlessgravity$EMPTY_SET = Set.of();
-
-    @Unique
-    private static void endlessgravity$resolveRefs() {
-        // Channel.source is not exposed and Mojang won't make it public;
-        // reflection is the only way to touch the sources' filters.
-        if (endlessgravity$refsResolved) return;
-        try {
-            endlessgravity$libraryStaticChannels = com.mojang.blaze3d.audio.Library.class.getDeclaredField("staticChannels");
-            endlessgravity$libraryStaticChannels.setAccessible(true);
-
-            endlessgravity$libraryStreamingChannels = com.mojang.blaze3d.audio.Library.class.getDeclaredField("streamingChannels");
-            endlessgravity$libraryStreamingChannels.setAccessible(true);
-
-            Class<?> poolClass = Class.forName("com.mojang.blaze3d.audio.Library$CountingChannelPool");
-            endlessgravity$channelPoolActiveChannels = poolClass.getDeclaredField("activeChannels");
-            endlessgravity$channelPoolActiveChannels.setAccessible(true);
-
-            endlessgravity$channelSource = Channel.class.getDeclaredField("source");
-            endlessgravity$channelSource.setAccessible(true);
-
-            endlessgravity$refsResolved = true;
-        } catch (Exception e) {
-            endlessgravity$refsResolved = true;
-        }
-    }
-
-    @Unique
-    @SuppressWarnings("unchecked")
-    private static Set<Channel> endlessgravity$getChannels(Object pool) {
-        try {
-            return (Set<Channel>) endlessgravity$channelPoolActiveChannels.get(pool);
-        } catch (Exception e) {
-            return endlessgravity$EMPTY_SET;
-        }
-    }
-
-    @Unique
-    private static int endlessgravity$getSource(Channel channel) {
-        try {
-            return endlessgravity$channelSource.getInt(channel);
-        } catch (Exception e) {
-            return 0;
-        }
-    }
+    @Shadow @Final private SoundEngineExecutor executor;
+    @Shadow @Final private Map<SoundInstance, ChannelAccess.ChannelHandle> instanceToChannel;
 
     @Inject(method = "tick", at = @At("HEAD"))
     private void endlessgravity$applyLowPass(boolean paused, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) return;
+        if (mc.player == null || mc.level == null) {
+            this.executor.execute(MuffleState::resetAudioThread);
+            return;
+        }
+
+        if (!Config.COMMON.enableLowPassFilter.get()) {
+            this.executor.execute(() -> MuffleState.tickAudioThread(1.0f, 1.0f));
+            return;
+        }
 
         double playerY = EndlessGravityAPI.getRealY(mc.player);
 
         boolean inEnd = mc.level.dimension() == Level.END;
-        CustomDimConfig profile = Config.getCustomDimConfig(mc.level.dimension().location().toString()).orElse(null);
+        CustomDimConfig profile = Config.getCustomDimConfig(mc.level.dimension().location()).orElse(null);
         if (profile == null && EndlessGravityAPI.isSableManaged(mc.level)) {
-            CustomDimConfig overworldProfile = Config.getCustomDimConfig("minecraft:overworld").orElse(null);
+            CustomDimConfig overworldProfile = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
             if (overworldProfile != null && overworldProfile.getMode() == CustomDimConfig.Mode.ATMOSPHERE) {
                 profile = overworldProfile;
             }
@@ -101,60 +62,84 @@ public abstract class SoundEngineMixin {
                 && !EndlessGravityAPI.isCosmonauticsInstalled() && Config.COMMON.enableAtmosphere.get();
         double atmosphereProgress = profileAtmosphere
                 ? profile.getAtmosphereProgress(playerY) : EndlessGravityAPI.getAtmosphereProgress(playerY);
-        boolean atmFiltering = (profileAtmosphere || globalAtmosphere) && atmosphereProgress > 0;
+        boolean atmFiltering = (profileAtmosphere || globalAtmosphere) && atmosphereProgress > 0.0;
 
         float targetGain = 1.0f;
         float targetGainHF = 1.0f;
 
-        if (inEnd) {
-            try {
-                if (Config.COMMON.enableLowPassFilter.get()) {
-                    targetGain = Math.min(targetGain, Config.COMMON.lowPassGain.get().floatValue());
-                    targetGainHF = Math.min(targetGainHF, Config.COMMON.lowPassGainHF.get().floatValue());
-                }
-            } catch (Exception ignored) {}
+        if (profile != null && profile.getMode() == CustomDimConfig.Mode.FIXED_GRAVITY && profile.hasFixedAudioMuffle()) {
+            targetGain = Math.min(targetGain, (float) profile.getFixedMuffleGain());
+            targetGainHF = Math.min(targetGainHF, (float) profile.getFixedMuffleGainHF());
+        } else if (inEnd) {
+            targetGain = Math.min(targetGain, Config.COMMON.lowPassGain.get().floatValue());
+            targetGainHF = Math.min(targetGainHF, Config.COMMON.lowPassGainHF.get().floatValue());
         }
 
         if (atmFiltering) {
-            try {
-                float atmGain = (float) (profileAtmosphere
-                        ? profile.getAtmosphereMuffleGain(playerY)
-                        : EndlessGravityAPI.getAtmosphereMuffleGain(playerY));
-                float atmGainHF = (float) (profileAtmosphere
-                        ? profile.getAtmosphereMuffleGainHF(playerY)
-                        : EndlessGravityAPI.getAtmosphereMuffleGainHF(playerY));
-                targetGain = Math.min(targetGain, atmGain);
-                targetGainHF = Math.min(targetGainHF, atmGainHF);
-            } catch (Exception ignored) {}
+            float atmGain = (float) (profileAtmosphere
+                    ? profile.getAtmosphereMuffleGain(playerY)
+                    : EndlessGravityAPI.getAtmosphereMuffleGain(playerY));
+            float atmGainHF = (float) (profileAtmosphere
+                    ? profile.getAtmosphereMuffleGainHF(playerY)
+                    : EndlessGravityAPI.getAtmosphereMuffleGainHF(playerY));
+            targetGain = Math.min(targetGain, atmGain);
+            targetGainHF = Math.min(targetGainHF, atmGainHF);
         }
 
-        boolean shouldFilter = targetGain < 1.0f || targetGainHF < 1.0f;
-
-        if (shouldFilter) {
-            MuffleState.getFilter();
-            MuffleState.update(targetGain, targetGainHF);
-        } else {
-            MuffleState.update(1.0f, 1.0f);
+        if (AudioMuffleRegistry.hasModifiers()) {
+            AudioMuffleContext muffleCtx = new AudioMuffleContext(mc.level, mc.player, playerY, targetGain, targetGainHF);
+            AudioMuffleRegistry.apply(muffleCtx);
+            targetGain = muffleCtx.effectiveGain();
+            targetGainHF = muffleCtx.effectiveGainHF();
         }
 
-        int filterValue = shouldFilter ? MuffleState.getFilter() : AL_FILTER_NULL;
+        final float g = targetGain;
+        final float ghf = targetGainHF;
+        this.executor.execute(() -> MuffleState.tickAudioThread(g, ghf));
+    }
 
-        endlessgravity$resolveRefs();
+    @Inject(method = "play", at = @At("TAIL"))
+    private void endlessgravity$classifyPlayedSound(SoundInstance sound, CallbackInfo ci) {
+        if (sound == null) return;
+        ChannelAccess.ChannelHandle handle = this.instanceToChannel.get(sound);
+        if (handle == null) return;
+        MuffleState.ChannelRole role = endlessgravity$classifyRole(sound);
+        handle.execute(channel -> {
+            if (channel instanceof MuffleChannelAccess access) {
+                MuffleState.classifySource(access.endlessgravity$getSourceId(), role);
+            }
+        });
+    }
 
-        try {
-            Object staticPool = endlessgravity$libraryStaticChannels.get(this.library);
-            Object streamingPool = endlessgravity$libraryStreamingChannels.get(this.library);
+    @Inject(method = "destroy", at = @At("HEAD"))
+    private void endlessgravity$onDestroy(CallbackInfo ci) {
+        MuffleState.onAudioContextDestroyed();
+    }
 
-            for (int i = 0; i < 2; i++) {
-                Object pool = i == 0 ? staticPool : streamingPool;
-                if (pool == null) continue;
-                for (Channel channel : endlessgravity$getChannels(pool)) {
-                    int sourceId = endlessgravity$getSource(channel);
-                    if (sourceId == 0) continue;
-                    alSourcei(sourceId, AL_DIRECT_FILTER, filterValue);
+    @Unique
+    private static MuffleState.ChannelRole endlessgravity$classifyRole(SoundInstance sound) {
+        SoundSource category = sound.getSource();
+        if (category == SoundSource.MUSIC) {
+            return MuffleState.ChannelRole.EXEMPT;
+        }
+        if (category == SoundSource.MASTER
+                && (sound.isRelative() || sound.getAttenuation() == SoundInstance.Attenuation.NONE)) {
+            return MuffleState.ChannelRole.EXEMPT;
+        }
+        if (category == SoundSource.PLAYERS) {
+            if (sound.isRelative()) {
+                return MuffleState.ChannelRole.SELF_SUIT;
+            }
+            Player player = Minecraft.getInstance().player;
+            if (player != null) {
+                double dx = sound.getX() - player.getX();
+                double dy = sound.getY() - player.getY();
+                double dz = sound.getZ() - player.getZ();
+                if (dx * dx + dy * dy + dz * dz <= 9.0) {
+                    return MuffleState.ChannelRole.SELF_SUIT;
                 }
             }
-        } catch (Exception ignored) {
         }
+        return MuffleState.ChannelRole.WORLD;
     }
 }

@@ -30,8 +30,9 @@ public final class AtmosphereLayers {
             new Layer(6000.0, 0.0)
     );
 
-    private static volatile List<Layer> cached = null;
-    private static volatile List<? extends String> cachedRaw = null;
+    private record ParseCache(List<String> rawSnapshot, List<Layer> parsed) {}
+
+    private static volatile ParseCache cache = null;
 
     private AtmosphereLayers() {}
 
@@ -41,10 +42,15 @@ public final class AtmosphereLayers {
 
     /** "altitude:pressure" entries, sorted by altitude; defaults if invalid or too short. */
     public static List<Layer> parse(List<? extends String> raw) {
-        if (raw != null && raw.equals(cachedRaw) && cached != null) return cached;
-        cachedRaw = raw;
-        cached = parseUncached(raw);
-        return cached;
+        if (raw == null) return DEFAULTS;
+        ParseCache current = cache;
+        if (current != null && raw.equals(current.rawSnapshot())) {
+            return current.parsed();
+        }
+        List<String> snapshot = List.copyOf(raw);
+        List<Layer> parsed = List.copyOf(parseUncached(snapshot));
+        cache = new ParseCache(snapshot, parsed);
+        return parsed;
     }
 
     public static List<Layer> parseUncached(List<? extends String> raw) {
@@ -81,6 +87,7 @@ public final class AtmosphereLayers {
 
     /** Pure variant of {@link #getPressure(double)}: piecewise linear between the given layers. */
     public static double getPressure(List<Layer> layers, double y) {
+        if (layers == null || layers.isEmpty()) return 1.0;
         Layer first = layers.get(0);
         if (y <= first.altitude()) return first.pressure();
         for (int i = 0; i < layers.size() - 1; i++) {
@@ -121,6 +128,7 @@ public final class AtmosphereLayers {
 
     /** Pure variant with a dimension-specific gravity-ramp start altitude. */
     public static double getGravityProgress(List<Layer> layers, double startAltitude, double y) {
+        if (layers == null || layers.isEmpty()) return 0.0;
         double endAltitude = layers.get(layers.size() - 1).altitude();
         if (endAltitude <= startAltitude) return 0.0;
         double t = clamp((y - startAltitude) / (endAltitude - startAltitude), 0.0, 1.0);

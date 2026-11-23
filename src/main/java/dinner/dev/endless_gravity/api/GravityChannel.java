@@ -11,5 +11,7 @@ public enum GravityChannel {
     ITEM,
     ARROW,
     THROWN,
-    BLOCK
+    BLOCK,
+    TNT,
+    XP_ORB
 }

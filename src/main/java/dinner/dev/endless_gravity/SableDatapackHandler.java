@@ -1,38 +1,24 @@
 package dinner.dev.endless_gravity;
 
 import com.mojang.logging.LogUtils;
-import net.neoforged.bus.api.SubscribeEvent;
+import net.minecraft.world.level.Level;
 import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 
-@EventBusSubscriber(modid = EndlessGravity.MODID)
 public class SableDatapackHandler {
 
     private static final Logger LOGGER = LogUtils.getLogger();
-    public static final Path DATAPACK_ROOT = Paths.get("config", "endless_gravity_datapack");
+    /** Minecraft 1.21.1 server data pack format. */
+    private static final int DATA_PACK_FORMAT = 48;
 
     public static Path getDatapackRoot() {
-        return DATAPACK_ROOT;
-    }
-
-    @SubscribeEvent
-    public static void onWorldLoad(LevelEvent.Load event) {
-        try {
-            if (!ModList.get().isLoaded("sable")) return;
-        } catch (Exception e) {
-            return;
-        }
-
-        generateEndDatapack();
-        generateOverworldDatapack();
+        return FMLPaths.CONFIGDIR.get().resolve("endless_gravity_datapack");
     }
 
     public static void generateDatapack() {
@@ -47,9 +33,10 @@ public class SableDatapackHandler {
 
     private static void generateEndDatapack() {
         try {
-            Path dataDir = DATAPACK_ROOT.resolve("data").resolve("endless_gravity").resolve("dimension_physics");
+            Path root = getDatapackRoot();
+            Path dataDir = root.resolve("data").resolve("endless_gravity").resolve("dimension_physics");
             Path jsonPath = dataDir.resolve("the_end.json");
-            Path packMetaPath = DATAPACK_ROOT.resolve("pack.mcmeta");
+            Path packMetaPath = root.resolve("pack.mcmeta");
 
             Files.createDirectories(dataDir);
 
@@ -68,9 +55,9 @@ public class SableDatapackHandler {
                     {
                       "dimension": "minecraft:the_end",
                       "priority": %d,
-                      "base_gravity": [0.0, %.1f, 0.0],
-                      "base_pressure": %.1f,
-                      "universal_drag": %.1f,
+                      "base_gravity": [0.0, %.4f, 0.0],
+                      "base_pressure": %.4f,
+                      "universal_drag": %.4f,
                       "magnetic_north": [0.0, 0.0, 0.0]
                     }""", priority, gravY, pressure, drag);
 
@@ -89,9 +76,10 @@ public class SableDatapackHandler {
 
     private static void generateOverworldDatapack() {
         try {
-            Path dataDir = DATAPACK_ROOT.resolve("data").resolve("endless_gravity").resolve("dimension_physics");
+            Path root = getDatapackRoot();
+            Path dataDir = root.resolve("data").resolve("endless_gravity").resolve("dimension_physics");
             Path jsonPath = dataDir.resolve("overworld.json");
-            Path packMetaPath = DATAPACK_ROOT.resolve("pack.mcmeta");
+            Path packMetaPath = root.resolve("pack.mcmeta");
 
             Files.createDirectories(dataDir);
 
@@ -109,7 +97,7 @@ public class SableDatapackHandler {
             }
 
             int priority = Config.COMMON.overworldSableDatapackPriority.get();
-            CustomDimConfig overworldProfile = Config.getCustomDimConfig("minecraft:overworld").orElse(null);
+            CustomDimConfig overworldProfile = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
             List<AtmosphereLayers.Layer> layers = overworldProfile != null
                     && overworldProfile.getMode() == CustomDimConfig.Mode.ATMOSPHERE
                     ? overworldProfile.getParsedAtmosphereLayers()
@@ -150,14 +138,15 @@ public class SableDatapackHandler {
     }
 
     private static void writePackMeta(Path packMetaPath) throws Exception {
-        if (!Files.exists(packMetaPath)) {
-            Files.writeString(packMetaPath, """
-                    {
-                      "pack": {
-                        "pack_format": 42,
-                        "description": "Endless Gravity Sable Datapack"
-                      }
-                    }""");
+        String meta = String.format(Locale.ROOT, """
+                {
+                  "pack": {
+                    "pack_format": %d,
+                    "description": "Endless Gravity Sable Datapack"
+                  }
+                }""", DATA_PACK_FORMAT);
+        if (!Files.exists(packMetaPath) || !Files.readString(packMetaPath).equals(meta)) {
+            Files.writeString(packMetaPath, meta);
         }
     }
 }

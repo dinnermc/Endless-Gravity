@@ -44,27 +44,74 @@ public final class EndlessGravityAPI {
     }
 
     public static double getPressure(double y) {
+        CustomDimConfig overworld = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (overworld != null && overworld.getMode() == CustomDimConfig.Mode.ATMOSPHERE) {
+            return overworld.getAtmospherePressure(y);
+        }
         return AtmosphereLayers.getPressure(y);
     }
 
+    public static double getPressure(Level level, double y) {
+        if (level == null) return getPressure(y);
+        CustomDimConfig profile = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
+        if (profile != null) {
+            return profile.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? profile.getAtmospherePressure(y) : 1.0;
+        }
+        if (isSableManaged(level)) return getPressure(y);
+        return 1.0;
+    }
+
     public static double getAtmosphereProgress(double y) {
+        CustomDimConfig overworld = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (overworld != null) {
+            return overworld.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? overworld.getAtmosphereProgress(y) : 0.0;
+        }
         return AtmosphereLayers.getProgress(y);
     }
 
+    public static double getAtmosphereProgress(Level level, double y) {
+        if (level == null) return getAtmosphereProgress(y);
+        CustomDimConfig profile = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
+        if (profile != null) {
+            return profile.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? profile.getAtmosphereProgress(y) : 0.0;
+        }
+        if (isSableManaged(level)) return getAtmosphereProgress(y);
+        return 0.0;
+    }
+
     public static double getAtmosphereOffset(double y) {
+        if (isCosmonauticsInstalled()) return 0.0;
+        CustomDimConfig overworld = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (overworld != null) {
+            return overworld.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? overworld.getAtmosphereGravityOffset(y) : 0.0;
+        }
         if (!Config.COMMON.enableAtmosphere.get()) return 0.0;
         double progress = AtmosphereLayers.getGravityProgress(y);
         return progress * Config.COMMON.atmosphereGravityMax.get();
     }
 
+    public static double getAtmosphereOffset(Level level, double y) {
+        if (level == null) return getAtmosphereOffset(y);
+        if (isOverworldOrSable(level) && isCosmonauticsInstalled()) return 0.0;
+        CustomDimConfig profile = Config.getCustomDimConfig(level.dimension().location()).orElse(null);
+        if (profile != null) {
+            return profile.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? profile.getAtmosphereGravityOffset(y) : 0.0;
+        }
+        if (isSableManaged(level)) return getAtmosphereOffset(y);
+        return 0.0;
+    }
+
     public static double getAtmosphereMuffleGain(double y) {
-        double progress = getAtmosphereProgress(y);
-        return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGain.get());
+        return MuffleMath.perceptualGain(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGain.get());
     }
 
     public static double getAtmosphereMuffleGainHF(double y) {
-        double progress = getAtmosphereProgress(y);
-        return 1.0 - progress * (1.0 - Config.COMMON.atmosphereMuffleGainHF.get());
+        return MuffleMath.perceptualGainHF(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGainHF.get());
     }
 
     /**
@@ -121,30 +168,34 @@ public final class EndlessGravityAPI {
         }
     }
 
-    private static Boolean sableLoaded;
+    private static volatile Boolean sableLoaded;
 
     public static boolean isSableLoaded() {
-        if (sableLoaded == null) {
+        Boolean loaded = sableLoaded;
+        if (loaded == null) {
             try {
-                sableLoaded = net.neoforged.fml.ModList.get().isLoaded("sable");
+                loaded = net.neoforged.fml.ModList.get().isLoaded("sable");
             } catch (Exception e) {
-                sableLoaded = false;
+                loaded = false;
             }
+            sableLoaded = loaded;
         }
-        return sableLoaded;
+        return loaded;
     }
 
-    private static Boolean cosmonauticsLoaded;
+    private static volatile Boolean cosmonauticsLoaded;
 
     public static boolean isCosmonauticsInstalled() {
-        if (cosmonauticsLoaded == null) {
+        Boolean loaded = cosmonauticsLoaded;
+        if (loaded == null) {
             try {
-                cosmonauticsLoaded = net.neoforged.fml.ModList.get().isLoaded("rocketnautics");
+                loaded = net.neoforged.fml.ModList.get().isLoaded("rocketnautics");
             } catch (Exception e) {
-                cosmonauticsLoaded = false;
+                loaded = false;
             }
+            cosmonauticsLoaded = loaded;
         }
-        return cosmonauticsLoaded;
+        return loaded;
     }
 
     public static boolean isSableManaged(Level level) {

@@ -191,4 +191,21 @@ class AtmosphereLayersTest {
         assertEquals(0.0,
                 AtmosphereLayers.getSlope(List.of(new AtmosphereLayers.Layer(0.0, 1.0)), 0), EPS);
     }
+
+    @Test
+    void parseHandlesMutatedInputListSafely() {
+        java.util.ArrayList<String> mutable = new java.util.ArrayList<>(List.of("0:1.0", "1000:0.0"));
+        List<AtmosphereLayers.Layer> first = AtmosphereLayers.parse(mutable);
+        assertEquals(0.5, AtmosphereLayers.getPressure(first, 500.0), EPS);
+
+        mutable.set(1, "2000:0.0");
+        List<AtmosphereLayers.Layer> second = AtmosphereLayers.parse(mutable);
+        assertEquals(0.75, AtmosphereLayers.getPressure(second, 500.0), EPS);
+    }
+
+    @Test
+    void emptyLayersDoNotThrow() {
+        assertEquals(1.0, AtmosphereLayers.getPressure(List.of(), 500.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getGravityProgress(List.of(), 319.0, 500.0), EPS);
+    }
 }

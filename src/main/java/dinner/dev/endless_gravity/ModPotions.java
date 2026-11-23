@@ -20,6 +20,7 @@ public final class ModPotions {
 
     private static final int SHORT_TICKS = 20 * 90;
     private static final int LONG_TICKS = 20 * 240;
+    private static final int STRONG_TICKS = 20 * 45;
 
     public static final DeferredHolder<Potion, Potion> WEIGHTLESSNESS =
             POTIONS.register("weightlessness", () -> new Potion(new MobEffectInstance(ModEffects.weightlessnessHolder(), SHORT_TICKS)));
@@ -27,11 +28,17 @@ public final class ModPotions {
     public static final DeferredHolder<Potion, Potion> LONG_WEIGHTLESSNESS =
             POTIONS.register("long_weightlessness", () -> new Potion(new MobEffectInstance(ModEffects.weightlessnessHolder(), LONG_TICKS)));
 
+    public static final DeferredHolder<Potion, Potion> STRONG_WEIGHTLESSNESS =
+            POTIONS.register("strong_weightlessness", () -> new Potion(new MobEffectInstance(ModEffects.weightlessnessHolder(), STRONG_TICKS, 1)));
+
     public static final DeferredHolder<Potion, Potion> HEAVINESS =
             POTIONS.register("heaviness", () -> new Potion(new MobEffectInstance(ModEffects.heavinessHolder(), SHORT_TICKS)));
 
     public static final DeferredHolder<Potion, Potion> LONG_HEAVINESS =
             POTIONS.register("long_heaviness", () -> new Potion(new MobEffectInstance(ModEffects.heavinessHolder(), LONG_TICKS)));
+
+    public static final DeferredHolder<Potion, Potion> STRONG_HEAVINESS =
+            POTIONS.register("strong_heaviness", () -> new Potion(new MobEffectInstance(ModEffects.heavinessHolder(), STRONG_TICKS, 1)));
 
     public static void register(IEventBus modEventBus) {
         POTIONS.register(modEventBus);
