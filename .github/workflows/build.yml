@@ -22,7 +22,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run tests and build JAR
-        run: ./gradlew test remapJar sourcesJar javadocJar --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew test remapJar sourcesJar javadocJar --no-daemon
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
