@@ -487,6 +487,9 @@ public final class EndlessGravityConfigScreen extends Screen {
                 v -> profile.atmosphereMuffleGain = v,
                 "endless_gravity.config.atmosphereMuffleGainHF", profile.atmosphereMuffleGainHF, 0.0, 1.0, 0.0,
                 v -> profile.atmosphereMuffleGainHF = v);
+        y = addSingleDouble(x, y, w,
+                "endless_gravity.config.atmosphereMuffleStartAltitude", profile.atmosphereMuffleStartAltitude, CURVE_MIN_ALT, CURVE_MAX_ALT, 0.0,
+                v -> profile.atmosphereMuffleStartAltitude = v);
 
         CycleButton<Boolean> nonLivingBtn = CycleButton.onOffBuilder(profile.atmosphereAffectNonLiving)
                 .create(x, y, w, 20,
@@ -998,7 +1001,9 @@ public final class EndlessGravityConfigScreen extends Screen {
                 v -> draft.atmosphereMuffleGain = v,
                 "endless_gravity.config.atmosphereMuffleGainHF", draft.atmosphereMuffleGainHF, 0.0, 1.0, 0.0,
                 v -> draft.atmosphereMuffleGainHF = v);
-        y = addSingleInt(x, y, colW,
+        y = addDoubleAndIntPair(x, y, colW, colGap,
+                "endless_gravity.config.atmosphereMuffleStartAltitude", draft.atmosphereMuffleStartAltitude, CURVE_MIN_ALT, CURVE_MAX_ALT,
+                v -> draft.atmosphereMuffleStartAltitude = v,
                 "endless_gravity.config.overworldSableDatapackPriority", draft.overworldSableDatapackPriority, 1, 9999,
                 v -> draft.overworldSableDatapackPriority = v);
 
@@ -1196,6 +1201,7 @@ public final class EndlessGravityConfigScreen extends Screen {
                     profile.noFallDamageAltitude = 4500;
                     profile.atmosphereMuffleGain = 0.01;
                     profile.atmosphereMuffleGainHF = 0.005;
+                    profile.atmosphereMuffleStartAltitude = 319;
                     profile.layers.clear();
                     profile.layers.addAll(AtmosphereLayers.defaults());
                 }
@@ -1206,6 +1212,7 @@ public final class EndlessGravityConfigScreen extends Screen {
                     profile.noFallDamageAltitude = -1;
                     profile.atmosphereMuffleGain = 0.15;
                     profile.atmosphereMuffleGainHF = 0.1;
+                    profile.atmosphereMuffleStartAltitude = 319;
                     profile.layers.clear();
                     profile.layers.addAll(AtmosphereLayers.defaults());
                 }
@@ -1216,6 +1223,7 @@ public final class EndlessGravityConfigScreen extends Screen {
                     profile.noFallDamageAltitude = 1800;
                     profile.atmosphereMuffleGain = 0.02;
                     profile.atmosphereMuffleGainHF = 0.01;
+                    profile.atmosphereMuffleStartAltitude = 64;
                     profile.layers.clear();
                     profile.layers.addAll(List.of(
                             new AtmosphereLayers.Layer(-64, 1.0),
@@ -1239,6 +1247,7 @@ public final class EndlessGravityConfigScreen extends Screen {
         profile.noFallDamageAltitude = preset.noFallDamageAbove() == null ? -1 : preset.noFallDamageAbove();
         profile.atmosphereMuffleGain = preset.muffleGain();
         profile.atmosphereMuffleGainHF = preset.muffleGainHF();
+        profile.atmosphereMuffleStartAltitude = preset.muffleStartAltitude();
         profile.layers.clear();
         profile.layers.addAll(AtmosphereLayers.parseUncached(preset.layers()));
         setStatus(Component.translatable("endless_gravity.config.presetStatus.applied", preset.name()), ACCENT_GREEN);
@@ -1256,7 +1265,8 @@ public final class EndlessGravityConfigScreen extends Screen {
                     profile.atmosphereBaseAltitude,
                     profile.noFallDamageAltitude < 0 ? null : profile.noFallDamageAltitude,
                     profile.atmosphereMuffleGain, profile.atmosphereMuffleGainHF,
-                    AtmosphereLayers.serialize(profile.layers));
+                    AtmosphereLayers.serialize(profile.layers),
+                    profile.atmosphereMuffleStartAltitude);
         } catch (IllegalArgumentException e) {
             setStatus(Component.translatable("endless_gravity.config.presetStatus.invalid_preset"), ACCENT_RED);
             return;
@@ -1421,6 +1431,7 @@ public final class EndlessGravityConfigScreen extends Screen {
         profile.fallDamageMode = fresh.fallDamageMode;
         profile.fixedMuffleGain = fresh.fixedMuffleGain;
         profile.fixedMuffleGainHF = fresh.fixedMuffleGainHF;
+        profile.atmosphereMuffleStartAltitude = fresh.atmosphereMuffleStartAltitude;
         profile.layers.clear();
         profile.layers.addAll(fresh.layers);
         setStatus(Component.translatable("endless_gravity.config.resetDone"), ACCENT_GREEN);
@@ -1487,6 +1498,7 @@ public final class EndlessGravityConfigScreen extends Screen {
             Config.COMMON.noFallDamageAltitude.set(draft.noFallDamageAltitude);
             Config.COMMON.atmosphereMuffleGain.set(draft.atmosphereMuffleGain);
             Config.COMMON.atmosphereMuffleGainHF.set(draft.atmosphereMuffleGainHF);
+            Config.COMMON.atmosphereMuffleStartAltitude.set(draft.atmosphereMuffleStartAltitude);
             Config.COMMON.overworldSableDatapackPriority.set(draft.overworldSableDatapackPriority);
         }
 
@@ -1895,6 +1907,7 @@ public final class EndlessGravityConfigScreen extends Screen {
         private static final int CURVE_COLOR = 0xFF8AB896;
         private static final int GRAVITY_COLOR = 0xFFD8D8D8;
         private static final int START_MARKER = 0x88A0A0A0;
+        private static final int AUDIO_MARKER = 0x888AB896;
         private static final int NO_FALL_MARKER = 0x88C9A66B;
         private static final int POINT_COLOR = 0xFFE6E6E6;
 
@@ -1936,6 +1949,9 @@ public final class EndlessGravityConfigScreen extends Screen {
             g.fill(lx, ly + 2, lx + 6, ly + 6, START_MARKER);
             g.drawString(font, "Start", lx + 9, ly, TEXT_DIM, false);
             lx += 38;
+            g.fill(lx, ly + 2, lx + 6, ly + 6, AUDIO_MARKER);
+            g.drawString(font, "Audio", lx + 9, ly, TEXT_DIM, false);
+            lx += 40;
             g.fill(lx, ly + 2, lx + 6, ly + 6, NO_FALL_MARKER);
             g.drawString(font, "NoFall", lx + 9, ly, TEXT_DIM, false);
 
@@ -1956,6 +1972,7 @@ public final class EndlessGravityConfigScreen extends Screen {
 
             // Altitude markers
             drawMarker(g, profile.atmosphereBaseAltitude, START_MARKER);
+            drawMarker(g, profile.atmosphereMuffleStartAltitude, AUDIO_MARKER);
             if (profile.noFallDamageAltitude >= 0.0) {
                 drawMarker(g, profile.noFallDamageAltitude, NO_FALL_MARKER);
             }
@@ -2125,6 +2142,7 @@ public final class EndlessGravityConfigScreen extends Screen {
         private double atmosphereGravityMax, atmosphereBaseAltitude, noFallDamageAltitude;
         private double atmosphereMuffleGain, atmosphereMuffleGainHF, surfaceGravityOffset;
         private double fixedMuffleGain, fixedMuffleGainHF;
+        private double atmosphereMuffleStartAltitude;
         private boolean atmosphereAffectNonLiving;
         private CustomDimConfig.FallDamageMode fallDamageMode;
         private final List<AtmosphereLayers.Layer> layers = new ArrayList<>();
@@ -2148,6 +2166,7 @@ public final class EndlessGravityConfigScreen extends Screen {
             fallDamageMode = config.getFallDamageMode();
             fixedMuffleGain = config.getFixedMuffleGain();
             fixedMuffleGainHF = config.getFixedMuffleGainHF();
+            atmosphereMuffleStartAltitude = config.getAtmosphereMuffleStartAltitude();
             layers.addAll(config.getParsedAtmosphereLayers());
         }
 
@@ -2159,7 +2178,7 @@ public final class EndlessGravityConfigScreen extends Screen {
                     atmosphereMuffleGain, atmosphereMuffleGainHF,
                     AtmosphereLayers.serialize(layers),
                     surfaceGravityOffset, atmosphereAffectNonLiving, fallDamageMode,
-                    fixedMuffleGain, fixedMuffleGainHF);
+                    fixedMuffleGain, fixedMuffleGainHF, atmosphereMuffleStartAltitude);
         }
     }
 
@@ -2197,6 +2216,7 @@ public final class EndlessGravityConfigScreen extends Screen {
         private double noFallDamageAltitude = Config.COMMON.noFallDamageAltitude.get();
         private double atmosphereMuffleGain = Config.COMMON.atmosphereMuffleGain.get();
         private double atmosphereMuffleGainHF = Config.COMMON.atmosphereMuffleGainHF.get();
+        private double atmosphereMuffleStartAltitude = Config.COMMON.atmosphereMuffleStartAltitude.get();
         private int overworldSableDatapackPriority = Config.COMMON.overworldSableDatapackPriority.get();
 
         private EditorDraft() {

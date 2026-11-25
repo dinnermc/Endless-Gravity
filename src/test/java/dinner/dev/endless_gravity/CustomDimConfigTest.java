@@ -15,7 +15,9 @@ class CustomDimConfigTest {
                 "example:moon", CustomDimConfig.Mode.ATMOSPHERE,
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                 0.04, 100.0, null, 0.2, 0.1,
-                List.of("0:1.0", "1000:0.0"));
+                List.of("0:1.0", "1000:0.0"),
+                0.0, false, CustomDimConfig.FallDamageMode.INHERIT,
+                1.0, 1.0, 0.0);
 
         assertEquals(0.0, profile.getAtmosphereGravityOffset(100.0), EPS);
         assertEquals(0.02, profile.getAtmosphereGravityOffset(550.0), EPS);
@@ -25,6 +27,23 @@ class CustomDimConfigTest {
         assertEquals(0.2, profile.getAtmosphereMuffleGain(1000.0), EPS);
         assertEquals(MuffleMath.perceptualGain(0.5, 0.2), profile.getAtmosphereMuffleGain(500.0), EPS);
         assertEquals(MuffleMath.perceptualGainHF(0.5, 0.1), profile.getAtmosphereMuffleGainHF(500.0), EPS);
+    }
+
+    @Test
+    void atmosphereProfileRespectsDefault319AudioMuffleStartAltitude() {
+        CustomDimConfig overworld = new CustomDimConfig(
+                "minecraft:overworld", CustomDimConfig.Mode.ATMOSPHERE,
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                0.075, 319.0, 4500.0, 0.01, 0.005,
+                AtmosphereLayers.serialize(AtmosphereLayers.defaults()));
+
+        assertEquals(319.0, overworld.getAtmosphereMuffleStartAltitude(), EPS);
+        assertEquals(1.0, overworld.getAtmosphereMuffleGain(220.0), EPS);
+        assertEquals(1.0, overworld.getAtmosphereMuffleGainHF(220.0), EPS);
+        assertEquals(1.0, overworld.getAtmosphereMuffleGain(319.0), EPS);
+        assertEquals(1.0, overworld.getAtmosphereMuffleGainHF(319.0), EPS);
+        assertEquals(0.01, overworld.getAtmosphereMuffleGain(6000.0), EPS);
+        assertEquals(0.005, overworld.getAtmosphereMuffleGainHF(6000.0), EPS);
     }
 
     @Test

@@ -15,9 +15,22 @@ public record AtmospherePreset(
         Double noFallDamageAbove,
         double muffleGain,
         double muffleGainHF,
-        List<String> layers
+        List<String> layers,
+        double muffleStartAltitude
 ) {
     public static final int MAX_PRESETS = 64;
+
+    public AtmospherePreset(
+            String name,
+            double gravityMax,
+            double startAltitude,
+            Double noFallDamageAbove,
+            double muffleGain,
+            double muffleGainHF,
+            List<String> layers) {
+        this(name, gravityMax, startAltitude, noFallDamageAbove, muffleGain, muffleGainHF, layers,
+                AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE);
+    }
 
     public AtmospherePreset {
         if (name == null || name.isBlank() || name.length() > 48) {
@@ -28,6 +41,7 @@ public record AtmospherePreset(
         if (noFallDamageAbove != null) requireRange(noFallDamageAbove, 0.0, 30000.0, "noFallDamageAbove");
         requireRange(muffleGain, 0.0, 1.0, "muffleGain");
         requireRange(muffleGainHF, 0.0, 1.0, "muffleGainHF");
+        requireRange(muffleStartAltitude, -2048.0, 30000.0, "muffleStartAltitude");
         if (layers == null || layers.size() < 2 || layers.size() > CustomDimConfig.MAX_ATMOSPHERE_LAYERS) {
             throw new IllegalArgumentException("Preset requires 2-"
                     + CustomDimConfig.MAX_ATMOSPHERE_LAYERS + " valid atmosphere layers");
@@ -69,6 +83,7 @@ public record AtmospherePreset(
         else obj.addProperty("no_fall_damage_above", noFallDamageAbove);
         obj.addProperty("muffle_gain", muffleGain);
         obj.addProperty("muffle_gain_hf", muffleGainHF);
+        obj.addProperty("muffle_start_altitude", muffleStartAltitude);
         JsonArray layerArray = new JsonArray();
         layers.forEach(layerArray::add);
         obj.add("layers", layerArray);
@@ -90,6 +105,7 @@ public record AtmospherePreset(
             layerList.add(layer.getAsString());
         }
         JsonElement noFall = obj.get("no_fall_damage_above");
+        JsonElement muffleStart = obj.get("muffle_start_altitude");
         return new AtmospherePreset(
                 stringValue(obj, "name"),
                 numberValue(obj, "gravity_max"),
@@ -97,7 +113,10 @@ public record AtmospherePreset(
                 noFall == null || noFall.isJsonNull() ? null : finiteNumber(noFall),
                 numberValue(obj, "muffle_gain"),
                 numberValue(obj, "muffle_gain_hf"),
-                layerList
+                layerList,
+                muffleStart == null || muffleStart.isJsonNull()
+                        ? AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE
+                        : finiteNumber(muffleStart)
         );
     }
 

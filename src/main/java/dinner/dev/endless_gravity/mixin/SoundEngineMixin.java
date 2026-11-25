@@ -1,5 +1,6 @@
 package dinner.dev.endless_gravity.mixin;
 
+import dinner.dev.endless_gravity.AtmosphereLayers;
 import dinner.dev.endless_gravity.Config;
 import dinner.dev.endless_gravity.CustomDimConfig;
 import dinner.dev.endless_gravity.EndlessGravityAPI;
@@ -60,9 +61,9 @@ public abstract class SoundEngineMixin {
                 && EndlessGravityAPI.isCosmonauticsInstalled());
         boolean globalAtmosphere = !profileAtmosphere && EndlessGravityAPI.isSableManaged(mc.level)
                 && !EndlessGravityAPI.isCosmonauticsInstalled() && Config.COMMON.enableAtmosphere.get();
-        double atmosphereProgress = profileAtmosphere
-                ? profile.getAtmosphereProgress(playerY) : EndlessGravityAPI.getAtmosphereProgress(playerY);
-        boolean atmFiltering = (profileAtmosphere || globalAtmosphere) && atmosphereProgress > 0.0;
+        double audioMuffleProgress = profileAtmosphere
+                ? profile.getAtmosphereMuffleProgress(playerY) : AtmosphereLayers.getAudioMuffleProgress(playerY);
+        boolean atmFiltering = (profileAtmosphere || globalAtmosphere) && audioMuffleProgress > 0.0;
 
         float targetGain = 1.0f;
         float targetGainHF = 1.0f;

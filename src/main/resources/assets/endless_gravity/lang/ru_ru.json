@@ -241,5 +241,7 @@
   "endless_gravity.hud.gravity": "Гравитация",
   "key.categories.endless_gravity": "Endless Gravity",
   "key.endless_gravity.toggle_hud": "Переключить HUD гравитации",
-  "gamerule.endlessGravity": "Применять Endless Gravity в этом мире"
+  "gamerule.endlessGravity": "Применять Endless Gravity в этом мире",
+  "endless_gravity.config.atmosphereMuffleStartAltitude": "Высота начала приглушения звука (Y)",
+  "endless_gravity.config.atmosphereMuffleStartAltitude.tooltip": "Высота, с которой начинается приглушение звука в атмосфере (319 по умолчанию сохраняет ванильный звук в горах)."
 }

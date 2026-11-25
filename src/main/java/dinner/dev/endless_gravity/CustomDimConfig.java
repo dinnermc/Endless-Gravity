@@ -38,6 +38,7 @@ public final class CustomDimConfig {
     private final FallDamageMode fallDamageMode;
     private final double fixedMuffleGain;
     private final double fixedMuffleGainHF;
+    private final double atmosphereMuffleStartAltitude;
 
     public CustomDimConfig(
             String dimensionId,
@@ -109,6 +110,36 @@ public final class CustomDimConfig {
             FallDamageMode fallDamageMode,
             double fixedMuffleGain,
             double fixedMuffleGainHF) {
+        this(dimensionId, mode,
+                playerGravityOffset, mobGravityOffset, itemGravityOffset,
+                arrowGravityOffset, thrownGravityOffset, blockGravityOffset,
+                atmosphereGravityMax, atmosphereBaseAltitude, noFallDamageAltitude,
+                atmosphereMuffleGain, atmosphereMuffleGainHF, atmosphereLayers,
+                surfaceGravityOffset, atmosphereAffectNonLiving, fallDamageMode,
+                fixedMuffleGain, fixedMuffleGainHF, AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE);
+    }
+
+    public CustomDimConfig(
+            String dimensionId,
+            Mode mode,
+            double playerGravityOffset,
+            double mobGravityOffset,
+            double itemGravityOffset,
+            double arrowGravityOffset,
+            double thrownGravityOffset,
+            double blockGravityOffset,
+            double atmosphereGravityMax,
+            double atmosphereBaseAltitude,
+            Double noFallDamageAltitude,
+            double atmosphereMuffleGain,
+            double atmosphereMuffleGainHF,
+            List<String> atmosphereLayers,
+            double surfaceGravityOffset,
+            boolean atmosphereAffectNonLiving,
+            FallDamageMode fallDamageMode,
+            double fixedMuffleGain,
+            double fixedMuffleGainHF,
+            double atmosphereMuffleStartAltitude) {
         this.dimensionId = dimensionId;
         this.mode = mode;
         this.playerGravityOffset = playerGravityOffset;
@@ -129,6 +160,9 @@ public final class CustomDimConfig {
         this.fallDamageMode = fallDamageMode == null ? FallDamageMode.INHERIT : fallDamageMode;
         this.fixedMuffleGain = MuffleMath.clamp01(fixedMuffleGain);
         this.fixedMuffleGainHF = MuffleMath.clamp01(fixedMuffleGainHF);
+        this.atmosphereMuffleStartAltitude = Double.isFinite(atmosphereMuffleStartAltitude)
+                ? AtmosphereLayers.clamp(atmosphereMuffleStartAltitude, -2048.0, 30000.0)
+                : AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE;
     }
 
     public String getDimensionId() { return dimensionId; }
@@ -154,6 +188,7 @@ public final class CustomDimConfig {
     public double getFixedMuffleGain() { return fixedMuffleGain; }
     public double getFixedMuffleGainHF() { return fixedMuffleGainHF; }
     public boolean hasFixedAudioMuffle() { return fixedMuffleGain < 0.999 || fixedMuffleGainHF < 0.999; }
+    public double getAtmosphereMuffleStartAltitude() { return atmosphereMuffleStartAltitude; }
 
     public List<AtmosphereLayers.Layer> getParsedAtmosphereLayers() {
         return parsedAtmosphereLayers;
@@ -185,12 +220,17 @@ public final class CustomDimConfig {
         return surfaceGravityOffset + progress * (target - surfaceGravityOffset);
     }
 
+    public double getAtmosphereMuffleProgress(double y) {
+        return AtmosphereLayers.getAudioMuffleProgress(
+                getParsedAtmosphereLayers(), atmosphereMuffleStartAltitude, y);
+    }
+
     public double getAtmosphereMuffleGain(double y) {
-        return MuffleMath.perceptualGain(getAtmosphereProgress(y), atmosphereMuffleGain);
+        return MuffleMath.perceptualGain(getAtmosphereMuffleProgress(y), atmosphereMuffleGain);
     }
 
     public double getAtmosphereMuffleGainHF(double y) {
-        return MuffleMath.perceptualGainHF(getAtmosphereProgress(y), atmosphereMuffleGainHF);
+        return MuffleMath.perceptualGainHF(getAtmosphereMuffleProgress(y), atmosphereMuffleGainHF);
     }
 
     public double getAtmosphereMaxAltitude() {

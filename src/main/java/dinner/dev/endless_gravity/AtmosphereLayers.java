@@ -13,6 +13,7 @@ public final class AtmosphereLayers {
 
     public static final int LAYER_COUNT = 8;
     public static final double GRAVITY_START_ALTITUDE = 319.0;
+    public static final double AUDIO_MUFFLE_START_ALTITUDE = 319.0;
     private static final double VANILLA_GRAVITY = 0.08;
     private static final double MAX_GRAVITY_COMPENSATION = 0.99;
     private static final double MAX_SABLE_GRAVITY_COMPENSATION = 0.067;
@@ -111,6 +112,32 @@ public final class AtmosphereLayers {
     /** Pure variant of {@link #getProgress(double)}: progress from the given layers, clamped to [0, 1]. */
     public static double getProgress(List<Layer> layers, double y) {
         return clamp(1.0 - getPressure(layers, y), 0.0, 1.0);
+    }
+
+    /**
+     * Audio-muffle progress in {@code [0, 1]} using the global curve and audio start altitude.
+     */
+    public static double getAudioMuffleProgress(double y) {
+        return getAudioMuffleProgress(
+                parse(Config.COMMON.atmosphereLayers.get()),
+                Config.COMMON.atmosphereMuffleStartAltitude.get(),
+                y);
+    }
+
+    /**
+     * Audio-muffle progress in {@code [0, 1]} starting at {@code muffleStartAltitude}.
+     * At or below {@code muffleStartAltitude} this returns {@code 0.0} so lower altitudes
+     * (such as Overworld mountains below Y=319) keep vanilla audio, then ramps smoothly
+     * from {@code 0.0} to {@code 1.0} as pressure drops to vacuum.
+     */
+    public static double getAudioMuffleProgress(List<Layer> layers, double muffleStartAltitude, double y) {
+        if (y <= muffleStartAltitude) return 0.0;
+        double pressure = getPressure(layers, y);
+        double startPressure = Math.min(1.0, getPressure(layers, muffleStartAltitude));
+        if (startPressure <= 0.0) {
+            return pressure <= 0.0 ? 1.0 : 0.0;
+        }
+        return clamp((startPressure - pressure) / startPressure, 0.0, 1.0);
     }
 
     /**

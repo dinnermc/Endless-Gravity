@@ -107,11 +107,21 @@ public final class EndlessGravityAPI {
     }
 
     public static double getAtmosphereMuffleGain(double y) {
-        return MuffleMath.perceptualGain(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGain.get());
+        CustomDimConfig overworld = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (overworld != null) {
+            return overworld.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? overworld.getAtmosphereMuffleGain(y) : 1.0;
+        }
+        return MuffleMath.perceptualGain(AtmosphereLayers.getAudioMuffleProgress(y), Config.COMMON.atmosphereMuffleGain.get());
     }
 
     public static double getAtmosphereMuffleGainHF(double y) {
-        return MuffleMath.perceptualGainHF(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGainHF.get());
+        CustomDimConfig overworld = Config.getCustomDimConfig(Level.OVERWORLD.location()).orElse(null);
+        if (overworld != null) {
+            return overworld.getMode() == CustomDimConfig.Mode.ATMOSPHERE
+                    ? overworld.getAtmosphereMuffleGainHF(y) : 1.0;
+        }
+        return MuffleMath.perceptualGainHF(AtmosphereLayers.getAudioMuffleProgress(y), Config.COMMON.atmosphereMuffleGainHF.get());
     }
 
     /**

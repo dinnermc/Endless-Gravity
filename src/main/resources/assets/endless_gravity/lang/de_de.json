@@ -241,5 +241,7 @@
   "endless_gravity.hud.gravity": "Schwerkraft",
   "key.categories.endless_gravity": "Endless Gravity",
   "key.endless_gravity.toggle_hud": "Schwerkraft-HUD umschalten",
-  "gamerule.endlessGravity": "Endless Gravity in dieser Welt anwenden"
+  "gamerule.endlessGravity": "Endless Gravity in dieser Welt anwenden",
+  "endless_gravity.config.atmosphereMuffleStartAltitude": "Starthöhe der Audiodämpfung (Y)",
+  "endless_gravity.config.atmosphereMuffleStartAltitude.tooltip": "Höhe, ab der die atmosphärische Audiodämpfung beginnt (Standard 319 hält Berge im Vanilla-Klang)."
 }

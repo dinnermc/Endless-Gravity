@@ -241,5 +241,7 @@
   "endless_gravity.hud.gravity": "重力",
   "key.categories.endless_gravity": "Endless Gravity",
   "key.endless_gravity.toggle_hud": "开关重力 HUD",
-  "gamerule.endlessGravity": "在此世界中启用 Endless Gravity"
+  "gamerule.endlessGravity": "在此世界中启用 Endless Gravity",
+  "endless_gravity.config.atmosphereMuffleStartAltitude": "音频衰减起始高度 (Y)",
+  "endless_gravity.config.atmosphereMuffleStartAltitude.tooltip": "大气音频衰减开始的高度（默认 319，保持主世界山脉为原版音效）。"
 }
