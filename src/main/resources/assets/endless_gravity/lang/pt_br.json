@@ -213,5 +213,7 @@
   "endless_gravity.hud.gravity": "Gravidade",
   "key.categories.endless_gravity": "Endless Gravity",
   "key.endless_gravity.toggle_hud": "Alternar HUD de gravidade",
-  "gamerule.endlessGravity": "Aplicar Endless Gravity neste mundo"
+  "gamerule.endlessGravity": "Aplicar Endless Gravity neste mundo",
+  "endless_gravity.config.atmosphereMuffleStartAltitude": "Altitude inicial do abafamento de áudio (Y)",
+  "endless_gravity.config.atmosphereMuffleStartAltitude.tooltip": "Altitude em que o abafamento atmosférico começa (319 por padrão mantém o som vanilla nas montanhas)."
 }

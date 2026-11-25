@@ -213,5 +213,7 @@
   "endless_gravity.hud.gravity": "重力",
   "key.categories.endless_gravity": "Endless Gravity",
   "key.endless_gravity.toggle_hud": "重力 HUD の切替",
-  "gamerule.endlessGravity": "このワールドで Endless Gravity を有効にする"
+  "gamerule.endlessGravity": "このワールドで Endless Gravity を有効にする",
+  "endless_gravity.config.atmosphereMuffleStartAltitude": "音声減衰の開始高度 (Y)",
+  "endless_gravity.config.atmosphereMuffleStartAltitude.tooltip": "大気による音声減衰が始まる高度（デフォルト 319 でオーバーワールドの山岳はバニラのまま）。"
 }

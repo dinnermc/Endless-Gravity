@@ -213,5 +213,7 @@
   "endless_gravity.hud.gravity": "Gravità",
   "key.categories.endless_gravity": "Endless Gravity",
   "key.endless_gravity.toggle_hud": "Attiva/disattiva HUD gravità",
-  "gamerule.endlessGravity": "Applica Endless Gravity in questo mondo"
+  "gamerule.endlessGravity": "Applica Endless Gravity in questo mondo",
+  "endless_gravity.config.atmosphereMuffleStartAltitude": "Altitudine di inizio attenuazione audio (Y)",
+  "endless_gravity.config.atmosphereMuffleStartAltitude.tooltip": "Altitudine da cui inizia l'attenuazione audio atmosferica (319 predefinito mantiene l'audio vanilla in montagna)."
 }

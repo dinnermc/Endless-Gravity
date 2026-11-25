@@ -69,6 +69,20 @@ class AtmosphereLayersTest {
     }
 
     @Test
+    void audioMuffleRemainsVanillaUntilStartAltitudeAndRampsSmoothly() {
+        List<AtmosphereLayers.Layer> layers = defaults();
+        assertEquals(0.0, AtmosphereLayers.getAudioMuffleProgress(layers, 319.0, -64.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getAudioMuffleProgress(layers, 319.0, 64.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getAudioMuffleProgress(layers, 319.0, 220.0), EPS);
+        assertEquals(0.0, AtmosphereLayers.getAudioMuffleProgress(layers, 319.0, 319.0), EPS);
+        double justAbove = AtmosphereLayers.getAudioMuffleProgress(layers, 319.0, 320.0);
+        assertTrue(justAbove > 0.0 && justAbove < 0.01, "Expected smooth ramp right above 319, got " + justAbove);
+        assertEquals(1.0, AtmosphereLayers.getAudioMuffleProgress(layers, 319.0, 6000.0), EPS);
+        assertEquals(1.0, AtmosphereLayers.getAudioMuffleProgress(layers, 319.0, 10000.0), EPS);
+        assertEquals(0.5, AtmosphereLayers.getAudioMuffleProgress(layers, 64.0, 400.0), EPS);
+    }
+
+    @Test
     void gravityRemainsVanillaUntil319AndRampsSmoothlyToTheTopLayer() {
         List<AtmosphereLayers.Layer> layers = defaults();
         assertEquals(0.0, AtmosphereLayers.getGravityProgress(layers, -64.0), EPS);

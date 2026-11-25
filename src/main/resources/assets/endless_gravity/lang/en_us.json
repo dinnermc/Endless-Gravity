@@ -213,5 +213,7 @@
   "endless_gravity.hud.gravity": "Gravity",
   "key.categories.endless_gravity": "Endless Gravity",
   "key.endless_gravity.toggle_hud": "Toggle Gravity HUD",
-  "gamerule.endlessGravity": "Apply Endless Gravity in this world"
+  "gamerule.endlessGravity": "Apply Endless Gravity in this world",
+  "endless_gravity.config.atmosphereMuffleStartAltitude": "Audio Muffle Start Altitude (Y)",
+  "endless_gravity.config.atmosphereMuffleStartAltitude.tooltip": "Altitude where atmospheric audio muffling begins (default 319 keeps Overworld mountains sounding vanilla)."
 }

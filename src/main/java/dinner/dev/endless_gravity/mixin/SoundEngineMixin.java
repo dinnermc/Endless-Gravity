@@ -50,8 +50,8 @@ public abstract class SoundEngineMixin {
         boolean atmosphereEnabled = dimensionConfig != null && dimensionConfig.isEnableAtmosphere()
                 && (!EndlessGravityAPI.isOverworld(mc.level)
                 || (Config.COMMON.enableAtmosphere.get() && Config.COMMON.overworldEntityGravity.get()));
-        double atmosphereProgress = atmosphereEnabled ? dimensionConfig.getAtmosphereProgress(playerY) : 0.0;
-        boolean atmFiltering = atmosphereEnabled && atmosphereProgress > 0.0;
+        double audioMuffleProgress = atmosphereEnabled ? dimensionConfig.getAtmosphereMuffleProgress(playerY) : 0.0;
+        boolean atmFiltering = atmosphereEnabled && audioMuffleProgress > 0.0;
 
         float targetGain = 1.0f;
         float targetGainHF = 1.0f;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.5
+
+- atmospheric audio muffling now starts at a configurable altitude (`muffle_start_altitude`, default Y=319) so Overworld mountains stay 100% vanilla and muffling ramps in smoothly above it without sudden jumps
+- added **Audio Muffle Start Altitude (Y)** to the atmosphere editor, presets, and curve graph marker across all 10 languages
+- fixed dimension profile Reset defaulting `start_altitude` to 64 instead of 319
+
 ## 1.3.4
 
 - native minimalist two-pane config screen — Cloth Config is no longer required; includes dimension search/filter, per-dimension and general reset buttons, and one-click JSON datapack export

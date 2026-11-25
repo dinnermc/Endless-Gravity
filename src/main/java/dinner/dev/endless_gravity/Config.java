@@ -324,6 +324,8 @@ public class Config {
         public final DoubleValue noFallDamageAltitude = add(new DoubleValue("noFallDamageAltitude", 4500.0, 64.0, 6000.0));
         public final DoubleValue atmosphereMuffleGain = add(new DoubleValue("atmosphereMuffleGain", 0.01, 0.0, 1.0));
         public final DoubleValue atmosphereMuffleGainHF = add(new DoubleValue("atmosphereMuffleGainHF", 0.005, 0.0, 1.0));
+        public final DoubleValue atmosphereMuffleStartAltitude = add(new DoubleValue(
+                "atmosphereMuffleStartAltitude", AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE, -2048.0, 30000.0));
         public final StringListValue atmosphereLayers = add(new StringListValue("atmosphereLayers",
                 java.util.Arrays.asList("-64:1.25", "64:1.0", "400:0.5", "1200:0.4", "2000:0.3", "3000:0.2", "4500:0.1", "6000:0.0")));
 
@@ -376,6 +378,7 @@ public class Config {
         private final FallDamageMode fallDamageMode;
         private final double fixedMuffleGain;
         private final double fixedMuffleGainHF;
+        private final double atmosphereMuffleStartAltitude;
 
         public CustomDimConfig(
                 String dimensionId,
@@ -447,6 +450,36 @@ public class Config {
                 FallDamageMode fallDamageMode,
                 double fixedMuffleGain,
                 double fixedMuffleGainHF) {
+            this(dimensionId, mode,
+                    playerGravityOffset, mobGravityOffset, itemGravityOffset,
+                    arrowGravityOffset, thrownGravityOffset, blockGravityOffset,
+                    atmosphereGravityMax, atmosphereBaseAltitude, noFallDamageAltitude,
+                    atmosphereMuffleGain, atmosphereMuffleGainHF, atmosphereLayers,
+                    surfaceGravityOffset, atmosphereAffectNonLiving, fallDamageMode,
+                    fixedMuffleGain, fixedMuffleGainHF, AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE);
+        }
+
+        public CustomDimConfig(
+                String dimensionId,
+                Mode mode,
+                double playerGravityOffset,
+                double mobGravityOffset,
+                double itemGravityOffset,
+                double arrowGravityOffset,
+                double thrownGravityOffset,
+                double blockGravityOffset,
+                double atmosphereGravityMax,
+                double atmosphereBaseAltitude,
+                Double noFallDamageAltitude,
+                double atmosphereMuffleGain,
+                double atmosphereMuffleGainHF,
+                List<String> atmosphereLayers,
+                double surfaceGravityOffset,
+                boolean atmosphereAffectNonLiving,
+                FallDamageMode fallDamageMode,
+                double fixedMuffleGain,
+                double fixedMuffleGainHF,
+                double atmosphereMuffleStartAltitude) {
             this.dimensionId = dimensionId;
             this.mode = mode;
             this.playerGravityOffset = playerGravityOffset;
@@ -467,6 +500,9 @@ public class Config {
             this.fallDamageMode = fallDamageMode == null ? FallDamageMode.INHERIT : fallDamageMode;
             this.fixedMuffleGain = MuffleMath.clamp01(fixedMuffleGain);
             this.fixedMuffleGainHF = MuffleMath.clamp01(fixedMuffleGainHF);
+            this.atmosphereMuffleStartAltitude = Double.isFinite(atmosphereMuffleStartAltitude)
+                    ? AtmosphereLayers.clamp(atmosphereMuffleStartAltitude, -2048.0, 30000.0)
+                    : AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE;
         }
 
         /** Backwards-compatible constructor for the legacy dimensions.json schema. */
@@ -514,6 +550,7 @@ public class Config {
         public double getFixedMuffleGain() { return fixedMuffleGain; }
         public double getFixedMuffleGainHF() { return fixedMuffleGainHF; }
         public boolean hasFixedAudioMuffle() { return fixedMuffleGain < 0.999 || fixedMuffleGainHF < 0.999; }
+        public double getAtmosphereMuffleStartAltitude() { return atmosphereMuffleStartAltitude; }
 
         public double getAtmospherePressure(double y) {
             return AtmosphereLayers.getPressure(parsedAtmosphereLayers, y);
@@ -536,12 +573,17 @@ public class Config {
             return surfaceGravityOffset + progress * (target - surfaceGravityOffset);
         }
 
+        public double getAtmosphereMuffleProgress(double y) {
+            return AtmosphereLayers.getAudioMuffleProgress(
+                    parsedAtmosphereLayers, atmosphereMuffleStartAltitude, y);
+        }
+
         public double getAtmosphereMuffleGain(double y) {
-            return MuffleMath.perceptualGain(getAtmosphereProgress(y), atmosphereMuffleGain);
+            return MuffleMath.perceptualGain(getAtmosphereMuffleProgress(y), atmosphereMuffleGain);
         }
 
         public double getAtmosphereMuffleGainHF(double y) {
-            return MuffleMath.perceptualGainHF(getAtmosphereProgress(y), atmosphereMuffleGainHF);
+            return MuffleMath.perceptualGainHF(getAtmosphereMuffleProgress(y), atmosphereMuffleGainHF);
         }
 
         public static CustomDimConfig vanilla() {
@@ -550,7 +592,9 @@ public class Config {
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                     COMMON.atmosphereGravityMax.get(), AtmosphereLayers.GRAVITY_START_ALTITUDE,
                     COMMON.noFallDamageAltitude.get(), COMMON.atmosphereMuffleGain.get(),
-                    COMMON.atmosphereMuffleGainHF.get(), List.copyOf(COMMON.atmosphereLayers.get())
+                    COMMON.atmosphereMuffleGainHF.get(), List.copyOf(COMMON.atmosphereLayers.get()),
+                    0.0, false, FallDamageMode.INHERIT,
+                    1.0, 1.0, COMMON.atmosphereMuffleStartAltitude.get()
             );
         }
 
@@ -723,6 +767,8 @@ public class Config {
         double fixedMuffleGainHF = gravity != obj && gravity.has("muffle_gain_hf")
                 ? numberValue(gravity, "muffle_gain_hf", 1.0)
                 : numberValue(obj, "fixed_muffle_gain_hf", 1.0);
+        double muffleStartAltitude = numberValue(atmosphere, "muffle_start_altitude",
+                COMMON.atmosphereMuffleStartAltitude.get());
 
         return new CustomDimConfig(
                 id, mode,
@@ -738,7 +784,8 @@ public class Config {
                         numberValue(obj, "atmosphereMuffleGainHF", 0.005)), 0, 1),
                 layers,
                 clamp(surfaceGravity, -0.5, 0.5), affectNonLiving, dimFallDamage,
-                clamp(fixedMuffleGain, 0, 1), clamp(fixedMuffleGainHF, 0, 1)
+                clamp(fixedMuffleGain, 0, 1), clamp(fixedMuffleGainHF, 0, 1),
+                clamp(muffleStartAltitude, -2048, 30000)
         );
     }
 
@@ -821,6 +868,7 @@ public class Config {
         atmosphere.addProperty("affect_non_living", config.isAtmosphereAffectNonLiving());
         atmosphere.addProperty("muffle_gain", config.getAtmosphereMuffleGain());
         atmosphere.addProperty("muffle_gain_hf", config.getAtmosphereMuffleGainHF());
+        atmosphere.addProperty("muffle_start_altitude", config.getAtmosphereMuffleStartAltitude());
         atmosphere.add("layers", GSON.toJsonTree(config.getAtmosphereLayers()));
         dimension.add("atmosphere", atmosphere);
         if (config.getNoFallDamageAltitude() == null) dimension.add("no_fall_damage_above", null);
@@ -885,28 +933,32 @@ public class Config {
     public static CustomDimConfig defaultOverworldProfile() {
         return new CustomDimConfig("minecraft:overworld", CustomDimConfig.Mode.ATMOSPHERE,
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                0.075, 64.0, 4500.0, 0.01, 0.005,
-                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
+                0.075, AtmosphereLayers.GRAVITY_START_ALTITUDE, 4500.0, 0.01, 0.005,
+                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT,
+                1.0, 1.0, AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE);
     }
 
     public static CustomDimConfig defaultEndProfile() {
         return new CustomDimConfig("minecraft:the_end", CustomDimConfig.Mode.FIXED_GRAVITY,
                 0.055, 0.025, 0.025, 0.03, 0.018, 0.035,
-                0.075, 64.0, 4500.0, 0.01, 0.005,
-                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
+                0.075, AtmosphereLayers.GRAVITY_START_ALTITUDE, 4500.0, 0.01, 0.005,
+                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT,
+                1.0, 1.0, AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE);
     }
 
     public static CustomDimConfig defaultGenericProfile(String id, CustomDimConfig.Mode mode) {
         if (mode == CustomDimConfig.Mode.ATMOSPHERE) {
             return new CustomDimConfig(id, CustomDimConfig.Mode.ATMOSPHERE,
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                    0.075, 64.0, 4500.0, 0.01, 0.005,
-                    AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
+                    0.075, AtmosphereLayers.GRAVITY_START_ALTITUDE, 4500.0, 0.01, 0.005,
+                    AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT,
+                    1.0, 1.0, AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE);
         }
         return new CustomDimConfig(id, CustomDimConfig.Mode.FIXED_GRAVITY,
                 0.055, 0.025, 0.025, 0.03, 0.018, 0.035,
-                0.075, 64.0, 4500.0, 0.01, 0.005,
-                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT);
+                0.075, AtmosphereLayers.GRAVITY_START_ALTITUDE, 4500.0, 0.01, 0.005,
+                AtmosphereLayers.serialize(AtmosphereLayers.defaults()), 0.0, false, CustomDimConfig.FallDamageMode.INHERIT,
+                1.0, 1.0, AtmosphereLayers.AUDIO_MUFFLE_START_ALTITUDE);
     }
 
     public static synchronized void applySyncedCustomDimensions(List<String> profiles) {
@@ -986,7 +1038,8 @@ public class Config {
                     dimension.isAtmosphereAffectNonLiving(),
                     dimension.getFallDamageMode(),
                     clamp(dimension.getFixedMuffleGain(), 0.0, 1.0),
-                    clamp(dimension.getFixedMuffleGainHF(), 0.0, 1.0)));
+                    clamp(dimension.getFixedMuffleGainHF(), 0.0, 1.0),
+                    clamp(dimension.getAtmosphereMuffleStartAltitude(), -2048.0, 30000.0)));
         }
         userCustomDimensions = Map.copyOf(replacement);
         rebuildMergedDimensions();

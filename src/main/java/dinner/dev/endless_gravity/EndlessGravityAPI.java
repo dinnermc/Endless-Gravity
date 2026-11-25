@@ -95,7 +95,7 @@ public final class EndlessGravityAPI {
         if (config != null) {
             return config.isEnableAtmosphere() ? config.getAtmosphereMuffleGain(y) : 1.0;
         }
-        return MuffleMath.perceptualGain(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGain.get());
+        return MuffleMath.perceptualGain(AtmosphereLayers.getAudioMuffleProgress(y), Config.COMMON.atmosphereMuffleGain.get());
     }
 
     public static double getAtmosphereMuffleGain(Level level, double y) {
@@ -110,7 +110,7 @@ public final class EndlessGravityAPI {
         if (config != null) {
             return config.isEnableAtmosphere() ? config.getAtmosphereMuffleGainHF(y) : 1.0;
         }
-        return MuffleMath.perceptualGainHF(getAtmosphereProgress(y), Config.COMMON.atmosphereMuffleGainHF.get());
+        return MuffleMath.perceptualGainHF(AtmosphereLayers.getAudioMuffleProgress(y), Config.COMMON.atmosphereMuffleGainHF.get());
     }
 
     public static double getAtmosphereMuffleGainHF(Level level, double y) {
